@@ -6,6 +6,7 @@
 //   RUNNER_VAULT, RUNNER_ASSET (ETH), RUNNER_AGENT_PRIVATE_KEY, ENGINE_OPERATOR_PRIVATE_KEY,
 //   MANDATE_REGISTRY, DECISION_LOG, RUNNER_INTERVAL_MS (300000), TYPESAFE_API_KEY, GEMINI_API_KEY,
 //   AGENT_REGISTRY (optional, #12: real Bond Minimum checks; Lead Agents are reported to it)
+//   PROTECTION_FUND (optional, #15: Overshoot claims and the Coverage Ratio go to it)
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import type { Address, Hex } from "viem";
@@ -41,7 +42,7 @@ const operator = privateKeyToAccount(env("ENGINE_OPERATOR_PRIVATE_KEY", "SMOKE_O
 const intervalMs = Number(process.env.RUNNER_INTERVAL_MS ?? 300_000);
 
 const exchange = new HyperliquidExchange({ isTestnet: true, agentFor: () => agent });
-const chain = new HyperEvmChain({ mandateRegistry: env("MANDATE_REGISTRY", "SMOKE_MANDATE_REGISTRY") as Address, decisionLog: env("DECISION_LOG", "SMOKE_DECISION_LOG") as Address, engine: operator, ...(process.env.AGENT_REGISTRY ? { agentRegistry: process.env.AGENT_REGISTRY as Address } : {}) });
+const chain = new HyperEvmChain({ mandateRegistry: env("MANDATE_REGISTRY", "SMOKE_MANDATE_REGISTRY") as Address, decisionLog: env("DECISION_LOG", "SMOKE_DECISION_LOG") as Address, engine: operator, ...(process.env.AGENT_REGISTRY ? { agentRegistry: process.env.AGENT_REGISTRY as Address } : {}), ...(process.env.PROTECTION_FUND ? { protectionFund: process.env.PROTECTION_FUND as Address } : {}) });
 const engine = createEngine({ exchange, chain });
 
 // Placeholder Bonds and track records until the AgentRegistry (#12) supplies real ones.

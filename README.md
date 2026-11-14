@@ -22,6 +22,16 @@ Base Sepolia USDC ──depositForBurnWithHook──▶ MockCctpForwarder ──
 - **Solana deposit (#22).** Real CCTP V2, no mock. The user calls `deposit_for_burn_with_hook` on Solana devnet: mint recipient = the Deposit Account on HyperEVM, destination caller = anyone, hook data = their Vault's address. Circle attests it; the engine (`deposits:forward`) relays `receiveMessage` on HyperEVM, checks the hook names a factory Vault and credits it from the Deposit Account on HyperCore with `usdSend`. On mainnet the minted USDC would move to HyperCore through Circle's CoreDepositWallet; on testnet CoreDepositWallet drops credits to accounts without mainnet state (tried twice, 6 devnet USDC lost), so the USDC stays on HyperEVM and the Deposit Account's HyperCore float covers it.
 - **Withdraw (#7).** Owner only, and only while the Vault is Flat. `withdrawToEvm` moves USDC from HyperCore to the Vault's HyperEVM address (CoreWriter). `bridgeOut` burns it through CCTP V2 with Circle's forwarding service, which mints it on Base Sepolia, or on Solana devnet (#22) into the user's USDC token account, which the app creates first if missing. Circle's HyperCore withdrawal action is API-signed, so a contract can't use it. HyperCore charges about 0.025 USDC to move USDC to HyperEVM, taken from what stays in the account. A send of the whole balance is dropped silently, so withdrawals keep 0.05 USDC back.
 
+## Overshoot settlement (#15)
+
+When a stop-loss fills past its trigger, the engine computes Overshoot (`|fill − trigger| × size`, fees and funding excluded) and submits a claim to the **ProtectionFund** (`contracts/src/settlement/ProtectionFund.sol`).
+
+- **Infrastructure Failure.** This means there was no resting stop-loss on HyperCore when the trigger was crossed. It is judged from the logged stop (its cloid, when it was placed, and its state on HyperCore). The Protocol Reserve pays, and the Bond is never touched.
+- **Market gap.** The Lead Agent's Bond is slashed first. The ProtectionFund is the AgentRegistry's slasher, so it does this itself.
+- **Protection Fund.** It pays what remains in both cases. The cap is 10% of the Vault's value at Epoch start, per Epoch. When the Fund can't cover a settlement in full, it pays pro-rata, and the rest goes unpaid. Nothing is clawed back.
+
+Payouts go to the Vault's HyperEVM address, where its owner can withdraw them. The evidence JSON is stored onchain with its hash. `/payouts` lists settlements, each with a detail page (sources, evidence and the hash check), and shows the live Coverage Ratio. The testnet seed is 2 USDC in the Fund and 1 USDC in the Reserve; the mainnet seed is $500.
+
 ### Run it
 
 `engine/.env.local` (gitignored) holds `ENGINE_OPERATOR_PRIVATE_KEY` and `DEPOSIT_ACCOUNT_PRIVATE_KEY`.
@@ -41,7 +51,7 @@ In the app, `/funds` does the same for a connected wallet: deposit with the fee 
 ### Tests
 
 ```bash
-cd contracts && forge test     # hook bytes, mock, Vault withdrawal gating
+cd contracts && forge test     # hook bytes, mock, Vault withdrawal gating, Overshoot waterfall (+ fuzz)
 cd engine && npm test          # deposit-landed credits the right Vault; Solana token account, PDAs, burn bytes
 cd frontend && npm test        # hook bytes, fees, withdraw progress
 ```

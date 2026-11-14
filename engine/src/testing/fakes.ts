@@ -114,6 +114,10 @@ export class FakeChain implements ChainPort {
   async submitOvershootClaim(claim: OvershootClaim) {
     this.claims.push(claim);
   }
+  exposures: number[] = [];
+  async reportExposure(totalUsdc: number) {
+    this.exposures.push(totalUsdc);
+  }
   async settleEpoch(epoch: number) {
     this.settledEpochs.push(epoch);
   }

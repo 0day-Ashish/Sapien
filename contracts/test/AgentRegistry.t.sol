@@ -16,12 +16,13 @@ contract AgentRegistryTest is Test {
     address vault1 = makeAddr("vault1");
     address vault2 = makeAddr("vault2");
     address claimant = makeAddr("claimant");
+    address slasher = makeAddr("slasher");
 
     uint8 constant TREND = 1;
 
     function setUp() public {
         usdc = new TestUsdc();
-        registry = new AgentRegistry(IERC20(address(usdc)), engine);
+        registry = new AgentRegistry(IERC20(address(usdc)), engine, slasher);
         usdc.mint(builder, 10_000e6);
         vm.prank(builder);
         usdc.approve(address(registry), type(uint256).max);
@@ -254,15 +255,22 @@ contract AgentRegistryTest is Test {
         assertFalse(registry.meetsBondMinimum("momentum"));
     }
 
-    function test_slash_restrictedToTheExecutionEngine() public {
+    function test_slash_restrictedToTheExecutionEngineAndSlasher() public {
         _register(100e6);
         address[3] memory notEngine = [builder, stranger, claimant];
         for (uint256 i; i < notEngine.length; i++) {
             vm.prank(notEngine[i]);
-            vm.expectRevert(AgentRegistry.NotEngine.selector);
+            vm.expectRevert(AgentRegistry.NotSlasher.selector);
             registry.slash("momentum", 1e6, notEngine[i]);
         }
         assertEq(registry.agent("momentum").bond, 100e6);
+    }
+
+    function test_slash_bySlasher() public {
+        _register(100e6);
+        vm.prank(slasher);
+        assertEq(registry.slash("momentum", 30e6, claimant), 30e6);
+        assertEq(usdc.balanceOf(claimant), 30e6);
     }
 
     function test_slash_unknownAgentReverts() public {
