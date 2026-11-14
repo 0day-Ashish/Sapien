@@ -408,6 +408,17 @@ body {
   }
 }
 
+.vault-dial {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: bot-spin 16s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vault-dial {
+    animation: none;
+  }
+}
+
 @keyframes marquee {
   from {
     transform: translateX(0);
