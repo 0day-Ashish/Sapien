@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { Logo } from "./logo";
+import { NavMenu } from "./nav-menu";
 import { NavWallet } from "./nav-wallet";
 
 const links: { href: string; label: string; external?: boolean }[] = [
@@ -18,7 +19,7 @@ export function SiteNav() {
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-28 bg-gradient-to-b from-cream via-cream/70 to-transparent backdrop-blur-md [mask-image:linear-gradient(to_bottom,#000_45%,transparent)]"
       />
-      <div className="mx-auto flex h-[3.875rem] max-w-[90rem] items-center justify-between gap-4 rounded-full bg-[#fbf8f4]/90 pl-5 pr-3 shadow-[0_12px_32px_-20px_rgb(58_42_134_/_0.35)] backdrop-blur-2xl backdrop-saturate-150 md:pl-7">
+      <div className="relative mx-auto flex h-[3.875rem] max-w-[90rem] items-center justify-between gap-2 rounded-full bg-[#fbf8f4]/90 pl-5 pr-2 sm:gap-4 sm:pr-3 shadow-[0_12px_32px_-20px_rgb(58_42_134_/_0.35)] backdrop-blur-2xl backdrop-saturate-150 md:pl-7">
         <div className="flex items-center gap-11">
           <Link href="/" aria-label={`${PRODUCT_NAME} home`}>
             <Logo />
@@ -36,11 +37,13 @@ export function SiteNav() {
             ))}
           </nav>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 sm:gap-3">
           <NavWallet />
-          <Link href="/mandate" className="btn btn-primary">
+          {/* On the narrowest screens the button lives in the menu, so the bar has room for the logo. */}
+          <Link href="/mandate" className="btn btn-primary hidden min-[26rem]:inline-flex">
             Launch app
           </Link>
+          <NavMenu links={links} />
         </div>
       </div>
     </header>
