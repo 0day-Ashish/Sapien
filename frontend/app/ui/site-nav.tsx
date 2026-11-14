@@ -5,8 +5,6 @@ import { Logo } from "./logo";
 const REPO = "https://github.com/0day-Ashish/hackmatrix-26";
 
 const links = [
-  { href: "/#protection", label: "Protection" },
-  { href: "/#safeguards", label: "Safeguards" },
   { href: "/#builders", label: "Builders" },
   { href: REPO, label: "Docs", external: true },
   { href: `${REPO}/pulls?q=is%3Apr+is%3Amerged`, label: "Changelog", external: true },
