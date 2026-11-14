@@ -2,6 +2,6 @@
   "depositAccount": {
     "address": "0x32c0bce52F64b99ACAe8Bfb6BB91F8ACcce28036",
     "network": "testnet",
-    "note": "Protocol Deposit Account (ADR-0004). Funded on HyperCore testnet only; mainnet existence (per ADR-0004) skipped by team decision, verify with a tiny CCTP deposit in #6. Key: DEPOSIT_ACCOUNT_PRIVATE_KEY in engine/.env.local."
+    "note": "Protocol Deposit Account (ADR-0004). Funded on HyperCore testnet only; its float stands in for USDC bridged from NEAR deposits (ADR-0007). Key: DEPOSIT_ACCOUNT_PRIVATE_KEY in engine/.env.local."
   }
 }

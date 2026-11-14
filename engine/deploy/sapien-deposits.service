@@ -1,5 +1,5 @@
 [Unit]
-Description=Sapien deposit forwarder (Base Sepolia + Solana devnet burns -> Vaults on HyperCore)
+Description=Sapien deposit forwarder (NEAR deposits -> Vaults on HyperCore, withdrawals paid back on NEAR)
 After=network-online.target
 Wants=network-online.target
 
