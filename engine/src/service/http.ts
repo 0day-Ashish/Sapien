@@ -15,6 +15,8 @@ export type HttpOptions = {
   allowOrigin?: string;
   /** Recent runner records, newest last: the agent's-eye view feed. */
   feed?: () => RunnerRecord[];
+  /** Every runner record kept on disk, oldest first: replay reads executed decisions from here (#20). */
+  history?: () => RunnerRecord[];
   /** A Vault's protection and Lead Agent state, including trades waiting in their Veto Window. */
   vaultStatus?: (vaultId: string) => VaultStatus;
   /** Cancels a trade waiting in its Veto Window (sends a `veto` event through handle). */
@@ -49,6 +51,21 @@ async function route(req: IncomingMessage, res: ServerResponse, o: HttpOptions) 
     const vault = q.get("vault")?.toLowerCase();
     const limit = Math.min(500, Number(q.get("limit") ?? 50));
     const items = o.feed().filter((r) => !vault || r.vaultId.toLowerCase() === vault).slice(-limit).reverse();
+    return send(res, 200, { items });
+  }
+
+  // Executed decisions for replay, newest first: GET /decisions?vault=0x…&limit=200 (or ?hash=0x… for one)
+  if (req.method === "GET" && path === "/decisions" && (o.history ?? o.feed)) {
+    const q = new URL(req.url ?? "/", "http://engine").searchParams;
+    const vault = q.get("vault")?.toLowerCase();
+    const hash = q.get("hash")?.toLowerCase();
+    const limit = Math.min(1000, Number(q.get("limit") ?? 200));
+    const items = (o.history ?? o.feed)!()
+      .filter((r) => r.result?.kind === "executed")
+      .filter((r) => !vault || r.vaultId.toLowerCase() === vault)
+      .filter((r) => !hash || (r.result as { decisionHash: string }).decisionHash.toLowerCase() === hash)
+      .slice(-limit)
+      .reverse();
     return send(res, 200, { items });
   }
 

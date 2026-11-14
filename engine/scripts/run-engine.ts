@@ -90,6 +90,8 @@ const http = await startHttp({
   host: process.env.ENGINE_HOST ?? "127.0.0.1",
   agentWallets: new AgentWalletStore(`${root}.data/agent-wallets.json`),
   feed: () => recent,
+  // Replay can open any past decision, not only the last 500: read the whole log on request.
+  history: () => readFileSync(logFile, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l) as RunnerRecord),
   vaultStatus: (id) => engine.vaultStatus(id),
   kill: async (vault) => {
     const result = await engine.handle({ type: "kill-switch", vaultId: vault });
