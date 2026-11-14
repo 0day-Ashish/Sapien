@@ -24,6 +24,7 @@ import { hyperEvmTestnet, wagmiConfig } from "@/lib/wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { fetchSolanaWithdrawFeeQuotes, solanaBridgeOutArgs, solanaTx } from "@/lib/cctp/solana";
 import { VaultRisk } from "./vault-risk";
+import { MandateHistory } from "./vault-mandate";
 import { SolanaDepositCard, SolanaWallet, useEnsureUsdcAccount } from "./solana-funds";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -127,6 +128,9 @@ export function FundsPanel() {
           {core && !core.exists && " (not activated yet)"} ·{" "}
           {isFlat ? <span className="chip chip-forest">Flat</span> : <span className="chip chip-amber">Open positions</span>}
         </p>
+      </section>
+      <section className="card flex flex-col gap-3 p-6">
+        <MandateHistory vault={vault} />
       </section>
       <VaultRisk vault={vault} />
       <DepositCard core={core} refresh={refresh} />

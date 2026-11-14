@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useConnection } from "wagmi";
+import { SignMandate } from "../funds/vault-mandate";
 import { MAX_MANDATE_TEXT_LENGTH } from "@/lib/mandate/limits";
 import {
   BLACKOUT_EVENTS,
@@ -692,7 +693,7 @@ export function MandateComposer() {
                       </div>
                     )}
                     <pre className="max-h-64 overflow-auto rounded-lg bg-white p-3 font-mono text-xs">{JSON.stringify(confirmed.mandate, null, 2)}</pre>
-                    <p className="text-violet/70">Signing with your wallet arrives with Vault creation (ticket #5).</p>
+                    <SignMandate mandate={confirmed.mandate} />
                   </div>
                 )}
 
