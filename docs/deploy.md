@@ -32,4 +32,4 @@ Unit files live in `engine/deploy/`. After changing them, copy them to `/etc/sys
 
 ## Frontend
 
-Production env vars (contract addresses, `NEXT_PUBLIC_ENGINE_URL`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `FRED_API_KEY`) are set in the Vercel project. The engine only accepts browser requests from `ENGINE_ALLOW_ORIGIN` in the VM's `engine/.env.local`. If the Vercel domain changes, update it there and restart the engine.
+Production env vars (contract addresses, `NEXT_PUBLIC_ENGINE_URL`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `FRED_API_KEY`, `DATABASE_URL`) are set in the Vercel project. `DATABASE_URL` is the Neon Postgres connection string for Mandate chat history; without it the chat keeps history in the browser only. The engine only accepts browser requests from `ENGINE_ALLOW_ORIGIN` in the VM's `engine/.env.local`. If the Vercel domain changes, update it there and restart the engine.
