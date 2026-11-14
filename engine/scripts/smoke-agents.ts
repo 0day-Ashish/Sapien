@@ -6,7 +6,7 @@
 
 import { existsSync } from "node:fs";
 import { HyperliquidExchange } from "../src/adapters/hyperliquid.js";
-import { allocateWithJev, classifyRegime, FundingArbAgent, geminiRationaleWriter, jevLeadSelector, MeanReversionAgent, MomentumAgent, type AgentProfile, type SpecialistAgent } from "../src/index.js";
+import { allocateWithJev, classifyRegime, FundingArbAgent, fallbackRationaleWriter, geminiRationaleWriter, groqRationaleWriter, jevLeadSelector, MeanReversionAgent, MomentumAgent, type AgentProfile, type SpecialistAgent } from "../src/index.js";
 
 const envFile = new URL("../.env.local", import.meta.url).pathname;
 if (existsSync(envFile)) process.loadEnvFile(envFile);
@@ -51,7 +51,8 @@ for (const agent of agents) {
     console.log(`\n${agent.agentId}${lead}: no proposal.`);
     continue;
   }
-  const explained = process.env.GEMINI_API_KEY ? await agent.explain(p, geminiRationaleWriter()) : p;
+  const writers = [...(process.env.GEMINI_API_KEY ? [geminiRationaleWriter()] : []), ...(process.env.GROQ_API_KEY ? [groqRationaleWriter()] : [])];
+  const explained = writers.length ? await agent.explain(p, fallbackRationaleWriter(writers, (i, e) => console.log(`writer ${i} failed: ${String(e)}`))) : p;
   console.log(`\n${agent.agentId}${lead}:`, { side: explained.side, size: explained.size, leverage: explained.leverage, confidence: explained.confidence });
   console.log("Rationale:", explained.rationale, process.env.GEMINI_API_KEY ? "(Gemini)" : "(template)");
 }
