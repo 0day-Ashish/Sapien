@@ -1,0 +1,26 @@
+{
+  "name": "spike-4-testnet",
+  "private": true,
+  "type": "module",
+  "description": "Throwaway testnet spike for #4. Not part of the engine.",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "setup": "node 0-setup.ts",
+    "gas": "node 1-gas.ts",
+    "deploy": "node 2-deploy.ts",
+    "activate": "node 3-activate.ts",
+    "agent": "node 4-agent.ts",
+    "tpsl": "node 5-tpsl.ts",
+    "no-withdraw": "node 6-no-withdraw.ts",
+    "cleanup": "node 7-cleanup.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@nktkas/hyperliquid": "0.33.3",
+    "viem": "2.57.10"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "typescript": "5.9.3"
+  }
+}
