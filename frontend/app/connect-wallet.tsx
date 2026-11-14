@@ -1,63 +1,36 @@
 "use client";
 
-import { useConnect, useConnection, useDisconnect, useSwitchChain } from "wagmi";
-import { hyperEvmTestnet } from "@/lib/wagmi";
+import { nearAccountUrl } from "@/lib/near/config";
+import { useNearWallet } from "./near-wallet";
 
-function shorten(address: string) {
-  return `${address.slice(0, 6)}…${address.slice(-4)}`;
-}
-
+/** Connects Meteor Wallet on NEAR testnet; once connected, shows the account id. */
 export function ConnectWallet() {
-  const { address, chainId, status } = useConnection();
-  const { mutate: connect, connectors, isPending, error } = useConnect();
-  const { mutate: disconnect } = useDisconnect();
-  const { mutate: switchChain, isPending: isSwitching } = useSwitchChain();
+  const { accountId, status, error, connect, disconnect } = useNearWallet();
 
-  const button =
-    "h-11 rounded-full bg-foreground px-5 text-sm font-medium text-background transition-opacity hover:opacity-85 disabled:opacity-50";
-
-  if (status === "connected" && address) {
-    const wrongChain = chainId !== hyperEvmTestnet.id;
+  if (accountId) {
     return (
-      <div className="flex flex-col items-start gap-3">
-        <p className="font-mono text-sm">
-          {shorten(address)} ·{" "}
-          {wrongChain ? `chain ${chainId}` : hyperEvmTestnet.name}
-        </p>
-        <div className="flex gap-3">
-          {wrongChain && (
-            <button
-              className={button}
-              disabled={isSwitching}
-              onClick={() => switchChain({ chainId: hyperEvmTestnet.id })}
-            >
-              Switch to {hyperEvmTestnet.name}
-            </button>
-          )}
-          <button
-            className="h-11 rounded-full border border-current px-5 text-sm font-medium"
-            onClick={() => disconnect()}
-          >
-            Disconnect
-          </button>
-        </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="chip chip-forest">NEAR testnet</span>
+        <a className="font-mono text-sm text-violet underline" href={nearAccountUrl(accountId)} target="_blank" rel="noreferrer">
+          {accountId}
+        </a>
+        <button type="button" className="btn btn-secondary" onClick={() => void disconnect()}>
+          Disconnect
+        </button>
       </div>
     );
   }
 
-  const connector = connectors[0];
   return (
     <div className="flex flex-col items-start gap-2">
-      <button
-        className={button}
-        disabled={!connector || isPending || status === "reconnecting"}
-        onClick={() =>
-          connector && connect({ connector, chainId: hyperEvmTestnet.id })
-        }
-      >
-        {isPending ? "Connecting…" : "Connect wallet"}
+      <button type="button" className="btn btn-primary" disabled={status === "connecting"} onClick={() => void connect()}>
+        {status === "connecting" ? "Connecting…" : "Connect Meteor Wallet"}
       </button>
-      {error && <p className="text-sm text-red-600">{error.message}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-orange">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

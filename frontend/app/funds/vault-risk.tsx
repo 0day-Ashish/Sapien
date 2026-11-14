@@ -2,17 +2,16 @@
 
 import { useEffect, useState } from "react";
 import type { Address } from "viem";
-import { readContract } from "wagmi/actions";
 import { FEE_ROUTER, type EpochReport, feeRouterAbi, formatRate, profitFees, riskTier } from "@/lib/settlement/epoch";
 import { formatUsdc } from "@/lib/vault/funds";
-import { hyperEvmTestnet, wagmiConfig } from "@/lib/wagmi";
+import { hyperClient } from "@/lib/hyperevm";
 
 /** The Vault's risk tier and premium rate, recalibrated each Epoch, and what its last Epoch settled. */
 export function VaultRisk({ vault }: { vault: Address }) {
   const [report, setReport] = useState<EpochReport | null | undefined>(undefined);
   useEffect(() => {
     const read = () =>
-      void readContract(wagmiConfig, { chainId: hyperEvmTestnet.id, address: FEE_ROUTER, abi: feeRouterAbi, functionName: "latest", args: [vault] })
+      void hyperClient.readContract({ address: FEE_ROUTER, abi: feeRouterAbi, functionName: "latest", args: [vault] })
         .then((r) => setReport(r.settledAt > BigInt(0) ? r : null))
         .catch(() => setReport(null));
     const first = setTimeout(read, 0);
