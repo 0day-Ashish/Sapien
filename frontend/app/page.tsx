@@ -35,7 +35,9 @@ export default function Home() {
 
 /* ---------- Hero ---------- */
 
-const BUILT_ON = ["Hyperliquid", "NEAR", "Gemini"];
+const BUILT_ON = ["Hyperliquid", "NEAR"];
+// The strip slides left by half its width and repeats, so half of it has to be wider than any screen.
+const BUILT_ON_STRIP = Array.from({ length: 12 }, () => BUILT_ON).flat();
 
 function Hero() {
   return (
@@ -66,7 +68,7 @@ function Hero() {
       <div className="mt-12 w-full">
         <div className="relative overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_10%,#000_90%,transparent)]">
           <ul className="animate-marquee flex w-max items-center gap-16" aria-label="Built on">
-            {[...BUILT_ON, ...BUILT_ON, ...BUILT_ON, ...BUILT_ON].map((name, i) => (
+            {BUILT_ON_STRIP.map((name, i) => (
               <li
                 key={i}
                 aria-hidden={i >= BUILT_ON.length}
