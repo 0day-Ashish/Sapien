@@ -19,6 +19,8 @@ export type HttpOptions = {
   vaultStatus?: (vaultId: string) => VaultStatus;
   /** Cancels a trade waiting in its Veto Window (sends a `veto` event through handle). */
   veto?: (vaultId: string, proposalId: string) => Promise<HandleResult>;
+  /** Kill Switch (sends a `kill-switch` event). The engine acts only if the kill flag is already set onchain. */
+  kill?: (vaultId: string) => Promise<HandleResult>;
 };
 
 export async function startHttp(o: HttpOptions) {
@@ -61,6 +63,13 @@ async function route(req: IncomingMessage, res: ServerResponse, o: HttpOptions) 
     if (typeof body.proposalId !== "string" || !body.proposalId) return send(res, 400, { error: "proposalId is required" });
     const result = await o.veto(veto[1]!, body.proposalId);
     return send(res, result.kind === "vetoed" ? 200 : 409, result.kind === "vetoed" ? result : { error: "No open Veto Window for that proposal" });
+  }
+
+  // POST /vaults/0x…/kill → { kind: "killed", closes, flat } or 409 { kind: "kill-refused", reason }
+  const kill = path.match(/^\/vaults\/([^/]+)\/kill$/);
+  if (req.method === "POST" && kill && o.kill) {
+    const result = await o.kill(kill[1]!);
+    return send(res, result.kind === "killed" ? 200 : 409, result);
   }
 
   send(res, 404, { error: `No route ${req.method} ${path}` });
