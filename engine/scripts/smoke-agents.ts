@@ -6,7 +6,7 @@
 
 import { existsSync } from "node:fs";
 import { HyperliquidExchange } from "../src/adapters/hyperliquid.js";
-import { allocateWithJev, classifyRegime, FundingArbAgent, geminiRationaleWriter, jevLeadSelector, MomentumAgent, type AgentProfile, type SpecialistAgent } from "../src/index.js";
+import { allocateWithJev, classifyRegime, FundingArbAgent, geminiRationaleWriter, jevLeadSelector, MeanReversionAgent, MomentumAgent, type AgentProfile, type SpecialistAgent } from "../src/index.js";
 
 const envFile = new URL("../.env.local", import.meta.url).pathname;
 if (existsSync(envFile)) process.loadEnvFile(envFile);
@@ -43,7 +43,7 @@ console.log("\nAllocation:", decision);
 console.log(`Funding, last ${fundingHistoryHourly.length}h:`, fundingHistoryHourly.map((f) => `${(f * 100).toFixed(3)}%`).join(" "));
 
 // What the Lead Agent (and, for comparison, the others) would propose right now on a flat 1,000 USDC Vault.
-const agents: SpecialistAgent[] = [new FundingArbAgent(), new MomentumAgent()];
+const agents: SpecialistAgent[] = [new FundingArbAgent(), new MomentumAgent(), new MeanReversionAgent()];
 for (const agent of agents) {
   const p = agent.decide(snapshot, { vaultId: "demo-vault", accountValue: 1_000, position: 0 });
   const lead = agent.agentId === decision.leadAgentId ? " (Lead Agent)" : "";
