@@ -1,4 +1,4 @@
-import { NEAR_CONTRACT, NEAR_RPC, NEAR_USDC } from "./config";
+import { NEAR_CONTRACT, NEAR_RPC, NEAR_RPC_FALLBACK, NEAR_USDC } from "./config";
 
 // Read-only calls through NEAR's JSON-RPC `call_function`: no wallet needed.
 
@@ -31,7 +31,17 @@ export async function viewCall<T>(
   fetchFn: typeof fetch = fetch,
   rpc: string = NEAR_RPC,
 ): Promise<T> {
-  const res = await fetchFn(rpc, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(viewRequest(contract, method, args)) });
+  // The public RPC rate-limits browsers (the browser reports "Failed to fetch"), so fall back to FastNEAR.
+  const body0 = JSON.stringify(viewRequest(contract, method, args));
+  const post = (url: string) => fetchFn(url, { method: "POST", headers: { "content-type": "application/json" }, body: body0 });
+  let res: Response;
+  try {
+    res = await post(rpc);
+    if (!res.ok && rpc !== NEAR_RPC_FALLBACK) res = await post(NEAR_RPC_FALLBACK);
+  } catch (e) {
+    if (rpc === NEAR_RPC_FALLBACK) throw e;
+    res = await post(NEAR_RPC_FALLBACK);
+  }
   if (!res.ok) throw new Error(`NEAR RPC ${res.status}`);
   const body = (await res.json()) as { result?: { result?: number[]; error?: string }; error?: { message?: string; data?: string } };
   if (body.error) throw new Error(body.error.data ?? body.error.message ?? "NEAR RPC error");

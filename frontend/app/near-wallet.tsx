@@ -97,7 +97,11 @@ export function NearWalletProvider({ children }: { children: ReactNode }) {
     const c = connector.current;
     if (!c) throw new Error("Wallet not ready");
     const wallet = await c.wallet();
-    return wallet.signAndSendTransaction(tx);
+    try {
+      return await wallet.signAndSendTransaction(tx);
+    } catch (e) {
+      throw new Error(`Meteor: ${errorText(e)}`);
+    }
   }, []);
 
   const value = useMemo(() => ({ accountId, status, error, connect, disconnect, send }), [accountId, status, error, connect, disconnect, send]);
