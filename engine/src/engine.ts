@@ -8,7 +8,9 @@ export type RejectionCode =
   | "asset-not-allowed"
   | "leverage-over-cap"
   | "below-bond-minimum"
-  | "commitment-failed";
+  | "commitment-failed"
+  /** Committed onchain, then the exchange refused the order (e.g. outside the oracle band). Nothing was placed. */
+  | "order-failed";
 
 export type Rejection = { code: RejectionCode; message: string };
 
@@ -96,30 +98,33 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
     }
 
     const { entryCloid, stopLoss } = decision.order;
-    if (!stopLoss) {
-      const order = await exchange.placeReduceOnly({ vaultId: p.vaultId, asset: p.asset, side: p.side, size: p.size, limitPrice, cloid: entryCloid });
-      return { kind: "executed", proposalId: p.proposalId, decision, decisionHash, commitmentTx, order };
+    try {
+      if (!stopLoss) {
+        const order = await exchange.placeReduceOnly({ vaultId: p.vaultId, asset: p.asset, side: p.side, size: p.size, limitPrice, cloid: entryCloid });
+        return { kind: "executed", proposalId: p.proposalId, decision, decisionHash, commitmentTx, order };
+      }
+      await exchange.setLeverage(p.vaultId, p.asset, p.leverage);
+      const order = await exchange.placeOrderWithStopLoss({
+        vaultId: p.vaultId,
+        asset: p.asset,
+        side: p.side,
+        size: p.size,
+        limitPrice,
+        entryCloid,
+        stopLoss,
+      });
+      return {
+        kind: "executed",
+        proposalId: p.proposalId,
+        decision,
+        decisionHash,
+        commitmentTx,
+        order,
+        stopLoss: { ...stopLoss, placedAt: order.placedAt },
+      };
+    } catch (e) {
+      return reject("order-failed", `Committed (${commitmentTx}) but the exchange refused the order: ${(e as Error).message}`);
     }
-
-    await exchange.setLeverage(p.vaultId, p.asset, p.leverage);
-    const order = await exchange.placeOrderWithStopLoss({
-      vaultId: p.vaultId,
-      asset: p.asset,
-      side: p.side,
-      size: p.size,
-      limitPrice,
-      entryCloid,
-      stopLoss,
-    });
-    return {
-      kind: "executed",
-      proposalId: p.proposalId,
-      decision,
-      decisionHash,
-      commitmentTx,
-      order,
-      stopLoss: { ...stopLoss, placedAt: order.placedAt },
-    };
   }
 
   return {
