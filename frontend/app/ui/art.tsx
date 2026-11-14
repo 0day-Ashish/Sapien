@@ -74,11 +74,39 @@ function PieceSvg({ piece }: { piece: Piece }) {
   switch (piece.kind) {
     case "candle": {
       const { x, y, w, h, wick, rot } = piece;
+      const top = y - h / 2;
+      const bottom = y + h / 2;
+      const left = x - w / 2;
+      // Alternate solid "up" candles and hollow "down" candles, fixed per position.
+      const up = Math.round(x * 7 + y * 3) % 2 === 0;
+      const upperWick = wick * (up ? 1 : 0.6);
+      const lowerWick = wick * (up ? 0.6 : 1);
       return (
-        <g transform={`rotate(${rot.toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)})`}>
-          <line x1={x} y1={y - h / 2 - wick} x2={x} y2={y + h / 2 + wick} stroke={stroke} strokeWidth={2} strokeLinecap="round" />
-          <rect x={x - w / 2} y={y - h / 2} width={w} height={h} rx={3} {...common} />
-          <line x1={x - w / 2 + 3} y1={y - h / 2 + h * 0.33} x2={x + w / 2 - 3} y2={y - h / 2 + h * 0.33} stroke={stroke} strokeWidth={1.2} />
+        <g transform={`rotate(${rot.toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)})`} strokeLinecap="round" strokeLinejoin="round">
+          {/* Wicks stop at the body, with small caps */}
+          <path
+            d={`M${x} ${top}V${top - upperWick}M${x - 2.5} ${top - upperWick}H${x + 2.5}M${x} ${bottom}V${bottom + lowerWick}M${x - 2.5} ${bottom + lowerWick}H${x + 2.5}`}
+            fill="none"
+            stroke={stroke}
+            strokeWidth={1.8}
+          />
+          {/* Body */}
+          <rect x={left} y={top} width={w} height={h} rx={Math.min(4, w / 3)} fill={up ? stroke : fill} stroke={stroke} strokeWidth={2} />
+          {/* Highlight stripe down the left side */}
+          <path
+            d={`M${left + w * 0.3} ${top + 4}V${bottom - 4}`}
+            fill="none"
+            stroke={up ? fill : "#ffffff"}
+            strokeOpacity={up ? 0.7 : 0.9}
+            strokeWidth={Math.max(1.5, w * 0.16)}
+          />
+          {/* Open and close ticks */}
+          <path
+            d={`M${left - 3} ${up ? bottom - 3 : top + 3}H${left}M${left + w} ${up ? top + 3 : bottom - 3}H${left + w + 3}`}
+            fill="none"
+            stroke={stroke}
+            strokeWidth={1.6}
+          />
         </g>
       );
     }
