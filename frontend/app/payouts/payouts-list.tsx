@@ -3,10 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Hex } from "viem";
-import { readContract } from "wagmi/actions";
 import { PROTECTION_FUND, protectionFundAbi, type Settlement } from "@/lib/settlement/payouts";
 import { formatUsdc } from "@/lib/vault/funds";
-import { hyperEvmTestnet, wagmiConfig } from "@/lib/wagmi";
+import { hyperClient } from "@/lib/hyperevm";
 
 /** Every settled Overshoot claim, newest first. */
 export function PayoutsList() {
@@ -15,9 +14,9 @@ export function PayoutsList() {
 
   useEffect(() => {
     if (!PROTECTION_FUND) return;
-    const read = { chainId: hyperEvmTestnet.id, address: PROTECTION_FUND, abi: protectionFundAbi } as const;
-    readContract(wagmiConfig, { ...read, functionName: "claimIds" })
-      .then((ids) => Promise.all([...ids].reverse().map(async (id) => ({ id, ...(await readContract(wagmiConfig, { ...read, functionName: "settlement", args: [id] })) }))))
+    const read = { address: PROTECTION_FUND, abi: protectionFundAbi } as const;
+    hyperClient.readContract({ ...read, functionName: "claimIds" })
+      .then((ids) => Promise.all([...ids].reverse().map(async (id) => ({ id, ...(await hyperClient.readContract({ ...read, functionName: "settlement", args: [id] })) }))))
       .then(setRows, (e) => setError((e as Error).message));
   }, []);
 

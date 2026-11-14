@@ -26,7 +26,7 @@ const sections: LegalSection[] = [
     body: (
       <>
         <p>
-          {PRODUCT_NAME} runs on test networks: Hyperliquid testnet, HyperEVM testnet, Base Sepolia and Solana devnet. Test tokens,
+          {PRODUCT_NAME} runs on test networks: Hyperliquid testnet, HyperEVM testnet and NEAR testnet. Test tokens,
           including testnet USDC, have no monetary value and can&apos;t be redeemed for money.
         </p>
         <p>

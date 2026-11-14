@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { Bullets, LegalPage, type LegalSection } from "../legal/legal-page";
+import { OnNear } from "./near-panel";
 
 export const metadata: Metadata = { title: `Risk Disclosure · ${PRODUCT_NAME}` };
 
@@ -93,14 +94,20 @@ const sections: LegalSection[] = [
   },
   {
     id: "bridges",
-    title: "Bridging and deposit risk",
+    title: "Deposit and withdrawal risk",
     body: (
       <p>
-        Deposits and withdrawals move USDC between chains through Circle&apos;s CCTP. Every deposit lands in a protocol Deposit
-        Account and is then forwarded to your Vault. Transfers can be delayed, can be dropped by the receiving chain, or can need
-        manual recovery. Testnet deposits are capped below $1,000.
+        Deposits go from your NEAR wallet to the Sapien NEAR contract, and the Execution Engine forwards them to your Vault.
+        Withdrawals are paid by the engine from the contract once your Vault is Flat. Either step can be delayed if the engine
+        or an RPC endpoint is down, and a withdrawal waits while positions are open. NEAR Intents quotes on the deposit card are
+        a mainnet-route illustration and don&apos;t move testnet funds.
       </p>
     ),
+  },
+  {
+    id: "near",
+    title: "On NEAR",
+    body: <OnNear />,
   },
   {
     id: "testnet",

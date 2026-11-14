@@ -20,6 +20,22 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## NEAR (Sapien)
+
+The user's wallet is Meteor on NEAR testnet, through NEAR Connect (`@hot-labs/near-connect`). Money and controls (deposit, withdrawal, Mandate hash, Kill Switch) go through the Sapien NEAR contract; Hyperliquid and HyperEVM are read with viem public clients. Helpers live in `lib/near/`.
+
+Environment (each has this default in code, so none is required):
+
+| Variable | Default |
+| --- | --- |
+| `NEXT_PUBLIC_NEAR_NETWORK` | `testnet` |
+| `NEXT_PUBLIC_NEAR_CONTRACT` | `sapien-vault.testnet` |
+| `NEXT_PUBLIC_NEAR_USDC` | `usdc.sapien-vault.testnet` |
+| `NEXT_PUBLIC_NEAR_RPC` | `https://rpc.testnet.near.org` |
+| `NEXT_PUBLIC_ENGINE_URL` | `http://127.0.0.1:8787` (the engine's `/near/vaults` and `/near/mandate`) |
+
+`GET /api/intents/quote?amount=5` returns a dry NEAR Intents quote (NEAR USDC to HyperCore USDC, no API key). It is shown beside the deposit and moves no funds.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

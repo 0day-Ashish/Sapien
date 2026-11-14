@@ -149,7 +149,7 @@ export const DOC_PAGES: DocPage[] = [
             <p>The controls you keep, moving money in and out, and checking any decision for yourself.</p>
             <Cards>
               <DocCard href="/docs/controls" icon="power" title="Your controls" body="Veto Window, Kill Switch and withdrawal" />
-              <DocCard href="/docs/funds" icon="vault" title="Deposits and withdrawals" body="Base Sepolia and Solana devnet, with fees" />
+              <DocCard href="/docs/funds" icon="vault" title="Deposits and withdrawals" body="Test USDC on NEAR, and what it costs" />
               <DocCard href="/docs/verify" icon="replay" title="Verify it yourself" body="Replay a decision and check it onchain" />
             </Cards>
           </>
@@ -160,7 +160,7 @@ export const DOC_PAGES: DocPage[] = [
         title: "Testnet only",
         body: (
           <Note>
-            {PRODUCT_NAME} runs on test networks: Hyperliquid testnet, HyperEVM testnet, Base Sepolia and Solana devnet. Test tokens have no
+            {PRODUCT_NAME} runs on test networks: Hyperliquid testnet, HyperEVM testnet and NEAR testnet. Test tokens have no
             monetary value. Read the <Link href="/risk">Risk Disclosure</Link> before you use it.
           </Note>
         ),
@@ -181,9 +181,9 @@ export const DOC_PAGES: DocPage[] = [
         body: (
           <Steps
             items={[
-              { title: "Connect a wallet", body: "Use the wallet button in the top bar. You keep your keys; the app never sees them." },
-              { title: "Write your Mandate", body: <>Open <Link href="/mandate">Chat</Link> and describe your risk rules in plain English. Confirm or edit every field of the draft.</> },
-              { title: "Deposit testnet USDC", body: <>On <Link href="/funds">Deposit and withdraw</Link>, send USDC from Base Sepolia or Solana devnet. The fee and the one-time 1 USDC activation show before you sign.</> },
+              { title: "Connect Meteor Wallet", body: "Use the wallet button in the top bar and pick Meteor on NEAR testnet. You keep your keys; the app never sees them." },
+              { title: "Write your Mandate", body: <>Open <Link href="/mandate">Chat</Link> and describe your risk rules in plain English. Confirm or edit every field of the draft, then commit it from your wallet.</> },
+              { title: "Deposit testnet USDC", body: <>On <Link href="/funds">Deposit and withdraw</Link>, get test USDC from the faucet, create your Vault and deposit. A live NEAR Intents quote shows what the mainnet route would cost.</> },
               { title: "Watch the agents work", body: <><Link href="/live">Live</Link> shows each decision as it happens. <Link href="/replay">Replay</Link> lets you step through any past one.</> },
               { title: "Stay in control", body: <>Veto a large trade during its 60 seconds, or use the Kill Switch to close everything and withdraw. See <Link href="/docs/controls">Your controls</Link>.</> },
             ]}
@@ -195,11 +195,9 @@ export const DOC_PAGES: DocPage[] = [
         title: "What you need",
         body: (
           <ul className="flex list-disc flex-col gap-2 pl-5 marker:text-ink-faint">
-            <li>An EVM wallet. A Solana wallet (Phantom or Solflare) is optional, for Solana deposits.</li>
-            <li>
-              Testnet USDC from <a href="https://faucet.circle.com" {...EXT}>faucet.circle.com</a>, on Base Sepolia or Solana devnet.
-            </li>
-            <li>A little testnet gas on the network you deposit from.</li>
+            <li>A <a href="https://wallet.meteorwallet.app" {...EXT}>Meteor Wallet</a> on NEAR testnet.</li>
+            <li>Test USDC: the Get test USDC button on Deposit and withdraw gives 1,000 per click.</li>
+            <li>A little testnet NEAR for gas, from a NEAR testnet faucet.</li>
           </ul>
         ),
       },
@@ -266,7 +264,7 @@ export const DOC_PAGES: DocPage[] = [
         body: (
           <p>
             Each Vault is its own smart contract on HyperEVM with its own Hyperliquid account, so its positions and stop-losses are never
-            mixed with anyone else&apos;s. Only the owner can sign Mandates, use the Kill Switch and withdraw. You may own several Vaults.
+            mixed with anyone else&apos;s. Your NEAR account is the owner: only it can commit Mandates, use the Kill Switch and withdraw.
           </p>
         ),
       },
@@ -293,7 +291,7 @@ export const DOC_PAGES: DocPage[] = [
             </dl>
             <div className="mt-5 flex items-end justify-between gap-4">
               <p className="text-[12px] text-ink-faint">Example values. You choose your own.</p>
-              <p className="border-t border-ink/40 px-6 pt-1 font-serif text-[15px] italic text-ink-soft">signed by your wallet</p>
+              <p className="border-t border-ink/40 px-6 pt-1 font-serif text-[15px] italic text-ink-soft">committed from your wallet</p>
             </div>
           </div>
         ),
@@ -467,7 +465,7 @@ export const DOC_PAGES: DocPage[] = [
       {
         id: "kill",
         title: "Kill Switch",
-        body: <p>One action closes every position, freezes the Lead Agent and unlocks withdrawal. The kill flag is recorded onchain as a new Mandate Version. Signing a later version without the flag unfreezes the Vault.</p>,
+        body: <p>One action closes every position, freezes the Lead Agent and unlocks withdrawal. The kill flag is set on NEAR, signed in your wallet. Turning it off again unfreezes the Vault.</p>,
       },
       {
         id: "auto-kill",
@@ -477,7 +475,7 @@ export const DOC_PAGES: DocPage[] = [
       {
         id: "withdraw",
         title: "Withdraw",
-        body: <p>Owner only, and only while the Vault is Flat. If positions are open, the withdraw card offers the Kill Switch first.</p>,
+        body: <p>Owner only, and only while the Vault is Flat. If positions are open, use the Kill Switch first.</p>,
       },
     ],
   },
@@ -495,10 +493,10 @@ export const DOC_PAGES: DocPage[] = [
         body: (
           <>
             <p>
-              Send USDC from Base Sepolia or Solana devnet on <Link href="/funds">Deposit and withdraw</Link>. It crosses with Circle&apos;s
-              CCTP, lands in the protocol&apos;s Deposit Account and is forwarded to your Vault on Hyperliquid.
+              Create your Vault, then send test USDC from your NEAR wallet on <Link href="/funds">Deposit and withdraw</Link>. The Sapien
+              NEAR contract keeps it, and the engine forwards it to your Vault on Hyperliquid. A live NEAR Intents quote shows what the
+              mainnet route (NEAR to HyperCore) would cost; testnet deposits don&apos;t use it.
             </p>
-            <FeeRow label="First deposit, once (Hyperliquid account activation)" value="1 USDC" />
           </>
         ),
       },
@@ -507,9 +505,7 @@ export const DOC_PAGES: DocPage[] = [
         title: "Withdraw",
         body: (
           <>
-            <p>Back to Base Sepolia or Solana devnet, while the Vault is Flat. The page shows each step as it completes, with a link to every transaction.</p>
-            <FeeRow label="Hyperliquid transfer fee" value="~0.025 USDC" />
-            <FeeRow label="Kept back in the Vault so the transfer isn't dropped" value="0.05 USDC" />
+            <p>Ask for USDC back on <Link href="/funds">Deposit and withdraw</Link>. The engine pays it to your NEAR account once the Vault is Flat. The page shows each step as it completes, with a link to every transaction.</p>
           </>
         ),
       },
@@ -518,7 +514,8 @@ export const DOC_PAGES: DocPage[] = [
         title: "Getting testnet USDC",
         body: (
           <p>
-            Use <a href="https://faucet.circle.com" {...EXT}>faucet.circle.com</a> and pick Base Sepolia or Solana Devnet.
+            Press Get test USDC on <Link href="/funds">Deposit and withdraw</Link>. The test token has an open faucet: 1,000 USDC per
+            click, free.
           </p>
         ),
       },
@@ -596,8 +593,9 @@ export const DOC_PAGES: DocPage[] = [
         title: "Register and bond",
         body: (
           <p>
-            Do both on <Link href="/builders">Bring an agent</Link>. Your agent only proposes: the Execution Engine checks every Trade
-            Proposal against the Mandate, whatever produced it.
+            Look up any agent&apos;s Bond on <Link href="/builders">Agent Bonds</Link>. Registering and topping up a Bond are HyperEVM
+            transactions, so they aren&apos;t in the app in this release. Your agent only proposes: the Execution Engine checks every
+            Trade Proposal against the Mandate, whatever produced it.
           </p>
         ),
       },
@@ -638,12 +636,3 @@ export const DOC_PAGES: DocPage[] = [
     ],
   },
 ];
-
-function FeeRow({ label, value }: { label: string; value: string }) {
-  return (
-    <p className="flex items-baseline justify-between gap-4 rounded-xl border border-line px-4 py-3 font-mono text-[13px]">
-      <span className="text-ink-soft">{label}</span>
-      <span className="shrink-0 text-violet">{value}</span>
-    </p>
-  );
-}

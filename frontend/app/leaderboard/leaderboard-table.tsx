@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { readContract } from "wagmi/actions";
 import { AGENT_REGISTRY, agentRegistryAbi } from "@/lib/agents/bonds";
 import { executionRate, fetchLeaderboard, formatRar, withOnchain, type BoardRow, type OnchainAgent } from "@/lib/engine/leaderboard";
 import { ENGINE_URL } from "@/lib/engine/veto";
 import { DEMO_LEADERBOARD } from "@/lib/demo/sidebar-demo";
-import { hyperEvmTestnet, wagmiConfig } from "@/lib/wagmi";
+import { hyperClient } from "@/lib/hyperevm";
 import { DemoBanner } from "../ui/demo-banner";
 
 const POLL_MS = 10_000;
@@ -29,7 +28,7 @@ async function readOnchain(agentIds: string[]): Promise<Map<string, OnchainAgent
   if (!AGENT_REGISTRY) return out;
   await Promise.all(
     agentIds.map(async (id) => {
-      const a = await readContract(wagmiConfig, { chainId: hyperEvmTestnet.id, address: AGENT_REGISTRY!, abi: agentRegistryAbi, functionName: "agent", args: [id] }).catch(
+      const a = await hyperClient.readContract({ address: AGENT_REGISTRY!, abi: agentRegistryAbi, functionName: "agent", args: [id] }).catch(
         () => null,
       );
       if (a) out.set(id, { bond: a.bond, ledVaults: a.ledVaults, registered: a.builder !== ZERO });
