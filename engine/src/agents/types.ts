@@ -12,6 +12,8 @@ export type MarketSnapshot = {
   candles4h: Candle[];
   /** Hyperliquid funding rate per hour (0.0001 = 0.01%/h). Positive: longs pay shorts. */
   fundingRateHourly: number;
+  /** Recent hourly funding rates, oldest first (optional; agents that need persistence use it). */
+  fundingHistoryHourly?: number[];
   markPrice: number;
 };
 

@@ -160,6 +160,12 @@ export class HyperliquidExchange implements ExchangePort {
     return Number(ctxs[index]!.funding);
   }
 
+  /** Hourly funding rates over the last `hours`, oldest first. */
+  async fundingHistoryHourly(asset: string, hours = 8): Promise<number[]> {
+    const rows = await this.info.fundingHistory({ coin: asset, startTime: Date.now() - hours * 3600 * 1000 });
+    return rows.map((r) => Number(r.fundingRate));
+  }
+
   // ---------- internals ----------
 
   private client(vaultId: VaultId) {
