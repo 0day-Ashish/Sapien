@@ -1,13 +1,15 @@
 import { createConfig, http, injected } from "wagmi";
-import { hyperliquidEvmTestnet } from "viem/chains";
+import { baseSepolia, hyperliquidEvmTestnet } from "viem/chains";
 
 export const hyperEvmTestnet = hyperliquidEvmTestnet;
 
 export const wagmiConfig = createConfig({
-  chains: [hyperEvmTestnet],
+  // Base Sepolia is where deposits start and withdrawals land (CCTP, tickets #6 and #7).
+  chains: [hyperEvmTestnet, baseSepolia],
   connectors: [injected()],
   transports: {
     [hyperEvmTestnet.id]: http(),
+    [baseSepolia.id]: http(),
   },
   ssr: true,
 });
