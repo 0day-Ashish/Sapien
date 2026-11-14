@@ -133,6 +133,13 @@ const http = await startHttp({
   ...(process.env.ENGINE_ALLOW_ORIGIN ? { allowOrigin: process.env.ENGINE_ALLOW_ORIGIN } : {}),
 });
 console.log(`Engine running: Vault ${vaultId} on ${asset}, every ${intervalMs / 1000}s. HTTP ${http.url}`);
+// Verify the Vault's Mandate now, so the first Trade Proposal doesn't wait on the signing-block search (slow where
+// the testnet RPC skips old blocks); each verified Mandate Version is cached.
+const warm = Date.now();
+chain.currentMandate(vaultId).then(
+  (m) => console.log(`Mandate v${m.version} verified in ${((Date.now() - warm) / 1000).toFixed(0)}s`),
+  (e) => console.error(`Mandate warm-up failed: ${(e as Error).message.split("\n")[0]}`),
+);
 
 // The AgentRegistry sets each agent's Bond Minimum from the Vaults it leads, so report every Lead Agent change.
 let reportedLead: string | undefined | null = null;

@@ -322,17 +322,45 @@ export class HyperEvmChain implements ChainPort {
     if (receipt.status !== "success") throw new Error(`AgentRegistry.reportLead reverted: ${hash}`);
   }
 
+  /**
+   * The first block at or after `from` (up to `max`) that the RPC serves. The HyperEVM testnet RPC refuses some
+   * ranges of old blocks ("invalid block height", e.g. around 69.05M and below 2), so the search steps over them,
+   * doubling the step each time.
+   */
+  private async firstServedBlock(from: bigint, max: bigint): Promise<{ number: bigint; timestamp: bigint } | undefined> {
+    let n = from;
+    let step = 1n;
+    while (n <= max) {
+      try {
+        const b = await this.publicClient.getBlock({ blockNumber: n });
+        return { number: n, timestamp: b.timestamp };
+      } catch (e) {
+        if (!String(e).includes("invalid block height")) throw e;
+      }
+      n += step;
+      step *= 2n;
+    }
+    return undefined;
+  }
+
   /** Finds the MandateVersionSigned log: binary-search the block by the version's signedAt, then read a narrow range. */
   private async signedJson(vault: Address, version: bigint, signedAt: bigint): Promise<Hex> {
     const latest = await this.publicClient.getBlockNumber();
     let lo = 0n;
     let hi = latest;
+    // A block the RPC doesn't serve counts as having the timestamp of the next one it does, which keeps the search
+    // monotonic; if it ends inside such a gap, the signing block is the first served block after it.
+    const servedFrom = async (n: bigint) => {
+      const b = await this.firstServedBlock(n, latest);
+      if (!b) throw new Error(`No block served at or after ${n}`);
+      return b;
+    };
     while (lo < hi) {
       const mid = (lo + hi) / 2n;
-      const block = await this.publicClient.getBlock({ blockNumber: mid });
-      if (block.timestamp < signedAt) lo = mid + 1n;
+      if ((await servedFrom(mid)).timestamp < signedAt) lo = mid + 1n;
       else hi = mid;
     }
+    lo = (await servedFrom(lo)).number;
     // Several blocks can share a timestamp, so search a small window around the first one.
     const fromBlock = lo > 50n ? lo - 50n : 0n;
     const toBlock = lo + 200n > latest ? latest : lo + 200n;
