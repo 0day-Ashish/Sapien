@@ -3,6 +3,7 @@ import { PRODUCT_NAME } from "@/lib/brand";
 import { Icon, MarketGarden, PillarArt, VaultBot, VaultCluster, type IconName } from "./ui/art";
 import { AgentDemo } from "./ui/agent-demo";
 import { BrandMark } from "./ui/brand-icons";
+import { WaveText } from "./ui/wave-text";
 import { LogoMark } from "./ui/logo";
 import { SiteFooter } from "./ui/site-footer";
 import { SiteNav } from "./ui/site-nav";
@@ -249,7 +250,7 @@ function ProtectionPanel() {
             ))}
           </div>
         </div>
-        <MarketGarden seed={41} width={1100} height={260} count={520} shape="heap" className="pointer-events-none absolute -bottom-10 -left-4 w-[92%] md:w-[85%]" />
+        <MarketGarden seed={41} width={1100} height={260} count={360} shape="heap" className="pointer-events-none absolute -bottom-10 -left-4 w-[92%] md:w-[85%]" />
       </div>
     </section>
   );
@@ -323,10 +324,10 @@ function Safeguards() {
       <div className="relative flex size-28 items-center justify-center">
         <span className="absolute inset-2 rotate-6 rounded-xl border-2 border-dashed border-violet bg-violet-soft" />
         <span className="relative flex size-20 items-center justify-center rounded-lg bg-violet text-white">
-          <Icon name="shield" className="size-10" />
+          <Icon name="vault" className="size-11" />
         </span>
         <span className="absolute -bottom-1 -left-1 flex size-10 items-center justify-center rounded-full border-2 border-violet bg-cream text-violet">
-          <Icon name="bond" className="size-5" />
+          <Icon name="shield" className="size-5" />
         </span>
       </div>
       <h2 id="control" className="display-serif mt-8 scroll-mt-28">One Vault, every safeguard</h2>
@@ -355,22 +356,16 @@ function Safeguards() {
 
 /* ---------- Start today ---------- */
 
-const PATTERN = `url("data:image/svg+xml,${encodeURIComponent(
-  `<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'><rect width='120' height='120' fill='#8f78e8'/><g stroke-width='3'><rect x='10' y='14' width='14' height='40' rx='3' fill='#ffe3d0' stroke='#c8561c'/><line x1='17' y1='4' x2='17' y2='64' stroke='#c8561c'/><circle cx='70' cy='30' r='18' fill='#e0f0e9' stroke='#17805a'/><circle cx='70' cy='30' r='7' fill='#fff' stroke='#17805a'/><ellipse cx='36' cy='92' rx='22' ry='9' fill='#fde4ef' stroke='#d4508e'/><ellipse cx='36' cy='84' rx='22' ry='9' fill='#fde4ef' stroke='#d4508e'/><rect x='88' y='66' width='14' height='36' rx='3' fill='#fbeccd' stroke='#a3690e'/><line x1='95' y1='56' x2='95' y2='112' stroke='#a3690e'/><path d='M60 70l4 9 9 4-9 4-4 9-4-9-9-4 9-4z' fill='#e3ecfa' stroke='#3d6fc4'/></g></svg>`,
-)}")`;
-
 function StartToday() {
   return (
     <section className="container-page section flex flex-col items-center pb-8 text-center">
       <div className="relative w-full">
         <p
           aria-hidden="true"
-          className="select-none bg-clip-text font-sans text-[clamp(4.5rem,17vw,16rem)] font-medium leading-[0.95] tracking-[-0.05em] text-transparent"
-          style={{ backgroundImage: PATTERN, backgroundSize: "120px 120px" }}
+          className="w-full select-none font-sans text-[clamp(3.5rem,13vw,13rem)] font-medium leading-[1.05] tracking-[-0.05em] text-violet"
         >
-          Sign it today
+          <WaveText text="Sign it today" />
         </p>
-        <VaultBot animated className="absolute -top-10 right-[8%] w-20 md:w-28" />
       </div>
       <h2 className="sr-only">Sign your Mandate today</h2>
       <p className="mt-6 max-w-lg text-[1.375rem] leading-snug text-violet">

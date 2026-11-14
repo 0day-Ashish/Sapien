@@ -452,6 +452,21 @@ body {
   }
 }
 
+/* Slow ripple for WaveText: each letter floats up and down, staggered. Transform only. */
+.wave-letter {
+  will-change: transform;
+  animation: wave-letter 2.8s ease-in-out infinite;
+}
+@keyframes wave-letter {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -0.06em, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wave-letter {
+    animation: none;
+  }
+}
+
 @keyframes marquee {
   from {
     transform: translateX(0);
