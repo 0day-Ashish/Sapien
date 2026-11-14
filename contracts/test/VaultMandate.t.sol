@@ -14,6 +14,7 @@ contract VaultMandateTest is Test {
     Vault vault;
 
     address engine = makeAddr("engine");
+    address feeRouter = makeAddr("feeRouter");
     address user = makeAddr("user");
     address agentWallet = makeAddr("agentWallet");
 
@@ -22,7 +23,7 @@ contract VaultMandateTest is Test {
 
     function setUp() public {
         coreWriter = installCoreWriterStub(vm);
-        factory = new VaultFactory(engine);
+        factory = new VaultFactory(engine, feeRouter);
         registry = new MandateRegistry();
         vm.prank(user);
         vault = factory.createVault(agentWallet);

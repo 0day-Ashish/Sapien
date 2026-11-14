@@ -4,7 +4,7 @@ import { parseAbi, parseUnits, type Address } from "viem";
 // Addresses: contracts/deployments/hyperevm-testnet.json.
 
 export const VAULT_FACTORY = (process.env.NEXT_PUBLIC_VAULT_FACTORY_ADDRESS ??
-  "0x820565B32244bBb7F1c6146f667C5c7dedda2fEE") as Address;
+  "0xb2b6A2BE0dC94Da5330F44a99Bf59785Dc97E2f7") as Address;
 /** USDC on HyperEVM: where `withdrawToEvm` lands before `bridgeOut`. */
 export const HYPEREVM_USDC: Address = "0x2B3370eE501B4a559b57D449569354196457D8Ab";
 export const HYPERCORE_INFO_API = "https://api.hyperliquid-testnet.xyz/info";
@@ -23,6 +23,7 @@ export const factoryAbi = parseAbi(["function depositTargetOf(address owner) vie
 export const vaultAbi = parseAbi([
   "function owner() view returns (address)",
   "function isFlat() view returns (bool)",
+  "function feesPending() view returns (uint256)",
   "function withdrawToEvm(uint64 amount)",
   "function bridgeOut(uint256 amount, uint32 destinationDomain, bytes32 recipient, uint256 maxFee)",
 ]);
