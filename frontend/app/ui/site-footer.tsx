@@ -33,7 +33,7 @@ const columns: { title: string; groups: FooterLink[][] }[] = [
     groups: [
       [
         { href: "/#builders", label: "Bring an agent", strong: true },
-        { href: "/#builders", label: "Bonds" },
+        { href: "/builders", label: "Bonds" },
         { href: "/#safeguards", label: "Leaderboard" },
       ],
     ],

@@ -34,8 +34,8 @@ export type HyperEvmChainConfig = {
   engine: PrivateKeyAccount;
   chain?: Chain;
   rpcUrl?: string;
-  /** Until the AgentRegistry (#12) exists, every agent counts as above its Bond Minimum. */
-  meetsBondMinimum?: (agentId: AgentId) => Promise<boolean>;
+  /** The AgentRegistry (#12). Without it, every agent counts as above its Bond Minimum. */
+  agentRegistry?: Address;
 };
 
 const registryAbi = [
@@ -85,6 +85,21 @@ const decisionLogAbi = [
       { name: "decisionHash", type: "bytes32" },
     ],
     outputs: [{ name: "index", type: "uint256" }],
+  },
+] as const;
+
+const agentRegistryAbi = [
+  { type: "function", name: "meetsBondMinimum", stateMutability: "view", inputs: [{ name: "agentId", type: "string" }], outputs: [{ type: "bool" }] },
+  {
+    type: "function",
+    name: "reportLead",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "vault", type: "address" },
+      { name: "agentId", type: "string" },
+      { name: "vaultValue", type: "uint256" },
+    ],
+    outputs: [],
   },
 ] as const;
 
@@ -185,7 +200,29 @@ export class HyperEvmChain implements ChainPort {
   }
 
   async meetsBondMinimum(agentId: AgentId) {
-    return this.config.meetsBondMinimum ? this.config.meetsBondMinimum(agentId) : true;
+    if (!this.config.agentRegistry) return true;
+    return this.publicClient.readContract({
+      address: this.config.agentRegistry,
+      abi: agentRegistryAbi,
+      functionName: "meetsBondMinimum",
+      args: [agentId],
+    });
+  }
+
+  /**
+   * Tells the AgentRegistry which agent leads the Vault (undefined = none) and the Vault's value, which sets that
+   * agent's Bond Minimum and blocks its Unbonding. Not part of the ChainPort: whoever applies allocations calls it.
+   */
+  async reportLead(vaultId: VaultId, agentId: AgentId | undefined, vaultValueUsdc: number) {
+    if (!this.config.agentRegistry) return;
+    const hash = await this.wallet.writeContract({
+      address: this.config.agentRegistry,
+      abi: agentRegistryAbi,
+      functionName: "reportLead",
+      args: [vaultId as Address, agentId ?? "", BigInt(Math.max(0, Math.floor(vaultValueUsdc * 1e6)))],
+    });
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+    if (receipt.status !== "success") throw new Error(`AgentRegistry.reportLead reverted: ${hash}`);
   }
 
   /** Finds the MandateVersionSigned log: binary-search the block by the version's signedAt, then read a narrow range. */

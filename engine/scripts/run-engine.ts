@@ -4,7 +4,8 @@
 //
 // engine/.env.local (falls back to the smoke:chain deployment from #31):
 //   RUNNER_VAULT, RUNNER_ASSET (ETH), RUNNER_AGENT_PRIVATE_KEY, ENGINE_OPERATOR_PRIVATE_KEY,
-//   MANDATE_REGISTRY, DECISION_LOG, RUNNER_INTERVAL_MS (300000), TYPESAFE_API_KEY, GEMINI_API_KEY
+//   MANDATE_REGISTRY, DECISION_LOG, RUNNER_INTERVAL_MS (300000), TYPESAFE_API_KEY, GEMINI_API_KEY,
+//   AGENT_REGISTRY (optional, #12: real Bond Minimum checks; Lead Agents are reported to it)
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import type { Address, Hex } from "viem";
@@ -40,7 +41,7 @@ const operator = privateKeyToAccount(env("ENGINE_OPERATOR_PRIVATE_KEY", "SMOKE_O
 const intervalMs = Number(process.env.RUNNER_INTERVAL_MS ?? 300_000);
 
 const exchange = new HyperliquidExchange({ isTestnet: true, agentFor: () => agent });
-const chain = new HyperEvmChain({ mandateRegistry: env("MANDATE_REGISTRY", "SMOKE_MANDATE_REGISTRY") as Address, decisionLog: env("DECISION_LOG", "SMOKE_DECISION_LOG") as Address, engine: operator });
+const chain = new HyperEvmChain({ mandateRegistry: env("MANDATE_REGISTRY", "SMOKE_MANDATE_REGISTRY") as Address, decisionLog: env("DECISION_LOG", "SMOKE_DECISION_LOG") as Address, engine: operator, ...(process.env.AGENT_REGISTRY ? { agentRegistry: process.env.AGENT_REGISTRY as Address } : {}) });
 const engine = createEngine({ exchange, chain });
 
 // Placeholder Bonds and track records until the AgentRegistry (#12) supplies real ones.
@@ -91,7 +92,17 @@ const http = await startHttp({
 });
 console.log(`Engine running: Vault ${vaultId} on ${asset}, every ${intervalMs / 1000}s. HTTP ${http.url}`);
 
+// The AgentRegistry sets each agent's Bond Minimum from the Vaults it leads, so report every Lead Agent change.
+let reportedLead: string | undefined | null = null;
+async function reportLead() {
+  const lead = engine.vaultStatus(vaultId).leadAgent?.agentId;
+  if (!process.env.AGENT_REGISTRY || lead === reportedLead) return;
+  await chain.reportLead(vaultId, lead, await exchange.accountValue(vaultId));
+  reportedLead = lead;
+}
+
 for (;;) {
   await runner.tick();
+  await reportLead().catch((e) => console.error(`AgentRegistry.reportLead: ${(e as Error).message}`));
   await new Promise((r) => setTimeout(r, intervalMs));
 }
