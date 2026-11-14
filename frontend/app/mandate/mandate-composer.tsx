@@ -161,7 +161,7 @@ export function MandateComposer() {
       {form && (
         <section className="flex flex-col gap-6">
           <div className="flex flex-col gap-1">
-            <h2 className="text-xl font-semibold">Check every field</h2>
+            <h2 className="text-xl font-normal">Check every field</h2>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
               This is a draft. Only what you confirm here is signed.
             </p>
