@@ -331,7 +331,7 @@ const SAFEGUARDS: { title: string; body: string; icon: IconName; tone: string; h
 function Safeguards() {
   return (
     <section id="safeguards" className="container-page section flex scroll-mt-20 flex-col items-center text-center">
-      <SafeguardSeal className="size-44 md:size-52" />
+      <SafeguardSeal className="h-40 w-auto md:h-48" />
       <h2 id="control" className="display-serif mt-8 scroll-mt-28">One Vault, every safeguard</h2>
       <p className="lede mt-6 max-w-xl !text-[1.25rem]">
         You set the rules and keep the controls. Agents compete inside them, and every decision stays on the record.
