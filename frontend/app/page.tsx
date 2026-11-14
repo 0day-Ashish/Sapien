@@ -80,7 +80,7 @@ function Hero() {
           Write your Mandate
         </Link>
         <Link href="/#how-it-works" className="btn btn-secondary">
-          See how it works
+          See Demo
         </Link>
       </div>
     </section>

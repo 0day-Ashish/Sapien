@@ -10,7 +10,7 @@ const columns: { title: string; groups: FooterLink[][] }[] = [
     title: "Product",
     groups: [
       [
-        { href: "/mandate", label: "Write a Mandate", strong: true },
+        { href: "/mandate", label: "Chat", strong: true },
         { href: "/funds", label: "Deposit and withdraw" },
         { href: "/#how-it-works", label: "How it works" },
         { href: "/#protection", label: "Protection" },

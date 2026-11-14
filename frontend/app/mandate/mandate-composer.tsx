@@ -16,6 +16,7 @@ import { PRODUCT_NAME } from "@/lib/brand";
 import { Icon, VaultBot, type IconName } from "../ui/art";
 import { Logo } from "../ui/logo";
 import { WalletSlider } from "../ui/wallet-slider";
+import { TradingChart } from "../ui/trading-chart";
 import { compileMandateAction, finalizeMandateAction } from "./actions";
 
 const EXAMPLE =
@@ -115,6 +116,7 @@ function ago(at: number) {
 
 export function MandateComposer() {
   const [chats, setChats] = useState<Chat[]>([]);
+  const [view, setView] = useState<"mandate" | "trading">("mandate");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [sentText, setSentText] = useState<string | null>(null);
@@ -350,9 +352,36 @@ export function MandateComposer() {
               </svg>
               <Logo />
             </Link>
-            <span className="rounded-full bg-violet-tint px-3 py-0.5 text-xs text-violet/70">{activeId ? "Draft" : "New Mandate"}</span>
+            <div role="tablist" aria-label="View" className="flex items-center gap-1 rounded-full bg-violet-tint p-1 text-xs">
+              {(
+                [
+                  ["mandate", activeId ? "Draft" : "New Mandate"],
+                  ["trading", "Live trading"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={view === id}
+                  onClick={() => setView(id)}
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 transition-all ${
+                    view === id ? "bg-white text-violet-ink shadow-sm" : "text-violet/70 hover:text-violet"
+                  }`}
+                >
+                  {id === "trading" && <span className="size-1.5 animate-pulse rounded-full bg-green" />}
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
+          {view === "trading" ? (
+            <div className="mt-6 flex min-h-0 flex-1 flex-col">
+              <TradingChart assets={form?.allowedAssets.length ? form.allowedAssets : []} />
+            </div>
+          ) : (
+          <>
           <div className="-mx-5 mt-6 flex min-h-0 flex-1 flex-col overflow-y-auto px-5 md:-mx-10 md:px-10">
           <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6">
             {!sentText && !form && (
@@ -630,6 +659,8 @@ export function MandateComposer() {
               </div>
             </div>
           </div>
+          </>
+          )}
         </div>
       </div>
 
