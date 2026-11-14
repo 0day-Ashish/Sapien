@@ -56,9 +56,16 @@ const columns: { title: string; groups: FooterLink[][] }[] = [
         { href: "/#protection", label: "Stop-loss protection", strong: true },
         { href: "/#protection", label: "Protection Fund" },
         { href: "/#protection", label: "Protocol Reserve" },
+        { href: "/risk", label: "Risk Disclosure" },
       ],
     ],
   },
+];
+
+const legal = [
+  { href: "/terms", label: "Terms" },
+  { href: "/privacy", label: "Privacy" },
+  { href: "/risk", label: "Risk Disclosure" },
 ];
 
 export function SiteFooter() {
@@ -88,8 +95,16 @@ export function SiteFooter() {
         ))}
       </div>
       <div className="mt-20 flex flex-col items-start gap-4 text-[0.9375rem] md:flex-row md:items-center md:justify-between">
-        <p className="font-medium">© 2026 {PRODUCT_NAME}</p>
-        <p className="eyebrow rounded-full bg-violet-tint px-4 py-2 !text-[0.6875rem]">Testnet only · Not investment advice</p>
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-6">
+          <p className="font-medium">© 2026 {PRODUCT_NAME}</p>
+          <nav aria-label="Legal" className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+            {legal.map((link) => (
+              <Link key={link.href} href={link.href} className="hover:text-violet-ink hover:underline">
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
         <p className="font-medium">Stop-loss protected, never guaranteed</p>
       </div>
     </footer>
