@@ -13,7 +13,7 @@ contract DeployAgentRegistry is Script {
     function run() external returns (AgentRegistry registry) {
         address engine = vm.envAddress("ENGINE_ADDRESS");
         vm.startBroadcast();
-        registry = new AgentRegistry(IERC20(HyperEvmCctp.USDC), engine);
+        registry = new AgentRegistry(IERC20(HyperEvmCctp.USDC), engine, vm.envOr("SLASHER_ADDRESS", address(0)));
         vm.stopBroadcast();
         console.log("AgentRegistry", address(registry));
     }

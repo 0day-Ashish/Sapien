@@ -14,5 +14,17 @@
   "DecisionLog": {
     "address": "0x6DfD8c2b39b22Ff630691D9b915a3DF8339BDc5D",
     "deployBlock": 69577833
+  },
+  "AgentRegistry": {
+    "address": "0xDFC36B699526318cE43fF68Eb836475D483Fbd71",
+    "deployBlock": 69588250,
+    "deployTx": "0x7ede268acb569cbffee8d9541c5cf8190a8ffd5c5809eaa340c8590e2370d6b4",
+    "note": "#12 Bonds; slasher = ProtectionFund (#15)."
+  },
+  "ProtectionFund": {
+    "address": "0x6fF69515ca5F4cc60047b1b33aE3937bdAfea598",
+    "deployBlock": 69588311,
+    "deployTx": "0x11d6bf6b7b1d6659466d794e262e1f9e82d95c96c43ff59e2ebf41712ea4e523",
+    "note": "#15 Overshoot settlement. Testnet seed: 2 USDC Protection Fund, 1 USDC Protocol Reserve (mainnet seed $500)."
   }
 }
