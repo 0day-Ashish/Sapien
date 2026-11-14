@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatUsdc, hyperCoreAccount, parseUsdc, usdcFromHyperCore } from "../lib/vault/funds";
+import { formatUsdc, hyperCoreAccount, maxWithdraw, parseUsdc, usdcFromHyperCore } from "../lib/vault/funds";
 
 describe("USDC amounts", () => {
   it("parses typed amounts into 6-decimal subunits", () => {
@@ -20,6 +20,14 @@ describe("USDC amounts", () => {
   it("formats subunits", () => {
     expect(formatUsdc(BigInt(3_744_969))).toBe("3.744969 USDC");
     expect(formatUsdc(BigInt(2_000_000))).toBe("2 USDC");
+  });
+});
+
+describe("maxWithdraw", () => {
+  it("keeps back the HyperEVM transfer reserve, since sending the whole balance is dropped", () => {
+    expect(maxWithdraw(BigInt(3_744_901))).toBe(BigInt(3_694_901));
+    expect(maxWithdraw(BigInt(50_000))).toBe(BigInt(0));
+    expect(maxWithdraw(BigInt(0))).toBe(BigInt(0));
   });
 });
 

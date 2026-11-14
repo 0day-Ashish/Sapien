@@ -128,7 +128,9 @@ await until("Agent Wallet registered on HyperCore", async () => {
 console.log(`Agent Wallet ${agent} is the Vault's agent on HyperCore; bound in the engine store`);
 
 step("4. withdrawToEvm: HyperCore -> the Vault's HyperEVM address");
-const amount = BigInt(Math.floor(Number(withdrawable) * 1e6)); // the whole balance: the Vault is Flat
+// Everything but a reserve: HyperCore takes its HyperEVM transfer fee (~0.025 USDC) from what's left, and drops a
+// send of the whole balance silently.
+const amount = BigInt(Math.floor(Number(withdrawable) * 1e6)) - 50_000n;
 await sendTx(evmWallet, evm, "withdrawToEvm", { address: vault, abi: vaultAbi, functionName: "withdrawToEvm", args: [amount] });
 await until("USDC on HyperEVM", async () => {
   const b = await evm.readContract({ address: USDC_EVM, abi: erc20, functionName: "balanceOf", args: [vault] });

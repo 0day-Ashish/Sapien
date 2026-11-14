@@ -8,6 +8,16 @@ export const VAULT_FACTORY = (process.env.NEXT_PUBLIC_VAULT_FACTORY_ADDRESS ??
 /** USDC on HyperEVM: where `withdrawToEvm` lands before `bridgeOut`. */
 export const HYPEREVM_USDC: Address = "0x2B3370eE501B4a559b57D449569354196457D8Ab";
 export const HYPERCORE_INFO_API = "https://api.hyperliquid-testnet.xyz/info";
+/**
+ * HyperCore charges a USDC fee (0.024498 on testnet) to move USDC to HyperEVM, taken from what's left in the account.
+ * Sending the whole balance is dropped silently, so withdrawals keep this much back.
+ */
+export const EVM_TRANSFER_RESERVE = BigInt(50_000);
+
+/** The most a Flat Vault can withdraw: its perp balance less the HyperEVM transfer reserve. */
+export function maxWithdraw(perpWithdrawable: bigint): bigint {
+  return perpWithdrawable > EVM_TRANSFER_RESERVE ? perpWithdrawable - EVM_TRANSFER_RESERVE : BigInt(0);
+}
 
 export const factoryAbi = parseAbi(["function depositTargetOf(address owner) view returns (address)"]);
 export const vaultAbi = parseAbi([

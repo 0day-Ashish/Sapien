@@ -11,8 +11,10 @@ import {
   HYPEREVM_USDC,
   VAULT_FACTORY,
   factoryAbi,
+  EVM_TRANSFER_RESERVE,
   formatUsdc,
   hyperCoreAccount,
+  maxWithdraw,
   parseUsdc,
   vaultAbi,
   type HyperCoreAccount,
@@ -260,7 +262,7 @@ function WithdrawCard(props: {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const max = core?.perpWithdrawable ?? BigInt(0);
+  const max = maxWithdraw(core?.perpWithdrawable ?? BigInt(0));
   const amount = parseUsdc(input);
 
   async function bridge(amountOnEvm: bigint, s: Step[], show: () => void) {
@@ -377,9 +379,12 @@ function WithdrawCard(props: {
               inputMode="decimal"
             />
           </label>
+          <p className="text-xs text-ink-soft">
+            {formatUsdc(EVM_TRANSFER_RESERVE)} stays in the Vault to pay HyperCore&apos;s fee for moving USDC to HyperEVM.
+          </p>
           {tooMuch && (
             <p role="alert" className="text-sm text-orange">
-              More than your Vault holds.
+              More than you can withdraw.
             </p>
           )}
           <div className="flex flex-wrap gap-3">
