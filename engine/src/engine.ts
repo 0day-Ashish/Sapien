@@ -1,9 +1,13 @@
 import { createHash, randomBytes } from "node:crypto";
-import type { EngineEvent, FillUpdate, PriceTick, TradeProposal, VaultId } from "./events.js";
+import type { AgentId, Allocation, EngineEvent, FillUpdate, PriceTick, TradeProposal, VaultId } from "./events.js";
 import type { Cloid, Mandate, PlacedOrder, Ports } from "./ports.js";
 
 export type RejectionCode =
   | "invalid-proposal"
+  /** Only the Vault's Lead Agent may propose (once the Allocator has assigned one). */
+  | "not-lead-agent"
+  /** A switch is pending: the outgoing Lead Agent may only reduce or close. */
+  | "outgoing-lead-agent"
   /** The Vault's current Mandate Version couldn't be read, or its JSON didn't match the onchain hash or caps. */
   | "mandate-unavailable"
   | "kill-flag"
@@ -36,7 +40,10 @@ export type AutomaticKill =
   | { trigger: "oracle-deviation"; asset: string; reason: string; since: number };
 
 /** What the dashboard reads about a Vault's protection state. */
-export type VaultStatus = { automaticKill?: AutomaticKill };
+export type VaultStatus = {
+  automaticKill?: AutomaticKill;
+  leadAgent?: { agentId: AgentId | undefined; reason: string; pendingAgentId?: AgentId };
+};
 
 export type HandleResult =
   | { kind: "ignored" }
@@ -80,6 +87,8 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
 
   /** Per Vault: this calendar month's High-Water Mark, and a drawdown kill that holds until the month ends. */
   const drawdown = new Map<VaultId, { month: string; highWaterMark: number; kill?: AutomaticKill }>();
+  /** Per Vault: the Allocator's latest decision. No entry means no allocation yet, and any agent may propose. */
+  const leads = new Map<VaultId, { agentId: AgentId | undefined; reason: string; pendingAgentId?: AgentId }>();
   /** Per asset: since when the oracle has been out of range, and the kill once it has been for over 30s. */
   const oracle = new Map<string, { deviatingSince?: number; kill?: AutomaticKill }>();
 
@@ -123,9 +132,21 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
     oracle.set(t.asset, o);
   }
 
+  function onAllocation(a: Allocation) {
+    leads.set(a.vaultId, {
+      agentId: a.leadAgentId,
+      reason: a.reason,
+      ...(a.pendingLeadAgentId && a.pendingLeadAgentId !== a.leadAgentId ? { pendingAgentId: a.pendingLeadAgentId } : {}),
+    });
+  }
+
   async function onFill(f: FillUpdate) {
+    if (!(await exchange.positions(f.vaultId)).every((p) => p.size === 0)) return;
     // Looser Mandate Versions take effect once the Vault is Flat; the chain side needs to hear it.
-    if ((await exchange.positions(f.vaultId)).every((p) => p.size === 0)) await chain.reportFlat(f.vaultId);
+    await chain.reportFlat(f.vaultId);
+    // A deferred Lead Agent switch completes now.
+    const lead = leads.get(f.vaultId);
+    if (lead?.pendingAgentId) leads.set(f.vaultId, { agentId: lead.pendingAgentId, reason: lead.reason });
   }
 
   async function handleProposal(p: TradeProposal): Promise<HandleResult> {
@@ -137,6 +158,14 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
 
     const invalid = validate(p);
     if (invalid) return reject("invalid-proposal", invalid);
+
+    const lead = leads.get(p.vaultId);
+    if (lead && lead.agentId !== p.agentId) {
+      return reject("not-lead-agent", `${p.agentId} is not the Lead Agent of ${p.vaultId} (${lead.agentId ?? "none assigned"})`);
+    }
+    if (lead?.pendingAgentId && p.intent === "open") {
+      return reject("outgoing-lead-agent", `${p.agentId} is handing over to ${lead.pendingAgentId} once the Vault is Flat; it may only reduce or close`);
+    }
 
     let mandate: Mandate;
     try {
@@ -220,6 +249,9 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
         case "fill":
           await onFill(event);
           return { kind: "handled" };
+        case "allocation":
+          onAllocation(event);
+          return { kind: "handled" };
         default:
           // Veto Window (#10), Kill Switch (#9), Overshoot (#15), epochs (#17).
           return { kind: "ignored" };
@@ -230,7 +262,8 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
       const ddKill = d && d.month === monthKey(now()) ? d.kill : undefined;
       const oracleKill = [...oracle.values()].find((o) => o.kill)?.kill;
       const automaticKill = ddKill ?? oracleKill;
-      return automaticKill ? { automaticKill } : {};
+      const leadAgent = leads.get(vaultId);
+      return { ...(automaticKill ? { automaticKill } : {}), ...(leadAgent ? { leadAgent } : {}) };
     },
   };
 }
