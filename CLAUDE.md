@@ -28,3 +28,7 @@ Default five labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for
 ### Domain docs
 
 Single-context: root `GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
+
+### Design
+
+Every `frontend/` page follows `docs/design.md` (fonts, colours, components, wording).
