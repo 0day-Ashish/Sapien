@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { PRODUCT_NAME } from "@/lib/brand";
 import { Icon, MarketGarden, PillarArt, VaultBot, VaultCluster, type IconName } from "./ui/art";
 import { AgentDemo } from "./ui/agent-demo";
 import { BrandMark } from "./ui/brand-icons";
+import { LogoMark } from "./ui/logo";
 import { SiteFooter } from "./ui/site-footer";
 import { SiteNav } from "./ui/site-nav";
 
@@ -182,9 +184,9 @@ function Pillars() {
         {PILLARS.map((pillar) => (
           <article
             key={pillar.title}
-            className={`card-outline group flex flex-col rounded-[0.875rem] pt-6 transition-all duration-300 hover:-translate-y-1.5 hover:bg-white hover:shadow-[0_24px_48px_-28px_currentColor] lg:row-span-5 lg:grid lg:grid-rows-subgrid ${pillar.tone}`}
+            className={`card-outline flex flex-col rounded-[0.875rem] pt-6 lg:row-span-5 lg:grid lg:grid-rows-subgrid ${pillar.tone}`}
           >
-            <PillarArt kind={pillar.art} className="ml-6 size-[7.5rem] origin-bottom-left transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-110" />
+            <PillarArt kind={pillar.art} className="ml-6 size-[7.5rem]" />
             <span aria-hidden="true" className="min-h-16 lg:min-h-36" />
             <h3 className="px-6 pb-9 font-sans text-[2.25rem] font-normal leading-none tracking-[-0.02em]">{pillar.title}</h3>
             {pillar.rows.map((row) => (
@@ -259,37 +261,44 @@ function Principles() {
       <QuoteCard
         tone="bg-teal-soft text-teal"
         quote="Enforced before signing, provable onchain."
-        who="Design decision"
-        role="How the Mandate is enforced"
-        tag="ADR-0003"
+        who="How the Mandate is enforced"
+        role="Design decision · ADR-0003"
       />
       <QuoteCard
         tone="bg-orange-soft text-orange"
         quote="Every agent trading your money has its own money first in line."
-        who="Design decision"
-        role="Who pays for Overshoot"
-        tag="ADR-0002"
+        who="Who pays for Overshoot"
+        role="Design decision · ADR-0002"
         large
       />
     </section>
   );
 }
 
-function QuoteCard({ tone, quote, who, role, tag, large = false }: { tone: string; quote: string; who: string; role: string; tag: string; large?: boolean }) {
+function QuoteCard({ tone, quote, who, role, large = false }: { tone: string; quote: string; who: string; role: string; large?: boolean }) {
   return (
-    <figure className={`flex min-h-[22rem] flex-col justify-between rounded-[1.25rem] p-6 ${tone}`}>
+    <figure className={`flex min-h-[27rem] flex-col justify-between rounded-[1.25rem] p-6 ${tone}`}>
       <div>
-        <span className="flex size-12 items-center justify-center rounded-lg bg-white/80 font-serif text-3xl leading-none">“</span>
-        <blockquote className={`mt-6 max-w-[20em] font-serif leading-[1.12] tracking-[-0.015em] ${large ? "text-[clamp(1.75rem,3vw,2.75rem)]" : "text-[clamp(1.5rem,2.3vw,2.125rem)]"}`}>
+        <span className="flex size-12 items-center justify-center rounded-lg bg-cream font-serif text-[1.75rem] leading-none">
+          &ldquo;
+        </span>
+        <blockquote
+          className={`mt-7 font-serif font-normal tracking-[-0.015em] ${
+            large ? "max-w-[24em] text-[clamp(2rem,3.1vw,2.75rem)] leading-[1.12]" : "max-w-[16em] text-[clamp(1.625rem,2.3vw,2.0625rem)] leading-[1.15]"
+          }`}
+        >
           {quote}
         </blockquote>
       </div>
-      <figcaption className="flex items-end justify-between border-t border-current/30 pt-5 text-[0.9375rem]">
+      <figcaption className="flex items-end justify-between gap-6 border-t border-current/40 pt-6 text-[0.9375rem] leading-[1.45]">
         <span>
           <span className="block font-medium">{who}</span>
           {role}
         </span>
-        <span className="label-mono text-lg">{tag}</span>
+        <span className="inline-flex shrink-0 items-center gap-2 text-violet-ink">
+          <LogoMark className="size-7" />
+          <span className="text-[1.5rem] font-medium leading-none tracking-[-0.045em] lowercase">{PRODUCT_NAME}</span>
+        </span>
       </figcaption>
     </figure>
   );
