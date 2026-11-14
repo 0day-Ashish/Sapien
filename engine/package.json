@@ -13,7 +13,8 @@
     "serve": "tsx scripts/serve.ts",
     "smoke:round-trip": "tsx scripts/smoke-round-trip.ts",
     "smoke:solana": "tsx scripts/smoke-solana.ts",
-    "engine": "tsx scripts/run-engine.ts"
+    "engine": "tsx scripts/run-engine.ts",
+    "smoke:kill": "tsx scripts/smoke-kill.ts"
   },
   "devDependencies": {
     "@types/node": "^24",
