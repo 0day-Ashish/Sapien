@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PRODUCT_NAME } from "@/lib/brand";
-import { Icon, MarketGarden, PillarArt, VaultBot, VaultCluster, type IconName } from "./ui/art";
+import { Icon, MarketGarden, PillarArt, SafeguardSeal, VaultCluster, type IconName } from "./ui/art";
 import { AgentDemo } from "./ui/agent-demo";
 import { BrandMark } from "./ui/brand-icons";
 import { WaveText } from "./ui/wave-text";
@@ -47,7 +47,6 @@ function Hero() {
       </Link>
 
       <div className="relative mt-10 w-full max-w-6xl">
-        <VaultBot animated className="absolute -left-2 -top-4 hidden w-28 lg:block xl:-left-10 xl:w-32" />
         <h1 className="display-1 mx-auto max-w-[17em]">
           AI agents can trade your perps.
           <br className="hidden md:block" /> Make them put their money first.
@@ -80,7 +79,7 @@ function Hero() {
           Write your Mandate
         </Link>
         <Link href="/#how-it-works" className="btn btn-secondary">
-          See how it works
+          See Demo
         </Link>
       </div>
     </section>
@@ -321,15 +320,7 @@ const SAFEGUARDS: { title: string; body: string; icon: IconName; tone: string; h
 function Safeguards() {
   return (
     <section id="safeguards" className="container-page section flex scroll-mt-20 flex-col items-center text-center">
-      <div className="relative flex size-28 items-center justify-center">
-        <span className="absolute inset-2 rotate-6 rounded-xl border-2 border-dashed border-violet bg-violet-soft" />
-        <span className="relative flex size-20 items-center justify-center rounded-lg bg-violet text-white">
-          <Icon name="vault" className="size-11" />
-        </span>
-        <span className="absolute -bottom-1 -left-1 flex size-10 items-center justify-center rounded-full border-2 border-violet bg-cream text-violet">
-          <Icon name="shield" className="size-5" />
-        </span>
-      </div>
+      <SafeguardSeal className="size-44 md:size-52" />
       <h2 id="control" className="display-serif mt-8 scroll-mt-28">One Vault, every safeguard</h2>
       <p className="lede mt-6 max-w-xl !text-[1.25rem]">
         You set the rules and keep the controls. Agents compete inside them, and every decision stays on the record.

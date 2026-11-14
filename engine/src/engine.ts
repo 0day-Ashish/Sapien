@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import type { AgentId, Allocation, EngineEvent, EpochTick, FillUpdate, PriceTick, TradeProposal, VaultId, Veto, VetoWindowEnd } from "./events.js";
+import type { AgentId, Allocation, EngineEvent, EpochTick, FillUpdate, KillSwitch, PriceTick, TradeProposal, VaultId, Veto, VetoWindowEnd } from "./events.js";
 import type { Cloid, EpochSettlement, Mandate, OvershootClaim, PlacedOrder, Ports } from "./ports.js";
 import { premiumRate } from "./premium.js";
 import { isInfrastructureFailure, overshootUsdc, type StopRecord, stopExposureUsdc } from "./overshoot.js";
@@ -25,7 +25,9 @@ export type RejectionCode =
   /** Committed onchain, then the exchange refused the order (e.g. outside the oracle band). Nothing was placed. */
   | "order-failed"
   /** At the end of a Veto Window, the price had moved past the slippage cap since the proposal: dropped. */
-  | "price-moved";
+  | "price-moved"
+  /** The user hit the Kill Switch: the Lead Agent is frozen until a later Mandate Version clears the kill flag. */
+  | "kill-switch";
 
 export type Rejection = { code: RejectionCode; message: string };
 
@@ -78,6 +80,10 @@ export type HandleResult =
   | { kind: "vetoed"; proposalId: string }
   /** An Epoch tick: the Vaults settled, those that failed (retried next Epoch), and Lead Agent switches applied. */
   | { kind: "epoch-settled"; epoch: number; settled: EpochSettlement[]; failed: { vaultId: VaultId; error: string }[]; switched: VaultId[] }
+  /** Kill Switch: every position got a reduce-only close; `flat` once none is left open. */
+  | { kind: "killed"; vaultId: VaultId; closes: { asset: string; side: "long" | "short"; size: number; cloid: Cloid }[]; vetoed: string[]; flat: boolean }
+  /** Kill Switch refused (e.g. the kill flag isn't set onchain yet); nothing was sent. */
+  | { kind: "kill-refused"; vaultId: VaultId; reason: string }
   | {
       kind: "executed";
       proposalId: string;
@@ -104,6 +110,8 @@ export type EngineOptions = {
   vetoWindowMs?: number;
   /** At the end of a Veto Window: the most the price may have moved since the proposal, and the order's slippage cap. */
   vetoSlippageCap?: number;
+  /** Kill Switch closes: worst price as a fraction past the mark, wide so the IOC fills. Default 5%. */
+  killSlippage?: number;
 };
 
 const DEFAULT_ENTRY_SLIPPAGE = 0.01;
@@ -126,6 +134,46 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
   const vetoSlippageCap = options.vetoSlippageCap ?? DEFAULT_VETO_SLIPPAGE_CAP;
   /** Per proposalId: a trade waiting in its Veto Window. */
   const vetoWindows = new Map<string, { proposal: TradeProposal; pending: PendingVeto }>();
+  const killSlippage = options.killSlippage ?? 0.05;
+  /** Per Vault frozen by the Kill Switch: the Mandate Version it was killed under. A later version without the kill flag unfreezes it. */
+  const killed = new Map<VaultId, number>();
+
+  /**
+   * Kill Switch. The owner first signs a Mandate Version with the kill flag (recorded onchain, and only the owner can).
+   * The engine acts only once it reads that flag, so the trigger itself needs no other authentication.
+   */
+  async function onKillSwitch(k: KillSwitch): Promise<HandleResult> {
+    let mandate: Mandate;
+    try {
+      mandate = await chain.currentMandate(k.vaultId);
+    } catch (e) {
+      return { kind: "kill-refused", vaultId: k.vaultId, reason: `Can't read the Vault's Mandate: ${(e as Error).message}` };
+    }
+    if (!mandate.killFlag) {
+      return { kind: "kill-refused", vaultId: k.vaultId, reason: "The kill flag isn't set onchain: sign a Mandate Version with the kill flag first" };
+    }
+    killed.set(k.vaultId, mandate.version);
+
+    // Trades waiting for a veto are dropped: the user has said stop.
+    const vetoed = [...vetoWindows.values()].filter((w) => w.proposal.vaultId === k.vaultId).map((w) => w.proposal.proposalId);
+    for (const id of vetoed) vetoWindows.delete(id);
+
+    const closes: Extract<HandleResult, { kind: "killed" }>["closes"] = [];
+    for (const pos of await exchange.positions(k.vaultId)) {
+      if (pos.size === 0) continue;
+      // The order's side is the position's side (as for any reduce); a long closes by selling below the mark.
+      const side = pos.size > 0 ? "long" : "short";
+      const mark = await exchange.markPrice(pos.asset);
+      const cloid = newCloid();
+      const size = Math.abs(pos.size);
+      await exchange.placeReduceOnly({ vaultId: k.vaultId, asset: pos.asset, side, size, limitPrice: mark * (side === "long" ? 1 - killSlippage : 1 + killSlippage), cloid });
+      closes.push({ asset: pos.asset, side, size, cloid });
+    }
+
+    const flat = (await exchange.positions(k.vaultId)).every((p) => p.size === 0);
+    if (flat) await chain.reportFlat(k.vaultId);
+    return { kind: "killed", vaultId: k.vaultId, closes, vetoed, flat };
+  }
 
   /** Per Vault: this calendar month's High-Water Mark, and a drawdown kill that holds until the month ends. */
   const drawdown = new Map<VaultId, { month: string; highWaterMark: number; kill?: AutomaticKill }>();
@@ -323,6 +371,13 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
     const invalid = validate(p);
     if (invalid) return reject("invalid-proposal", invalid);
 
+    const killedAt = killed.get(p.vaultId);
+    if (killedAt !== undefined) {
+      const m = await chain.currentMandate(p.vaultId).catch(() => undefined);
+      if (m && m.version > killedAt && !m.killFlag) killed.delete(p.vaultId);
+      else return reject("kill-switch", `The Kill Switch froze ${p.vaultId}: no trades until a new Mandate Version clears the kill flag`);
+    }
+
     const lead = leads.get(p.vaultId);
     if (lead && lead.agentId !== p.agentId) {
       return reject("not-lead-agent", `${p.agentId} is not the Lead Agent of ${p.vaultId} (${lead.agentId ?? "none assigned"})`);
@@ -470,8 +525,9 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
           return onVetoWindowEnd(event);
         case "epoch-tick":
           return onEpochTick(event);
+        case "kill-switch":
+          return onKillSwitch(event);
         default:
-          // Kill Switch (#9).
           return { kind: "ignored" };
       }
     },

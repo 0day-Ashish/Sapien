@@ -6,6 +6,7 @@ import type { AddressInfo } from "node:net";
 import type { HandleResult, VaultStatus } from "../engine.js";
 import type { RunnerRecord } from "../runner/runner.js";
 import type { AgentWalletStore } from "./agent-wallets.js";
+import type { LeaderboardRow } from "./leaderboard.js";
 
 export type HttpOptions = {
   port: number;
@@ -15,10 +16,16 @@ export type HttpOptions = {
   allowOrigin?: string;
   /** Recent runner records, newest last: the agent's-eye view feed. */
   feed?: () => RunnerRecord[];
+  /** Every runner record kept on disk, oldest first: replay reads executed decisions from here (#20). */
+  history?: () => RunnerRecord[];
+  /** The public leaderboard of Specialist Agents (#18). */
+  leaderboard?: () => Promise<LeaderboardRow[]>;
   /** A Vault's protection and Lead Agent state, including trades waiting in their Veto Window. */
   vaultStatus?: (vaultId: string) => VaultStatus;
   /** Cancels a trade waiting in its Veto Window (sends a `veto` event through handle). */
   veto?: (vaultId: string, proposalId: string) => Promise<HandleResult>;
+  /** Kill Switch (sends a `kill-switch` event). The engine acts only if the kill flag is already set onchain. */
+  kill?: (vaultId: string) => Promise<HandleResult>;
 };
 
 export async function startHttp(o: HttpOptions) {
@@ -50,6 +57,24 @@ async function route(req: IncomingMessage, res: ServerResponse, o: HttpOptions) 
     return send(res, 200, { items });
   }
 
+  // Executed decisions for replay, newest first: GET /decisions?vault=0x…&limit=200 (or ?hash=0x… for one)
+  if (req.method === "GET" && path === "/decisions" && (o.history ?? o.feed)) {
+    const q = new URL(req.url ?? "/", "http://engine").searchParams;
+    const vault = q.get("vault")?.toLowerCase();
+    const hash = q.get("hash")?.toLowerCase();
+    const limit = Math.min(1000, Number(q.get("limit") ?? 200));
+    const items = (o.history ?? o.feed)!()
+      .filter((r) => r.result?.kind === "executed")
+      .filter((r) => !vault || r.vaultId.toLowerCase() === vault)
+      .filter((r) => !hash || (r.result as { decisionHash: string }).decisionHash.toLowerCase() === hash)
+      .slice(-limit)
+      .reverse();
+    return send(res, 200, { items });
+  }
+
+  // GET /leaderboard → { rows: LeaderboardRow[], at }
+  if (req.method === "GET" && path === "/leaderboard" && o.leaderboard) return send(res, 200, { rows: await o.leaderboard(), at: Date.now() });
+
   // GET /vaults/0x…/status → { automaticKill?, leadAgent? }
   const status = path.match(/^\/vaults\/([^/]+)\/status$/);
   if (req.method === "GET" && status && o.vaultStatus) return send(res, 200, o.vaultStatus(status[1]!));
@@ -61,6 +86,13 @@ async function route(req: IncomingMessage, res: ServerResponse, o: HttpOptions) 
     if (typeof body.proposalId !== "string" || !body.proposalId) return send(res, 400, { error: "proposalId is required" });
     const result = await o.veto(veto[1]!, body.proposalId);
     return send(res, result.kind === "vetoed" ? 200 : 409, result.kind === "vetoed" ? result : { error: "No open Veto Window for that proposal" });
+  }
+
+  // POST /vaults/0x…/kill → { kind: "killed", closes, flat } or 409 { kind: "kill-refused", reason }
+  const kill = path.match(/^\/vaults\/([^/]+)\/kill$/);
+  if (req.method === "POST" && kill && o.kill) {
+    const result = await o.kill(kill[1]!);
+    return send(res, result.kind === "killed" ? 200 : 409, result);
   }
 
   send(res, 404, { error: `No route ${req.method} ${path}` });

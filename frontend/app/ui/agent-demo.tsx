@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Icon, VaultBot } from "./art";
+import { Icon } from "./art";
 
 // A scripted replay of one decision in the agent's-eye view. Illustration only, not live data.
 // `t` runs from 0 to LOOP seconds and every element derives its state from it.
@@ -221,7 +221,6 @@ export function AgentDemo() {
           {/* Composer */}
           <div className="mx-auto mt-auto w-full max-w-2xl rounded-2xl border border-violet-line/70 bg-violet-soft/70 p-1.5 pt-0">
             <p className="flex items-center gap-2 px-2.5 py-2.5 text-sm">
-              <VaultBot className="size-6" animated={checking && !checked} />
               <span className="font-medium text-violet-ink">{composer.title}</span>
               <span className="tabular-nums text-violet/60">{composer.detail}</span>
             </p>
