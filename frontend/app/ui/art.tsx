@@ -266,6 +266,117 @@ export function VaultRow({ className = "" }: { className?: string }) {
   );
 }
 
+/**
+ * A cluster of vault doors of different sizes, joined by cables: one Vault per user, all on one
+ * protocol. Fills a wide right-hand column. Dials turn slowly when `animated`.
+ */
+export function VaultCluster({ className = "", animated = true }: { className?: string; animated?: boolean }) {
+  // The last door sits past the right edge of the view box, so the cluster runs off the screen.
+  const doors = [
+    { x: 150, y: 400, s: 0.95, c: PALETTE[0]!, knob: "antenna" },
+    { x: 350, y: 300, s: 1.15, c: PALETTE[2]!, knob: "dish" },
+    { x: 560, y: 200, s: 1.1, c: PALETTE[0]!, knob: "antenna" },
+    { x: 690, y: 175, s: 0.55, c: PALETTE[5]!, knob: "" },
+    { x: 520, y: 430, s: 0.8, c: PALETTE[1]!, knob: "" },
+    { x: 740, y: 470, s: 0.95, c: PALETTE[2]!, knob: "spark" },
+    { x: 820, y: 300, s: 0.7, c: PALETTE[6]!, knob: "" },
+    { x: 1010, y: 290, s: 1.45, c: PALETTE[3]!, knob: "spark" },
+  ];
+  // Each pipe joins the stands under two doors, sagging deeper the further apart they are.
+  const links: [number, number][] = [
+    [0, 1],
+    [1, 4],
+    [0, 5],
+    [4, 5],
+    [2, 4],
+    [2, 3],
+    [5, 7],
+    [6, 7],
+  ];
+  const stand = (k: number) => {
+    const d = doors[k]!;
+    return { x: d.x, y: d.y + 94 * d.s };
+  };
+  const pipes = links.map(([from, to]) => {
+    const a = stand(from);
+    const b = stand(to);
+    const sag = 70 + Math.abs(b.x - a.x) * 0.35;
+    const low = Math.max(a.y, b.y) + sag;
+    return `M${a.x} ${a.y}C${a.x} ${low} ${b.x} ${low} ${b.x} ${b.y}`;
+  });
+  return (
+    <svg viewBox="60 20 940 680" aria-hidden="true" className={className} overflow="visible">
+      {pipes.map((d, i) => (
+        <g key={i} fill="none" strokeLinecap="round">
+          <path d={d} stroke="#6a4fd6" strokeWidth="16" />
+          <path d={d} stroke="#f5f2fd" strokeWidth="11" />
+          <path d={d} stroke="#a3690e" strokeWidth="6" strokeDasharray="0.1 34" />
+          <path d={d} stroke="#fbeccd" strokeWidth="3.5" strokeDasharray="0.1 34" />
+        </g>
+      ))}
+      {doors.map(({ x, y, s, c, knob }, i) => (
+        <g key={i} transform={`translate(${x} ${y}) scale(${s})`}>
+          {knob === "antenna" && (
+            <g stroke={c.stroke} strokeWidth="3" fill={c.fill}>
+              <path d="M-14 -86h28v-12h-28z" />
+              <path d="M0 -98v-14" fill="none" />
+              <circle cy="-120" r="9" />
+            </g>
+          )}
+          {knob === "dish" && (
+            <g stroke="#17805a" strokeWidth="2.5" fill="#e0f0e9" transform="translate(-20 -92) rotate(-25)">
+              <path d="M-16 0a16 16 0 0 0 32 0z" />
+              <path d="M0 0l10-18M-6 2l-6 12h24" fill="none" />
+            </g>
+          )}
+          {knob === "spark" && (
+            <path
+              d="M0 -112l4 9 9 4-9 4-4 9-4-9-9-4 9-4z"
+              fill={c.fill}
+              stroke={c.stroke}
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+            />
+          )}
+          <rect x="-60" y="-86" width="120" height="14" rx="7" fill={c.fill} stroke={c.stroke} strokeWidth="2.5" />
+          <rect x="-80" y="-74" width="160" height="148" rx="24" fill="#fff" stroke={c.stroke} strokeWidth="3" />
+          <rect x="-68" y="-62" width="136" height="124" rx="16" fill={c.fill} stroke={c.stroke} strokeWidth="2" />
+          <rect x="-70" y="74" width="140" height="10" rx="3" fill={c.stroke} />
+          <rect x="-16" y="84" width="32" height="10" rx="3" fill="#f5f2fd" stroke={c.stroke} strokeWidth="2" />
+          <g
+            className={animated ? "vault-dial" : undefined}
+            style={animated ? { animationDuration: `${14 + i * 3}s`, animationDirection: i % 2 ? "reverse" : "normal" } : undefined}
+          >
+            {[44, 32, 20].map((r, k) => (
+              <path
+                key={k}
+                d={wavyRing(r, 9 + k * 2, 3.2 - k * 0.6)}
+                fill="none"
+                stroke={[c.stroke, "#d4508e", "#6a4fd6"][k]}
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+            ))}
+            <circle r="7" fill="#fff" stroke={c.stroke} strokeWidth="2" />
+          </g>
+          <path d="M-80 -30h-10M-80 0h-10M-80 30h-10" stroke={c.stroke} strokeWidth="5" strokeLinecap="round" />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+/** A closed wavy ring: radius r, n waves, amplitude a. */
+function wavyRing(r: number, n: number, a: number) {
+  const points: string[] = [];
+  for (let k = 0; k <= 96; k++) {
+    const t = (k / 96) * Math.PI * 2;
+    const rr = r + Math.sin(t * n) * a;
+    points.push(`${(Math.cos(t) * rr).toFixed(1)} ${(Math.sin(t) * rr).toFixed(1)}`);
+  }
+  return `M${points.join("L")}Z`;
+}
+
 /** Line icons for cards. All 1.75 stroke, 24 grid. */
 export function Icon({ name, className = "size-6" }: { name: IconName; className?: string }) {
   const p = { fill: "none", stroke: "currentColor", strokeWidth: 1.75, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
@@ -319,36 +430,118 @@ export function Icon({ name, className = "size-6" }: { name: IconName; className
 
 export type IconName = "mandate" | "timer" | "power" | "bond" | "replay" | "chart" | "shield";
 
-/** Larger outline illustrations for the three pillar cards. */
+/**
+ * Illustrations for the three pillar cards: a sealed Mandate, a trading terminal and a vault door.
+ * Line work in the card's colour (currentColor) over soft pattern fills.
+ */
 export function PillarArt({ kind, className = "" }: { kind: "mandate" | "execute" | "protect"; className?: string }) {
-  const p = { fill: "none", stroke: "currentColor", strokeWidth: 2.2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  const line = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  const id = `pillar-${kind}`;
   return (
-    <svg viewBox="0 0 120 120" aria-hidden="true" className={className}>
+    <svg viewBox="0 0 140 140" aria-hidden="true" className={className}>
+      <defs>
+        <pattern id={`${id}-grid`} width="8" height="8" patternUnits="userSpaceOnUse">
+          <path d="M8 0H0V8" fill="none" stroke="currentColor" strokeOpacity="0.25" strokeWidth="1" />
+        </pattern>
+        <pattern id={`${id}-dots`} width="7" height="7" patternUnits="userSpaceOnUse">
+          <circle cx="3.5" cy="3.5" r="1" fill="currentColor" fillOpacity="0.3" />
+        </pattern>
+      </defs>
+
       {kind === "mandate" && (
         <>
-          <rect x="24" y="14" width="72" height="94" rx="8" {...p} fill="var(--color-violet-soft)" />
-          <rect x="44" y="8" width="32" height="14" rx="4" {...p} fill="#fff" />
-          <path d="M38 40h44M38 54h44M38 68h28" {...p} />
-          <path d="M40 90c6-8 10 4 16-2s8-6 12 2 8-2 12-4" {...p} />
-          <circle cx="86" cy="84" r="10" {...p} fill="#fff" />
-          <path d="M81 84l3.5 3.5L91 80" {...p} />
+          {/* Document with a ruled checklist, a signature and a scalloped wax seal */}
+          <rect x="22" y="12" width="84" height="114" rx="8" {...line} fill="var(--color-violet-soft)" />
+          <rect x="30" y="20" width="68" height="98" rx="4" {...line} fill={`url(#${id}-grid)`} strokeWidth="1.5" />
+          {[38, 54, 70].map((y, k) => (
+            <g key={y}>
+              <rect x="36" y={y - 5} width="10" height="10" rx="2" {...line} fill="#fff" strokeWidth="1.6" />
+              <path d={`M38 ${y}l2.5 2.5 4-5`} {...line} strokeWidth="1.6" />
+              <path d={`M52 ${y}h${k === 2 ? 26 : 38}`} {...line} strokeWidth="2.4" />
+            </g>
+          ))}
+          <path d="M36 98c5-9 9 5 14-1s7-8 11 0 6-3 9-5" {...line} />
+          <path d="M34 106h40" {...line} strokeWidth="1.2" strokeDasharray="2 3" />
+          <g transform="translate(100 98)">
+            <path
+              d={Array.from({ length: 16 }, (_, k) => {
+                const a = (k / 16) * Math.PI * 2;
+                const r = k % 2 ? 15 : 18;
+                return `${k ? "L" : "M"}${(Math.cos(a) * r).toFixed(1)} ${(Math.sin(a) * r).toFixed(1)}`;
+              }).join("") + "Z"}
+              {...line}
+              fill="var(--color-violet-line)"
+             
+            />
+            <circle r="9.5" {...line} fill="#fff" strokeWidth="1.6" />
+            <path d="M-4.5 0l3 3 6-6.5" {...line} strokeWidth="2" />
+            <path d="M-7 16l-5 16 7-4 4 6 3-15M7 16l5 16-7-4-4 6" {...line} fill="var(--color-violet-soft)" strokeWidth="1.6" />
+          </g>
         </>
       )}
+
       {kind === "execute" && (
         <>
-          <ellipse cx="60" cy="58" rx="42" ry="34" {...p} fill="var(--color-orange-soft)" />
-          <ellipse cx="60" cy="58" rx="30" ry="24" {...p} />
-          <path d="M44 66l10-12 8 8 14-16" {...p} />
-          <path d="M70 46h6v6" {...p} />
-          <path d="M52 92l-6 18M68 92l6 18M40 110h40M60 24V10M54 10h12" {...p} />
+          {/* Trading terminal on a stand: candlesticks, a rising line and a lightning bolt */}
+          <path d="M70 14v10M62 14h16" {...line} />
+          <circle cx="70" cy="11" r="3.5" {...line} fill="var(--color-orange-soft)" strokeWidth="1.6" />
+          <rect x="14" y="24" width="112" height="78" rx="12" {...line} fill="var(--color-orange-soft)" />
+          <rect x="22" y="32" width="96" height="62" rx="6" {...line} fill={`url(#${id}-dots)`} strokeWidth="1.6" />
+          {[
+            [34, 58, 76, 52, 84],
+            [46, 52, 68, 46, 74],
+            [58, 60, 78, 54, 84],
+            [70, 46, 62, 40, 68],
+            [82, 40, 56, 34, 62],
+          ].map(([x, top, bottom, wickTop, wickBottom], k) => (
+            <g key={k}>
+              <path d={`M${x} ${wickTop}V${wickBottom}`} {...line} strokeWidth="1.6" />
+              <rect x={x! - 3.5} y={top} width="7" height={bottom! - top!} rx="1.5" {...line} fill={k % 2 ? "#fff" : "currentColor"} strokeWidth="1.6" />
+            </g>
+          ))}
+          <path d="M28 86l14-10 12 4 14-14 14 2 14-16 12-6" {...line} strokeDasharray="1 4" />
+          <path d="M106 40l-8 14h7l-4 12 11-17h-7l5-9z" {...line} fill="#fff" strokeWidth="1.8" />
+          <path d="M58 102l-10 26M82 102l10 26M42 128h56" {...line} />
+          <path d="M60 114h20" {...line} strokeWidth="1.4" />
         </>
       )}
+
       {kind === "protect" && (
         <>
-          <path d="M60 10l38 14v26c0 26-16 46-38 58-22-12-38-32-38-58V24z" {...p} fill="var(--color-green-soft)" />
-          <path d="M60 24l26 10v18c0 18-11 32-26 41-15-9-26-23-26-41V34z" {...p} />
-          <ellipse cx="60" cy="58" rx="12" ry="5" {...p} fill="#fff" />
-          <path d="M48 58v8c0 2.8 5.4 5 12 5s12-2.2 12-5v-8" {...p} />
+          {/* Vault door front-on: bolts, a spoked wheel and a shield at the hub */}
+          <rect x="12" y="12" width="116" height="116" rx="18" {...line} fill="var(--color-green-soft)" />
+          <circle cx="70" cy="70" r="46" {...line} fill={`url(#${id}-grid)`} />
+          <circle cx="70" cy="70" r="46" {...line} fill="none" />
+          {Array.from({ length: 12 }, (_, k) => {
+            const a = (k / 12) * Math.PI * 2;
+            return (
+              <circle
+                key={k}
+                cx={70 + Math.cos(a) * 39}
+                cy={70 + Math.sin(a) * 39}
+                r="2.6"
+                {...line}
+                fill="#fff"
+                strokeWidth="1.4"
+              />
+            );
+          })}
+          <circle cx="70" cy="70" r="28" {...line} fill="#fff" />
+          {Array.from({ length: 6 }, (_, k) => {
+            const a = (k / 6) * Math.PI * 2 + Math.PI / 6;
+            return (
+              <path
+                key={k}
+                d={`M${70 + Math.cos(a) * 17} ${70 + Math.sin(a) * 17}L${70 + Math.cos(a) * 28} ${70 + Math.sin(a) * 28}`}
+                {...line}
+                strokeWidth="3"
+              />
+            );
+          })}
+          <path d="M70 55l13 5v8c0 8-5 13-13 17-8-4-13-9-13-17v-8z" {...line} fill="var(--color-green-soft)" />
+          <path d="M64 70l4 4 8-9" {...line} />
+          <path d="M12 40h-4M12 70h-4M12 100h-4" {...line} strokeWidth="4" />
+          <rect x="112" y="58" width="8" height="24" rx="3" {...line} fill="#fff" strokeWidth="1.6" />
         </>
       )}
     </svg>

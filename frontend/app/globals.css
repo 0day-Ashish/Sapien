@@ -85,7 +85,7 @@ body {
   }
   .display-2 {
     font-family: var(--font-sans);
-    font-weight: 500;
+    font-weight: 400;
     font-size: clamp(2.125rem, 3.9vw, 3.375rem);
     line-height: 1.06;
     letter-spacing: -0.03em;
@@ -103,14 +103,14 @@ body {
   }
   .display-3 {
     font-family: var(--font-sans);
-    font-weight: 500;
+    font-weight: 400;
     font-size: clamp(1.625rem, 2.4vw, 2.25rem);
     line-height: 1.1;
     letter-spacing: -0.02em;
   }
   .title-serif {
     font-family: var(--font-serif);
-    font-weight: 600;
+    font-weight: 400;
     font-size: 1.5rem;
     line-height: 1.12;
     letter-spacing: -0.01em;
@@ -129,7 +129,7 @@ body {
   .eyebrow {
     font-family: var(--font-mono);
     font-size: 0.8125rem;
-    font-weight: 700;
+    font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--color-violet);
@@ -137,7 +137,7 @@ body {
   .label-mono {
     font-family: var(--font-mono);
     font-size: 0.875rem;
-    font-weight: 700;
+    font-weight: 500;
     letter-spacing: 0.02em;
   }
 
@@ -182,7 +182,7 @@ body {
     border-radius: 999rem;
     font-family: var(--font-mono);
     font-size: 0.8125rem;
-    font-weight: 700;
+    font-weight: 500;
     /* The reference's mono face is wider than Geist Mono; this spacing evens out the word width. */
     letter-spacing: 0.08em;
     line-height: 1;
@@ -250,7 +250,7 @@ body {
     border-radius: 999px;
     font-family: var(--font-mono);
     font-size: 0.6875rem;
-    font-weight: 700;
+    font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     white-space: nowrap;
@@ -404,6 +404,31 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .garden-sway, .garden-bob, .garden-twinkle {
+    animation: none;
+  }
+}
+
+.vault-dial {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: bot-spin 16s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vault-dial {
+    animation: none;
+  }
+}
+
+/* Slow drift for the colour wash in the dashboard sidebar. */
+.demo-wash {
+  animation: demo-wash 9s ease-in-out infinite alternate;
+}
+@keyframes demo-wash {
+  from { transform: translate(-6%, 4%) scale(1); }
+  to { transform: translate(6%, -6%) scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .demo-wash {
     animation: none;
   }
 }

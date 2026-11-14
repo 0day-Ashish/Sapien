@@ -11,7 +11,8 @@
     "deposits:forward": "tsx scripts/forward-deposits.ts",
     "smoke:agents": "tsx scripts/smoke-agents.ts",
     "serve": "tsx scripts/serve.ts",
-    "smoke:round-trip": "tsx scripts/smoke-round-trip.ts"
+    "smoke:round-trip": "tsx scripts/smoke-round-trip.ts",
+    "engine": "tsx scripts/run-engine.ts"
   },
   "devDependencies": {
     "@types/node": "^24",

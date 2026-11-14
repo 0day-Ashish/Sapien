@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Icon, MarketGarden, PillarArt, VaultBot, VaultRow, type IconName } from "./ui/art";
+import { Icon, MarketGarden, PillarArt, VaultBot, VaultCluster, type IconName } from "./ui/art";
+import { AgentDemo } from "./ui/agent-demo";
 import { BrandMark } from "./ui/brand-icons";
 import { SiteFooter } from "./ui/site-footer";
 import { SiteNav } from "./ui/site-nav";
@@ -34,7 +35,7 @@ function Hero() {
         href="/#how-it-works"
         className="inline-flex h-[1.875rem] items-center overflow-hidden rounded-full border border-violet text-violet transition-colors hover:bg-violet-tint"
       >
-        <span className="flex h-full items-center border-r border-violet px-3 font-mono text-[0.6875rem] font-bold uppercase tracking-[0.08em]">
+        <span className="flex h-full items-center border-r border-violet px-3 font-mono text-[0.6875rem] font-medium uppercase tracking-[0.08em]">
           Testnet
         </span>
         <span className="flex items-center gap-1.5 px-3 text-sm font-medium">
@@ -61,7 +62,7 @@ function Hero() {
               <li
                 key={i}
                 aria-hidden={i >= BUILT_ON.length}
-                className="flex items-center gap-2 whitespace-nowrap text-[1.375rem] font-semibold tracking-[-0.025em] text-violet"
+                className="flex items-center gap-2 whitespace-nowrap text-[1.375rem] font-medium tracking-[-0.025em] text-violet"
               >
                 <BrandMark name={name} className="h-[1.2rem] w-auto" />
                 {name}
@@ -85,58 +86,18 @@ function Hero() {
 
 /* ---------- Product demo ---------- */
 
-const TIMELINE = [
-  { w: 4, c: "bg-violet" },
-  { w: 16, c: "bg-orange" },
-  { w: 2, c: "bg-teal" },
-  { w: 15, c: "bg-pink" },
-  { w: 12, c: "bg-violet-line" },
-  { w: 14, c: "bg-violet-line" },
-  { w: 18, c: "bg-violet-line" },
-  { w: 19, c: "bg-violet-line" },
-];
-
-const DECISIONS = [
-  { title: "BTC breakout, 2× long", when: "just now", c: "text-green", active: true },
-  { title: "ETH funding skew", when: "4m ago", c: "text-teal" },
-  { title: "SOL rejected: not allowed", when: "12m ago", c: "text-orange", dot: true },
-  { title: "Vetoed: BTC 5× long", when: "1h ago", c: "text-pink" },
-  { title: "Stop-loss filled, ETH", when: "3h ago", c: "text-violet" },
-  { title: "Overshoot paid by Bond", when: "5h ago", c: "text-gold" },
-  { title: "Mandate v3 signed", when: "1d ago", c: "text-blue" },
-  { title: "Lead Agent: Momentum", when: "1d ago", c: "text-green" },
-  { title: "Deposit landed, 250 USDC", when: "2d ago", c: "text-teal" },
-];
-
 function ProductDemo() {
   return (
-    <section className="relative mt-6 pb-10">
+    <section className="relative mt-20 pb-10">
       <div className="container-page relative">
-        {/* Timeline bar */}
-        <div className="relative z-10 mt-24 rounded-t-[1.25rem] border border-b-0 border-violet-line bg-violet-tint/90 px-5 py-4 backdrop-blur md:mx-5">
-          <span className="chip chip-solid absolute -top-3 left-[22%] md:left-[18%]">Veto window 42s</span>
-          <div className="flex items-center gap-4">
-            <span aria-hidden="true" className="flex gap-[3px]">
-              <span className="h-3 w-[3px] bg-violet-ink" />
-              <span className="h-3 w-[3px] bg-violet-ink" />
-            </span>
-            <div className="flex flex-1 items-center gap-1.5">
-              {TIMELINE.map((seg, i) => (
-                <span key={i} className={`h-[3px] rounded-full ${seg.c}`} style={{ width: `${seg.w}%` }} />
-              ))}
-            </div>
-            <span className="label-mono !text-xs text-violet-ink">0:42 / 2:10</span>
-          </div>
-        </div>
-
-        {/* Garden spilling over the panel's top-right corner */}
+        {/* Garden behind the panel's top-right corner */}
         <MarketGarden
           seed={11}
           width={520}
           height={190}
           count={75}
           shape="mound"
-          className="pointer-events-none absolute -right-6 top-0 z-0 hidden w-[42%] max-w-[38rem] -translate-y-[38%] md:block"
+          className="pointer-events-none absolute -right-6 top-0 z-0 hidden w-[42%] max-w-[38rem] -translate-y-[45%] md:block"
         />
         <MarketGarden
           seed={17}
@@ -147,77 +108,9 @@ function ProductDemo() {
           className="pointer-events-none absolute -right-10 top-16 z-0 hidden w-[9rem] lg:block"
         />
 
-        {/* App frame */}
-        <div className="relative z-10 grid overflow-hidden rounded-[1.25rem] border border-violet-line bg-violet-soft/70 p-3 shadow-card md:grid-cols-[15rem_1fr]">
-          <aside className="hidden flex-col gap-3 p-2 md:flex">
-            <div className="grid grid-cols-2 rounded-full bg-white/70 p-1 text-sm text-violet">
-              <span className="rounded-full py-1 text-center">Vaults</span>
-              <span className="rounded-full bg-white py-1 text-center shadow-sm">Feed</span>
-            </div>
-            <span className="rounded-full bg-white/70 py-1.5 text-center text-sm text-violet">+ New Mandate</span>
-            <p className="mt-2 px-1 text-xs text-violet/70">Recent decisions</p>
-            <ul className="flex flex-col gap-1">
-              {DECISIONS.map((d) => (
-                <li
-                  key={d.title}
-                  className={`flex items-start gap-2 rounded-lg px-2 py-1.5 text-[0.8125rem] text-violet-ink ${d.active ? "bg-white/80" : ""}`}
-                >
-                  <Icon name="chart" className={`mt-0.5 size-4 shrink-0 ${d.c}`} />
-                  <span className="flex-1 leading-tight">
-                    {d.title}
-                    <span className="block text-[0.6875rem] text-violet/60">{d.when}</span>
-                  </span>
-                  {d.dot && <span className="mt-1.5 size-1.5 rounded-full bg-orange" />}
-                </li>
-              ))}
-            </ul>
-          </aside>
-
-          <div className="flex min-h-[34rem] flex-col rounded-xl bg-white px-5 py-6 md:px-10">
-            <span className="mx-auto rounded-full bg-violet-tint px-3 py-0.5 text-xs text-violet/70">Today</span>
-            <div className="mx-auto mt-6 flex w-full max-w-2xl flex-col gap-6">
-              <p className="self-end rounded-2xl bg-violet-tint px-4 py-2.5 text-sm text-violet-ink">
-                Momentum wants to open 2× long BTC. Why, and is it inside my Mandate?
-              </p>
-              <div className="flex flex-col gap-2 text-[0.8125rem] text-violet/80">
-                <p className="flex items-center gap-2">
-                  <Icon name="timer" className="size-4" /> Checked in 3s
-                </p>
-                <ul className="ml-2 flex flex-col gap-1.5 border-l border-violet-line pl-4">
-                  <li>Read Mandate v3</li>
-                  <li>Checked blackout windows: none until US CPI, Dec 10</li>
-                  <li>Recorded Decision Commitment 0x7c1e…a94f</li>
-                </ul>
-              </div>
-              <div className="flex flex-col gap-2 text-sm text-violet-ink">
-                <p>Momentum sees BTC breaking its 4h range with funding neutral. Confidence 72%.</p>
-                <ul className="ml-5 list-disc space-y-1 marker:text-violet">
-                  <li>BTC is an allowed asset, and 2× is under your 3× leverage cap</li>
-                  <li>Stop-loss rests 2% below entry, as your Mandate requires</li>
-                  <li>
-                    <span className="bg-violet-soft px-0.5">640 USDC is above your veto threshold, so it waits 60s for you</span>
-                  </li>
-                </ul>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <span className="chip chip-forest">Mandate check passed</span>
-                <span className="chip chip-amber">Veto window 42s</span>
-              </div>
-            </div>
-            <div className="mx-auto mt-auto w-full max-w-2xl rounded-2xl bg-violet-soft/70 p-1.5 pt-0">
-              <p className="px-3 py-2 text-xs text-violet/60">Ask about any trade</p>
-              <div className="flex flex-col gap-6 rounded-xl border border-violet-line bg-white p-3">
-                <p className="text-sm text-violet/50">Why did the agent do that? Or type / for Veto, Kill Switch, Replay…</p>
-                <div className="flex items-center justify-between text-violet/60">
-                  <span className="text-lg leading-none">+</span>
-                  <span className="flex size-7 items-center justify-center rounded-full bg-violet/40 text-sm text-white">↑</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <AgentDemo />
       </div>
-      <MarketGarden seed={23} width={720} height={200} count={110} shape="mound" className="pointer-events-none relative -mt-24 w-[70%] max-w-4xl md:-mt-28 md:w-[52%]" />
+      <MarketGarden seed={23} width={720} height={200} count={110} shape="mound" className="pointer-events-none relative -mt-16 w-[70%] max-w-4xl md:-mt-20 md:w-[52%]" />
       <p className="container-page -mt-2 text-xs text-violet/60">Illustration of the agent&apos;s-eye view. Not live data.</p>
     </section>
   );
@@ -227,17 +120,24 @@ function ProductDemo() {
 
 function LetThemTrade() {
   return (
-    <section id="how-it-works" className="container-narrow grid scroll-mt-20 items-center gap-12 pt-20 lg:grid-cols-[1fr_1.1fr]">
-      <div className="flex flex-col gap-7">
-        <p className="eyebrow">Let them trade it</p>
-        <h2 className="display-serif">Put AI agents to work around the rules you set.</h2>
-        <p className="lede max-w-xl !text-[1.25rem]">
-          Describe your risk in a sentence and sign it as a Mandate. Deposit USDC from Base Sepolia or Solana, and a
-          bonded agent trades your own Vault inside those rules. From first sentence to withdrawal, there&apos;s one
-          Vault, one Mandate and a record of every decision.
-        </p>
+    <section id="how-it-works" className="scroll-mt-20 pb-4 pt-12 lg:pb-6 lg:pt-14">
+      <div className="mx-auto grid w-full max-w-[73.625rem] items-center gap-14 px-5 lg:grid-cols-[minmax(0,36rem)_1fr] xl:px-0">
+        <div className="flex flex-col">
+          <p className="font-mono text-[0.8125rem] font-medium uppercase tracking-[0.1em] text-violet">Let them trade it</p>
+          <h2 className="mt-12 font-serif text-[clamp(2.25rem,3.4vw,3rem)] font-normal leading-[1.08] tracking-[-0.02em] text-violet">
+            Put AI agents to work around the rules you set.
+          </h2>
+          <p className="mt-10 font-serif text-[1.25rem] leading-[1.42] text-violet">
+            Describe your risk in a sentence and sign it as a Mandate. Deposit USDC from Base Sepolia or Solana, and a
+            bonded agent trades your own Vault inside those rules. From first sentence to withdrawal, there&apos;s one
+            Vault, one Mandate and a record of every decision.
+          </p>
+        </div>
+        {/* Runs off the right edge of the screen; main clips the overflow. */}
+        <div className="-mr-5 lg:-mr-[max(1.25rem,calc((100vw-73.625rem)/2))]">
+          <VaultCluster className="h-auto w-full" />
+        </div>
       </div>
-      <VaultRow className="w-full" />
     </section>
   );
 }
@@ -276,16 +176,21 @@ const PILLARS = [
 
 function Pillars() {
   return (
-    <section className="container-page section flex flex-col items-center">
-      <div className="grid w-full gap-6 lg:grid-cols-3">
+    <section className="container-page section flex flex-col items-center !pt-16">
+      {/* Cards share one row grid (subgrid), so titles, dividers and rows line up across all three. */}
+      <div className="grid w-full gap-6 lg:grid-cols-3 lg:grid-rows-[auto_1fr_auto_auto_auto] lg:gap-y-0">
         {PILLARS.map((pillar) => (
-          <article key={pillar.title} className={`card-outline flex flex-col pt-6 ${pillar.tone}`}>
-            <PillarArt kind={pillar.art} className="ml-6 size-24" />
-            <h3 className="display-3 mt-24 px-6 pb-6">{pillar.title}</h3>
+          <article
+            key={pillar.title}
+            className={`card-outline flex flex-col rounded-[0.875rem] pt-6 lg:row-span-5 lg:grid lg:grid-rows-subgrid ${pillar.tone}`}
+          >
+            <PillarArt kind={pillar.art} className="ml-6 size-[7.5rem]" />
+            <span aria-hidden="true" className="min-h-16 lg:min-h-36" />
+            <h3 className="px-6 pb-9 font-sans text-[2.25rem] font-normal leading-none tracking-[-0.02em]">{pillar.title}</h3>
             {pillar.rows.map((row) => (
-              <div key={row.label} className="ml-6 border-t border-current py-4 pr-6">
-                <p className="label-mono">{row.label}</p>
-                <p className="mt-1.5 text-[0.9375rem] leading-snug">{row.body}</p>
+              <div key={row.label} className="ml-6 border-t border-current pb-6 pr-6 pt-5">
+                <p className="font-mono text-[0.9375rem] font-medium tracking-[0.04em]">{row.label}</p>
+                <p className="mt-2 text-[1.0625rem] leading-[1.4]">{row.body}</p>
               </div>
             ))}
           </article>
@@ -322,7 +227,7 @@ const PROTECTION = [
 function ProtectionPanel() {
   return (
     <section id="protection" className="container-page scroll-mt-20">
-      <div className="relative overflow-hidden rounded-[var(--radius-panel)] border border-violet-line bg-violet-soft px-6 pb-56 pt-14 md:px-14 md:pb-64 md:pt-16">
+      <div className="relative overflow-hidden rounded-[var(--radius-panel)] border border-violet-line bg-violet-soft px-6 pb-64 pt-14 md:px-14 md:pb-80 md:pt-16">
         <div className="grid gap-14 lg:grid-cols-[1fr_1.1fr]">
           <div className="flex flex-col gap-7">
             <h2 className="display-1 !text-[clamp(2.5rem,4.4vw,3.75rem)]">One protected Vault</h2>
@@ -340,7 +245,7 @@ function ProtectionPanel() {
             ))}
           </div>
         </div>
-        <MarketGarden seed={41} width={900} height={190} count={140} shape="mound" className="pointer-events-none absolute -bottom-6 left-0 w-[90%] md:w-[65%]" />
+        <MarketGarden seed={41} width={1300} height={300} count={340} shape="mound" className="pointer-events-none absolute -bottom-8 left-0 w-full" />
       </div>
     </section>
   );
@@ -381,7 +286,7 @@ function QuoteCard({ tone, quote, who, role, tag, large = false }: { tone: strin
       </div>
       <figcaption className="flex items-end justify-between border-t border-current/30 pt-5 text-[0.9375rem]">
         <span>
-          <span className="block font-semibold">{who}</span>
+          <span className="block font-medium">{who}</span>
           {role}
         </span>
         <span className="label-mono text-lg">{tag}</span>
@@ -449,7 +354,7 @@ function StartToday() {
       <div className="relative w-full">
         <p
           aria-hidden="true"
-          className="select-none bg-clip-text font-sans text-[clamp(4.5rem,17vw,16rem)] font-bold leading-[0.95] tracking-[-0.05em] text-transparent"
+          className="select-none bg-clip-text font-sans text-[clamp(4.5rem,17vw,16rem)] font-medium leading-[0.95] tracking-[-0.05em] text-transparent"
           style={{ backgroundImage: PATTERN, backgroundSize: "120px 120px" }}
         >
           Sign it today
