@@ -4,7 +4,7 @@
 //
 // engine/.env.local (falls back to the smoke:chain deployment from #31):
 //   RUNNER_VAULT, RUNNER_ASSET (ETH), RUNNER_AGENT_PRIVATE_KEY, ENGINE_OPERATOR_PRIVATE_KEY,
-//   MANDATE_REGISTRY, DECISION_LOG, RUNNER_INTERVAL_MS (300000), TYPESAFE_API_KEY, GEMINI_API_KEY,
+//   MANDATE_REGISTRY, DECISION_LOG, RUNNER_INTERVAL_MS (300000), TYPESAFE_API_KEY, GEMINI_API_KEY, GROQ_API_KEY (rationale fallback),
 //   AGENT_REGISTRY (optional, #12: real Bond Minimum checks; Lead Agents are reported to it)
 //   PROTECTION_FUND (optional, #15: Overshoot claims and the Coverage Ratio go to it)
 
@@ -18,7 +18,9 @@ import {
   createEngine,
   createRunner,
   FundingArbAgent,
+  fallbackRationaleWriter,
   geminiRationaleWriter,
+  groqRationaleWriter,
   jevLeadSelector,
   leaderboard,
   MeanReversionAgent,
@@ -44,6 +46,11 @@ const intervalMs = Number(process.env.RUNNER_INTERVAL_MS ?? 300_000);
 
 const exchange = new HyperliquidExchange({ isTestnet: true, agentFor: () => agent });
 const chain = new HyperEvmChain({ mandateRegistry: env("MANDATE_REGISTRY", "SMOKE_MANDATE_REGISTRY") as Address, decisionLog: env("DECISION_LOG", "SMOKE_DECISION_LOG") as Address, engine: operator, ...(process.env.AGENT_REGISTRY ? { agentRegistry: process.env.AGENT_REGISTRY as Address } : {}), ...(process.env.PROTECTION_FUND ? { protectionFund: process.env.PROTECTION_FUND as Address } : {}) });
+// Gemini writes the rationales, with Groq as the fallback; if both fail, the agent's template wording stays (ADR-0005).
+const rationaleWriters = [
+  ...(process.env.GEMINI_API_KEY ? [{ name: "Gemini", write: geminiRationaleWriter() }] : []),
+  ...(process.env.GROQ_API_KEY ? [{ name: "Groq", write: groqRationaleWriter() }] : []),
+];
 const engine = createEngine({ exchange, chain });
 
 // Placeholder Bonds and track records until the AgentRegistry (#12) supplies real ones.
@@ -82,7 +89,10 @@ const runner = createRunner({
   onVetoWindow: (vault, p) =>
     console.log(`Veto Window open on ${vault}: ${p.agentId} ${p.side} ${p.size} ${p.asset} (${p.notional.toFixed(0)} USDC) until ${new Date(p.expiresAt).toISOString()}`),
   select: process.env.TYPESAFE_API_KEY ? jevLeadSelector() : async () => { throw new Error("TYPESAFE_API_KEY not set"); },
-  ...(process.env.GEMINI_API_KEY ? { write: geminiRationaleWriter() } : {}),
+  write: fallbackRationaleWriter(
+    rationaleWriters.map((w) => w.write),
+    (i, e) => console.log(`Rationale: ${rationaleWriters[i]!.name} failed (${String(e).slice(0, 120)}), trying ${rationaleWriters[i + 1]!.name}`),
+  ),
   log,
 });
 

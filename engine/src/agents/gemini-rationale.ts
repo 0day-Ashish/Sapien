@@ -7,7 +7,7 @@ import type { RationaleWriter } from "./types.js";
 /** Google's stable fast, low-cost text model; override with GEMINI_MODEL. */
 export const DEFAULT_RATIONALE_MODEL = "gemini-3.5-flash-lite";
 
-const SYSTEM = `You write one or two plain sentences for a trading dashboard's live feed, explaining a decision a rule-based trading agent has ALREADY made.
+export const RATIONALE_SYSTEM_PROMPT = `You write one or two plain sentences for a trading dashboard's live feed, explaining a decision a rule-based trading agent has ALREADY made.
 Use only the facts given. Don't add numbers, predictions, advice or hype, and don't change or second-guess the decision.
 Write for a non-expert: say what the price did, what level it crossed, and what the agent is doing about it. No markdown.`;
 
@@ -20,7 +20,7 @@ export function geminiRationaleWriter(
     const response = await client.models.generateContent({
       model,
       contents: `Decision facts (JSON): ${JSON.stringify(facts)}\nTemplate wording, for reference: ${template}`,
-      config: { systemInstruction: SYSTEM, maxOutputTokens: 300 },
+      config: { systemInstruction: RATIONALE_SYSTEM_PROMPT, maxOutputTokens: 300 },
     });
     const text = response.text?.trim();
     if (!text) throw new Error("Empty rationale from Gemini");
