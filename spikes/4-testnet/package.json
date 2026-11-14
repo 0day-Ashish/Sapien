@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@nktkas/hyperliquid": "0.33.3",
-    "viem": "2.57.13"
+    "viem": "2.57.10"
   },
   "devDependencies": {
     "@types/node": "^24",

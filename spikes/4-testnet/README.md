@@ -12,6 +12,7 @@ Each script records what it saw in `state.json` (gitignored), which feeds the ti
 | 3 | `npm run activate` | The contract becomes its own HyperCore account: activation fee, then CoreWriter action 7 (spot/perp transfer) and its units. |
 | 4 | `npm run agent` | The contract adds the Agent Wallet through CoreWriter action 9, using the shared encoder in `contracts/src/hypercore/`. |
 | 5 | `npm run tpsl` | The Agent Wallet trades for the contract: `normalTpsl` vs `positionTpsl` on resting parent, cancel, fill, position growth and close. |
+| 5x | `node 5x-tpsl-followups.ts` | A cloid on the stop child, `positionTpsl` with size `"0"`, and a partially filled IOC entry. |
 | 6 | `npm run no-withdraw` | The Agent Wallet tries `withdraw3`, `usdSend`, `spotSend`, `agentSendAsset` to itself and `approveAgent`. All should fail. |
 | 7 | `npm run cleanup` | Flattens the contract and returns its USDC to the owner through CoreWriter action 13. |
 
@@ -20,5 +21,7 @@ Each script records what it saw in `state.json` (gitignored), which feeds the ti
 1. `npm install` (Node 24 runs the `.ts` files directly) and `brew install foundry`.
 2. Put a **testnet-only** owner key in `.env` (see `.env.example`), funded with about 40 testnet USDC on HyperCore. The faucet at https://app.hyperliquid-testnet.xyz/drip may require the address to have used mainnet.
 3. Run the steps in order. `npm run typecheck` checks the scripts.
+
+viem is pinned to 2.57.10: from 2.57.12 viem rejects EIP-712 type names containing `:`, which every Hyperliquid user-signed action uses (`HyperliquidTransaction:UsdSend` and so on).
 
 `.env` and `state.json` are gitignored. Never put a mainnet key with real funds here.

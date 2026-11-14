@@ -170,3 +170,27 @@ export async function viaCoreWriter(label: string, data: Hex) {
 }
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Agent cancels every open order and closes every position on the account with reduce-only IOCs. */
+export async function flatten(user: Address) {
+  const ex = exchange(agent());
+  const s = await snapshot(user);
+  if (s.openOrders.length) {
+    const meta = await info.meta();
+    await ex.cancel({ cancels: s.openOrders.map((o) => ({ a: meta.universe.findIndex((u) => u.name === o.coin), o: o.oid })) });
+  }
+  for (const p of s.positions) {
+    const m = await perp(p.coin);
+    const size = Number(p.szi);
+    // Price off the book, not the mark: testnet marks sit several % from the oracle, and orders too far
+    // from the oracle are rejected ("Price too far from oracle").
+    const book = await info.l2Book({ coin: p.coin });
+    const touch = Number(book!.levels[size < 0 ? 1 : 0][0]!.px);
+    await ex.order({
+      orders: [{ a: m.index, b: size < 0, p: px(touch * (size < 0 ? 1.005 : 0.995), m.szDecimals), s: sz(Math.abs(size), m.szDecimals), r: true, t: { limit: { tif: "Ioc" } } }],
+      grouping: "na",
+    });
+  }
+  await sleep(2000);
+  return snapshot(user);
+}

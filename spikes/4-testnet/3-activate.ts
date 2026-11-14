@@ -9,7 +9,14 @@ const amount = process.env.ACTIVATE_USDC ?? "30";
 record("3a.preTransferCheck", await info.preTransferCheck({ user: c, source: o.address }));
 record("3a.contractBefore", await snapshot(c));
 
-const ownerBefore = await info.clearinghouseState({ user: o.address });
+let ownerBefore = await info.clearinghouseState({ user: o.address });
+if (Number(ownerBefore.withdrawable) < Number(amount) + 1) {
+  const spotUsdc = (await info.spotClearinghouseState({ user: o.address })).balances.find((b) => b.coin === "USDC")?.total ?? "0";
+  const move = Math.floor(Number(spotUsdc));
+  console.log(`Owner perp is short; moving ${move} USDC spot -> perp`);
+  await exchange(o).usdClassTransfer({ amount: String(move), toPerp: true });
+  ownerBefore = await info.clearinghouseState({ user: o.address });
+}
 await attempt("3b.usdSendToContract", () => exchange(o).usdSend({ destination: c, amount }));
 
 const landed = await waitFor("contract account to show USDC", async () => {

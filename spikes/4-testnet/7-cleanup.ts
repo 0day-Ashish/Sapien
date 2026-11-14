@@ -1,39 +1,30 @@
 // Step 7: flatten the contract and send its USDC back to the owner through CoreWriter action 13 (send asset).
 // Also shows that the contract itself, not the agent, can move funds out: the basis of the Vault withdrawal path.
-import { agent, contract, coreAction, exchange, info, owner, perp, px, record, sleep, snapshot, sz, viaCoreWriter, waitFor } from "./lib.ts";
+import { contract, coreAction, flatten, info, owner, record, sleep, snapshot, viaCoreWriter, waitFor } from "./lib.ts";
 
 const c = contract();
-const ex = exchange(agent());
 const s = await snapshot(c);
-
-if (s.openOrders.length) {
-  const meta = await info.meta();
-  const idx = (coin: string) => meta.universe.findIndex((u) => u.name === coin);
-  await ex.cancel({ cancels: s.openOrders.map((o) => ({ a: idx(o.coin), o: o.oid })) });
-}
-for (const p of s.positions) {
-  const m = await perp(p.coin);
-  const size = Number(p.szi);
-  await ex.order({
-    orders: [{ a: m.index, b: size < 0, p: px(m.mark * (size < 0 ? 1.02 : 0.98), m.szDecimals), s: sz(Math.abs(size), m.szDecimals), r: true, t: { limit: { tif: "Ioc" } } }],
-    grouping: "na",
-  });
-}
-await sleep(2000);
+// Testnet books can sit outside the ~2.5% oracle band, so an IOC close may be rejected. If a reduce-only
+// close is already resting for every open position, leave it; otherwise flatten.
+const covered = s.positions.every((p) => s.openOrders.some((o) => o.coin === p.coin && o.reduceOnly && !o.isTrigger));
+if (!covered) await flatten(c).catch((e) => console.log("  flatten failed:", e.message));
+await sleep(1000);
 
 const flat = await snapshot(c);
 const ownerBefore = await info.clearinghouseState({ user: owner().address });
-// Keep 1 USDC so the account stays activated. Units guessed as 1e6 per USDC for the perp dex (checked by the delta below).
+// Keep 1 USDC so the account stays activated (withdrawable already excludes margin held by open positions).
+// Action 13 takes USDC in 8-decimal wei even on the perp dex, but perp balances have 6-decimal precision:
+// an amount that is not a multiple of 100 wei is dropped silently. So round to 6 decimals, then scale.
 const keep = 1;
-const send = Math.floor((Number(flat.withdrawable) - keep) * 1e6);
-if (send > 0) {
+const send = BigInt(Math.floor((Number(flat.withdrawable) - keep) * 1e6)) * 100n;
+if (send > 0n) {
   // destination, subAccount (0 = own account), source dex, destination dex (0 = default perp dex), token 0 = USDC, amount.
   await viaCoreWriter(
-    `sendAsset ${send} raw USDC perp -> owner perp`,
+    `sendAsset ${send} wei (${Number(send) / 1e8} USDC) perp -> owner perp`,
     coreAction(
       13,
       [{ type: "address" }, { type: "address" }, { type: "uint32" }, { type: "uint32" }, { type: "uint64" }, { type: "uint64" }],
-      [owner().address, "0x0000000000000000000000000000000000000000", 0, 0, 0n, BigInt(send)],
+      [owner().address, "0x0000000000000000000000000000000000000000", 0, 0, 0n, send],
     ),
   );
   const ownerAfter = await waitFor("owner balance to rise", async () => {
@@ -41,7 +32,7 @@ if (send > 0) {
     return Number(st.marginSummary.accountValue) > Number(ownerBefore.marginSummary.accountValue) + 0.5 ? st : undefined;
   }, 30_000);
   record("7.coreWriterSendAssetToOwner", {
-    rawSent: send,
+    weiSent: send.toString(),
     ownerDelta: ownerAfter ? Number(ownerAfter.marginSummary.accountValue) - Number(ownerBefore.marginSummary.accountValue) : "no change within 30s",
     contractAfter: await snapshot(c),
   });
