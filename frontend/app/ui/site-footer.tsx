@@ -74,7 +74,7 @@ export function SiteFooter() {
                     <Link
                       href={link.href}
                       {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                      className={`hover:text-violet-ink ${link.strong ? "font-semibold" : ""}`}
+                      className={`hover:text-violet-ink ${link.strong ? "font-medium" : ""}`}
                     >
                       {link.label}
                       {link.external && <span aria-hidden="true"> ↗</span>}
@@ -87,9 +87,9 @@ export function SiteFooter() {
         ))}
       </div>
       <div className="mt-20 flex flex-col items-start gap-4 text-[0.9375rem] md:flex-row md:items-center md:justify-between">
-        <p className="font-semibold">© 2026 {PRODUCT_NAME}</p>
+        <p className="font-medium">© 2026 {PRODUCT_NAME}</p>
         <p className="eyebrow rounded-full bg-violet-tint px-4 py-2 !text-[0.6875rem]">Testnet only · Not investment advice</p>
-        <p className="font-semibold">Stop-loss protected, never guaranteed</p>
+        <p className="font-medium">Stop-loss protected, never guaranteed</p>
       </div>
     </footer>
   );
