@@ -2,9 +2,10 @@
   "chainId": 998,
   "engineOperator": "0xB995DbCc9d2f64530dbE756f2D783C00ff50D577",
   "VaultFactory": {
-    "address": "0x4a3Dea7Eca92d7f7cdE668ACE4f1EC9395E62020",
-    "deployBlock": 69578606,
-    "note": "v2 adds depositTargetOf (#6). v1 0xDE6A33788aA0e0f9EdD93BA169d421f025E7f600 retired."
+    "address": "0x820565B32244bBb7F1c6146f667C5c7dedda2fEE",
+    "deployBlock": 69581974,
+    "deployTx": "0x145d2bfa3b6290f76d2814345c80710492a3b7b5415c15aba483570e586f3a9d",
+    "note": "v3: Vault withdrawal (#7) + deposit target (#6). Retired: v2 0x4a3Dea7Eca92d7f7cdE668ACE4f1EC9395E62020, v1 0xDE6A33788aA0e0f9EdD93BA169d421f025E7f600."
   },
   "MandateRegistry": {
     "address": "0xC08aA5bc113B8CC4Acd5006c9a9B8419Fab4475E",
