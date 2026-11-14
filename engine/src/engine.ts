@@ -1,14 +1,19 @@
 import { createHash, randomBytes } from "node:crypto";
-import type { EngineEvent, TradeProposal } from "./events.js";
+import type { EngineEvent, FillUpdate, PriceTick, TradeProposal, VaultId } from "./events.js";
 import type { Cloid, Mandate, PlacedOrder, Ports } from "./ports.js";
 
 export type RejectionCode =
   | "invalid-proposal"
   | "kill-flag"
+  | "blackout-window"
+  /** Drawdown cap reached this month, or the oracle has strayed from its reference. New positions only. */
+  | "automatic-kill"
   | "asset-not-allowed"
   | "leverage-over-cap"
   | "below-bond-minimum"
-  | "commitment-failed";
+  | "commitment-failed"
+  /** Committed onchain, then the exchange refused the order (e.g. outside the oracle band). Nothing was placed. */
+  | "order-failed";
 
 export type Rejection = { code: RejectionCode; message: string };
 
@@ -24,8 +29,16 @@ export type DecisionRecord = {
   };
 };
 
+export type AutomaticKill =
+  | { trigger: "drawdown-cap"; reason: string; since: number }
+  | { trigger: "oracle-deviation"; asset: string; reason: string; since: number };
+
+/** What the dashboard reads about a Vault's protection state. */
+export type VaultStatus = { automaticKill?: AutomaticKill };
+
 export type HandleResult =
   | { kind: "ignored" }
+  | { kind: "handled" }
   | { kind: "rejected"; proposalId: string; rejection: Rejection }
   | {
       kind: "executed";
@@ -38,20 +51,80 @@ export type HandleResult =
       stopLoss?: { cloid: Cloid; triggerPrice: number; placedAt: number };
     };
 
-export type Engine = { handle(event: EngineEvent): Promise<HandleResult> };
+export type Engine = {
+  handle(event: EngineEvent): Promise<HandleResult>;
+  vaultStatus(vaultId: VaultId): VaultStatus;
+};
 
 export type EngineOptions = {
   /** Worst entry price as a fraction past the mark (IOC limit). */
   entrySlippage?: number;
   newCloid?: () => Cloid;
+  /** Clock in ms, injectable for tests. */
+  now?: () => number;
 };
 
 const DEFAULT_ENTRY_SLIPPAGE = 0.01;
+/** Automatic Kill fires when the oracle is more than this far from the reference... */
+const ORACLE_DEVIATION = 0.02;
+/** ...for longer than this. */
+const ORACLE_DEVIATION_MS = 30_000;
 
 export function createEngine(ports: Ports, options: EngineOptions = {}): Engine {
   const { exchange, chain } = ports;
   const slippage = options.entrySlippage ?? DEFAULT_ENTRY_SLIPPAGE;
   const newCloid = options.newCloid ?? (() => `0x${randomBytes(16).toString("hex")}` as Cloid);
+  const now = options.now ?? Date.now;
+
+  /** Per Vault: this calendar month's High-Water Mark, and a drawdown kill that holds until the month ends. */
+  const drawdown = new Map<VaultId, { month: string; highWaterMark: number; kill?: AutomaticKill }>();
+  /** Per asset: since when the oracle has been out of range, and the kill once it has been for over 30s. */
+  const oracle = new Map<string, { deviatingSince?: number; kill?: AutomaticKill }>();
+
+  /** Reads the Vault's value, moves the month's High-Water Mark, and fires the drawdown kill at the cap. */
+  async function checkDrawdown(vaultId: VaultId, capPct: number) {
+    const month = monthKey(now());
+    const value = await exchange.accountValue(vaultId);
+    let d = drawdown.get(vaultId);
+    if (!d || d.month !== month) d = { month, highWaterMark: value };
+    d.highWaterMark = Math.max(d.highWaterMark, value);
+    const ddPct = d.highWaterMark > 0 ? ((d.highWaterMark - value) / d.highWaterMark) * 100 : 0;
+    if (!d.kill && ddPct >= capPct - 1e-9) {
+      d.kill = {
+        trigger: "drawdown-cap",
+        reason: `Drawdown ${ddPct.toFixed(1)}% from this month's High-Water Mark (${d.highWaterMark}) reached the Mandate cap of ${capPct}%`,
+        since: now(),
+      };
+    }
+    drawdown.set(vaultId, d);
+    return d.kill;
+  }
+
+  function onPriceTick(t: PriceTick) {
+    const o = oracle.get(t.asset) ?? {};
+    const deviation = Math.abs(t.oraclePrice / t.referencePrice - 1);
+    if (deviation > ORACLE_DEVIATION + 1e-9) {
+      o.deviatingSince ??= t.at;
+      if (!o.kill && t.at - o.deviatingSince > ORACLE_DEVIATION_MS) {
+        o.kill = {
+          trigger: "oracle-deviation",
+          asset: t.asset,
+          reason: `${t.asset} oracle ${t.oraclePrice} is ${(deviation * 100).toFixed(2)}% from the reference ${t.referencePrice} for over ${ORACLE_DEVIATION_MS / 1000}s`,
+          since: t.at,
+        };
+      }
+    } else {
+      // Back in range: the 30s restarts and the oracle kill clears. (The drawdown kill holds for the month.)
+      delete o.deviatingSince;
+      delete o.kill;
+    }
+    oracle.set(t.asset, o);
+  }
+
+  async function onFill(f: FillUpdate) {
+    // Looser Mandate Versions take effect once the Vault is Flat; the chain side needs to hear it.
+    if ((await exchange.positions(f.vaultId)).every((p) => p.size === 0)) await chain.reportFlat(f.vaultId);
+  }
 
   async function handleProposal(p: TradeProposal): Promise<HandleResult> {
     const reject = (code: RejectionCode, message: string): HandleResult => ({
@@ -64,10 +137,14 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
     if (invalid) return reject("invalid-proposal", invalid);
 
     const mandate = await chain.currentMandate(p.vaultId);
-    const failed = mandateCheck(p, mandate);
+    const failed = mandateCheck(p, mandate, now());
     if (failed) return reject(failed.code, failed.message);
 
     const opens = p.intent === "open";
+    // Automatic Kill blocks new positions only: reducing and closing go on, and resting stop-losses are never touched.
+    const ddKill = await checkDrawdown(p.vaultId, mandate.drawdownCapPct);
+    const oracleKill = oracle.get(p.asset)?.kill;
+    if (opens && (ddKill || oracleKill)) return reject("automatic-kill", `Automatic Kill: ${(ddKill ?? oracleKill)!.reason}`);
     if (opens && !(await chain.meetsBondMinimum(p.agentId))) {
       return reject("below-bond-minimum", `${p.agentId} is below its Bond Minimum and may only reduce or close`);
     }
@@ -96,30 +173,33 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
     }
 
     const { entryCloid, stopLoss } = decision.order;
-    if (!stopLoss) {
-      const order = await exchange.placeReduceOnly({ vaultId: p.vaultId, asset: p.asset, side: p.side, size: p.size, limitPrice, cloid: entryCloid });
-      return { kind: "executed", proposalId: p.proposalId, decision, decisionHash, commitmentTx, order };
+    try {
+      if (!stopLoss) {
+        const order = await exchange.placeReduceOnly({ vaultId: p.vaultId, asset: p.asset, side: p.side, size: p.size, limitPrice, cloid: entryCloid });
+        return { kind: "executed", proposalId: p.proposalId, decision, decisionHash, commitmentTx, order };
+      }
+      await exchange.setLeverage(p.vaultId, p.asset, p.leverage);
+      const order = await exchange.placeOrderWithStopLoss({
+        vaultId: p.vaultId,
+        asset: p.asset,
+        side: p.side,
+        size: p.size,
+        limitPrice,
+        entryCloid,
+        stopLoss,
+      });
+      return {
+        kind: "executed",
+        proposalId: p.proposalId,
+        decision,
+        decisionHash,
+        commitmentTx,
+        order,
+        stopLoss: { ...stopLoss, placedAt: order.placedAt },
+      };
+    } catch (e) {
+      return reject("order-failed", `Committed (${commitmentTx}) but the exchange refused the order: ${(e as Error).message}`);
     }
-
-    await exchange.setLeverage(p.vaultId, p.asset, p.leverage);
-    const order = await exchange.placeOrderWithStopLoss({
-      vaultId: p.vaultId,
-      asset: p.asset,
-      side: p.side,
-      size: p.size,
-      limitPrice,
-      entryCloid,
-      stopLoss,
-    });
-    return {
-      kind: "executed",
-      proposalId: p.proposalId,
-      decision,
-      decisionHash,
-      commitmentTx,
-      order,
-      stopLoss: { ...stopLoss, placedAt: order.placedAt },
-    };
   }
 
   return {
@@ -127,10 +207,23 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
       switch (event.type) {
         case "trade-proposal":
           return handleProposal(event);
+        case "price-tick":
+          onPriceTick(event);
+          return { kind: "handled" };
+        case "fill":
+          await onFill(event);
+          return { kind: "handled" };
         default:
-          // Veto Window (#10), Kill Switch (#9), Automatic Kill (#11), fills and Overshoot (#15), epochs (#17).
+          // Veto Window (#10), Kill Switch (#9), Overshoot (#15), epochs (#17).
           return { kind: "ignored" };
       }
+    },
+    vaultStatus(vaultId) {
+      const d = drawdown.get(vaultId);
+      const ddKill = d && d.month === monthKey(now()) ? d.kill : undefined;
+      const oracleKill = [...oracle.values()].find((o) => o.kill)?.kill;
+      const automaticKill = ddKill ?? oracleKill;
+      return automaticKill ? { automaticKill } : {};
     },
   };
 }
@@ -142,9 +235,16 @@ function validate(p: TradeProposal): string | undefined {
   return undefined;
 }
 
-/** Mandate Check rules shipped in #8. Blackout windows, Automatic Kill and Mandate Version effectiveness land in #11. */
-function mandateCheck(p: TradeProposal, m: Mandate): Rejection | undefined {
+/**
+ * Static Mandate Check rules. Mandate Version effectiveness (tighter now, looser once Flat) is decided chain-side:
+ * the engine checks every proposal against whatever version `currentMandate` returns at that moment.
+ */
+function mandateCheck(p: TradeProposal, m: Mandate, at: number): Rejection | undefined {
   if (m.killFlag) return { code: "kill-flag", message: "The Vault's kill flag is set; no new trades" };
+  const blackout = m.blackoutWindows.find((w) => at >= w.start && at < w.end);
+  if (p.intent === "open" && blackout) {
+    return { code: "blackout-window", message: `Blackout window until ${new Date(blackout.end).toISOString()}: no new positions` };
+  }
   if (!m.allowedAssets.includes(p.asset)) {
     return { code: "asset-not-allowed", message: `${p.asset} is not allowed by Mandate v${m.version} (allowed: ${m.allowedAssets.join(", ")})` };
   }
@@ -152,6 +252,11 @@ function mandateCheck(p: TradeProposal, m: Mandate): Rejection | undefined {
     return { code: "leverage-over-cap", message: `Leverage ${p.leverage}x is over the Mandate v${m.version} cap of ${m.leverageCap}x` };
   }
   return undefined;
+}
+
+function monthKey(at: number) {
+  const d = new Date(at);
+  return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}`;
 }
 
 function stopTrigger(side: "long" | "short", markPrice: number, stopLossPct: number) {

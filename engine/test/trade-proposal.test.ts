@@ -111,6 +111,18 @@ describe("Decision Commitment before the order", () => {
     expect(ports.exchange.orders).toEqual([]);
   });
 
+  it("reports an exchange rejection after the commitment instead of throwing", async () => {
+    const { ports, engine } = setup();
+    ports.exchange.rejectOrdersWith = "Price too far from oracle asset=3";
+    const result = await engine.handle(proposal());
+
+    expect(result).toMatchObject({ kind: "rejected", rejection: { code: "order-failed" } });
+    if (result.kind !== "rejected") return;
+    expect(result.rejection.message).toMatch(/too far from oracle/);
+    // The decision was still committed: replay shows it was decided and then failed at the exchange.
+    expect(ports.chain.commitments).toHaveLength(1);
+  });
+
   it("commits the decision onchain before the order is sent", async () => {
     const { ports, engine } = setup();
     await engine.handle(proposal());
