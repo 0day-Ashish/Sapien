@@ -29,7 +29,7 @@ export default function Home() {
 
 /* ---------- Hero ---------- */
 
-const BUILT_ON = ["Hyperliquid", "Circle", "Base", "Solana", "Claude", "wagmi"];
+const BUILT_ON = ["Hyperliquid", "Circle", "Base", "Solana", "Gemini", "wagmi"];
 
 function Hero() {
   return (
@@ -152,7 +152,7 @@ const PILLARS = [
     title: "Mandate",
     tone: "text-violet border-violet",
     rows: [
-      { label: "Plain-English rules", body: "Describe your risk, then review and edit every field Claude drafts before you sign." },
+      { label: "Plain-English rules", body: "Describe your risk, then review and edit every field the AI drafts before you sign." },
       { label: "Versioned onchain", body: "Tighter rules apply at once. Looser rules wait until your Vault has no open positions." },
     ],
   },

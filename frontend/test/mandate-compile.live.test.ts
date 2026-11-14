@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { compileMandate } from "../lib/mandate/compile";
+import { compileMandate, geminiDraft, groqDraft, type DraftMandate } from "../lib/mandate/compile";
 
-// Real call to Claude. Runs only when ANTHROPIC_API_KEY is set: `npm run test:live`.
+// Real calls to Gemini and Groq, each alone. Runs only when its key is set: `npm run test:live`.
 const BRIEF_EXAMPLE =
   "Conservative, BTC and ETH only, never lose more than 8% a month, no trades during US CPI releases.";
 
-describe.skipIf(!process.env.ANTHROPIC_API_KEY)("compileMandate against Claude", () => {
-  it("compiles the brief's example to the expected fields", async () => {
-    const result = await compileMandate(BRIEF_EXAMPLE);
+const cases: [string, string | undefined, DraftMandate][] = [
+  ["Gemini", process.env.GEMINI_API_KEY, geminiDraft()],
+  ["Groq", process.env.GROQ_API_KEY, groqDraft()],
+];
+
+describe.each(cases)("compileMandate against %s", (_name, key, draft) => {
+  it.skipIf(!key)("compiles the brief's example to the expected fields", async () => {
+    const result = await compileMandate(BRIEF_EXAMPLE, draft);
     if (!result.ok) throw new Error(`${result.reason}: ${result.message}`);
     const { mandate } = result.compiled;
 
