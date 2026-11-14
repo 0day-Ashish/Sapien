@@ -43,7 +43,7 @@ function Hero() {
       </Link>
 
       <div className="relative mt-10 w-full max-w-6xl">
-        <VaultBot className="absolute -left-2 top-0 hidden w-24 -rotate-6 lg:block xl:-left-10 xl:w-28" />
+        <VaultBot animated className="absolute -left-2 -top-4 hidden w-28 lg:block xl:-left-10 xl:w-32" />
         <h1 className="display-1 mx-auto max-w-[17em]">
           AI agents can trade your perps.
           <br className="hidden md:block" /> Make them put their money first.
@@ -437,7 +437,7 @@ function StartToday() {
         >
           Sign it today
         </p>
-        <VaultBot className="absolute -top-6 right-[8%] w-16 rotate-6 md:w-24" />
+        <VaultBot animated className="absolute -top-10 right-[8%] w-20 md:w-28" />
       </div>
       <h2 className="sr-only">Sign your Mandate today</h2>
       <p className="mt-6 max-w-lg text-[1.375rem] leading-snug text-violet">
