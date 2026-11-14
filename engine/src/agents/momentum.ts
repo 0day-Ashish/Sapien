@@ -1,5 +1,5 @@
-import type { TradeProposal } from "../events.js";
 import { efficiencyRatio, REGIME_LOOKBACK } from "./regime.js";
+import { type AgentProposal, explainProposal, round, type SpecialistAgent } from "./specialist.js";
 import type { MarketSnapshot, RationaleWriter, Regime, VaultContext } from "./types.js";
 
 const BREAKOUT_BARS = 20;
@@ -8,14 +8,12 @@ const LEVERAGE = 2;
 /** Share of Vault value used as margin per entry. */
 const MARGIN_FRACTION = 0.25;
 
-export type AgentProposal = TradeProposal & { facts: Record<string, string | number> };
-
 /**
  * Rule-based Momentum Specialist Agent (ADR-0005). Enters on a close beyond the 20-bar high/low,
  * exits a position when price closes back through the 10-bar low/high. Decisions are pure functions of
  * the candles, so replays reproduce exactly.
  */
-export class MomentumAgent {
+export class MomentumAgent implements SpecialistAgent {
   readonly agentId = "momentum";
   readonly regimes: Regime[] = ["trend"];
 
@@ -76,14 +74,8 @@ export class MomentumAgent {
     };
   }
 
-  /** Swaps in an LLM-written rationale. The decision is copied unchanged; on any writer failure the template stays. */
-  async explain(p: AgentProposal, write: RationaleWriter): Promise<AgentProposal> {
-    try {
-      const text = (await write(p.facts, p.rationale)).trim();
-      return { ...p, rationale: text || p.rationale };
-    } catch {
-      return p;
-    }
+  explain(p: AgentProposal, write: RationaleWriter) {
+    return explainProposal(p, write);
   }
 }
 
@@ -100,4 +92,3 @@ function template(f: Record<string, string | number>) {
   }
 }
 
-const round = (x: number, dp: number) => Math.round(x * 10 ** dp) / 10 ** dp;
