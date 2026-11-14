@@ -63,8 +63,16 @@ export function maxFeeFor(amount: bigint, quotes: FeeQuote[], finality: number =
   return protocolFee + BigInt(q.forwardFee.high);
 }
 
-export async function fetchFeeQuotes(fetchFn: typeof fetch = fetch): Promise<FeeQuote[]> {
-  const url = `${CCTP.feeApi}/${CCTP.baseSepoliaDomain}/${CCTP.hyperEvmDomain}?forward=true&hyperCoreDeposit=true`;
+/** Circle's fee quotes. Defaults to the deposit route, Base Sepolia -> HyperCore. */
+export async function fetchFeeQuotes(
+  fetchFn: typeof fetch = fetch,
+  route: { from: number; to: number; hyperCoreDeposit: boolean } = {
+    from: CCTP.baseSepoliaDomain,
+    to: CCTP.hyperEvmDomain,
+    hyperCoreDeposit: true,
+  },
+): Promise<FeeQuote[]> {
+  const url = `${CCTP.feeApi}/${route.from}/${route.to}?forward=true${route.hyperCoreDeposit ? "&hyperCoreDeposit=true" : ""}`;
   const res = await fetchFn(url);
   if (!res.ok) throw new Error(`Circle fee API ${res.status}`);
   return (await res.json()) as FeeQuote[];

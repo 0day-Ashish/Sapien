@@ -105,7 +105,14 @@ function PieceSvg({ piece }: { piece: Piece }) {
   }
 }
 
-/** A heap of candlesticks and coins. Purely decorative. */
+const MOTION: Record<Piece["kind"], string> = {
+  candle: "garden-sway",
+  coin: "garden-bob",
+  ring: "garden-bob",
+  spark: "garden-twinkle",
+};
+
+/** A heap of candlesticks and coins. Purely decorative. Each piece moves on its own timing. */
 export function MarketGarden({
   seed = 7,
   width = 600,
@@ -113,6 +120,7 @@ export function MarketGarden({
   count = 70,
   shape = "mound",
   className = "",
+  animated = true,
 }: {
   seed?: number;
   width?: number;
@@ -120,13 +128,25 @@ export function MarketGarden({
   count?: number;
   shape?: "mound" | "band" | "spray";
   className?: string;
+  animated?: boolean;
 }) {
   const pieces = cluster(seed, width, height, count, shape);
+  const timing = random(seed * 31 + 5);
   return (
-    <svg viewBox={`-30 -40 ${width + 60} ${height + 80}`} aria-hidden="true" className={className}>
-      {pieces.map((piece, i) => (
-        <PieceSvg key={i} piece={piece} />
-      ))}
+    <svg viewBox={`-30 -40 ${width + 60} ${height + 80}`} aria-hidden="true" className={className} overflow="visible">
+      {pieces.map((piece, i) => {
+        const delay = (-timing() * 6).toFixed(2);
+        const duration = (2.6 + timing() * 2.8).toFixed(2);
+        return (
+          <g
+            key={i}
+            className={animated ? MOTION[piece.kind] : undefined}
+            style={animated ? { animationDelay: `${delay}s`, animationDuration: `${duration}s` } : undefined}
+          >
+            <PieceSvg piece={piece} />
+          </g>
+        );
+      })}
     </svg>
   );
 }
@@ -244,6 +264,96 @@ export function VaultRow({ className = "" }: { className?: string }) {
       ))}
     </svg>
   );
+}
+
+/**
+ * A cluster of vault doors of different sizes, joined by cables: one Vault per user, all on one
+ * protocol. Fills a wide right-hand column. Dials turn slowly when `animated`.
+ */
+export function VaultCluster({ className = "", animated = true }: { className?: string; animated?: boolean }) {
+  const doors = [
+    { x: 150, y: 330, s: 0.95, c: PALETTE[0]!, knob: "antenna" },
+    { x: 360, y: 230, s: 1.15, c: PALETTE[2]!, knob: "dish" },
+    { x: 560, y: 150, s: 1.05, c: PALETTE[0]!, knob: "antenna" },
+    { x: 480, y: 380, s: 0.85, c: PALETTE[1]!, knob: "" },
+    { x: 690, y: 420, s: 0.95, c: PALETTE[2]!, knob: "spark" },
+    { x: 770, y: 250, s: 0.7, c: PALETTE[6]!, knob: "" },
+    { x: 900, y: 270, s: 1.3, c: PALETTE[3]!, knob: "spark" },
+  ];
+  const cables = [
+    "M150 410C170 520 330 540 400 470",
+    "M360 330C380 470 560 520 640 470",
+    "M560 240C600 320 640 300 680 340",
+    "M480 450C540 560 720 580 760 500",
+    "M690 500C760 600 900 600 920 380",
+    "M150 410C260 600 640 640 760 500",
+  ];
+  return (
+    <svg viewBox="40 20 1000 620" aria-hidden="true" className={className} overflow="visible">
+      {cables.map((d, i) => (
+        <g key={i}>
+          <path d={d} fill="none" stroke="#ece7fb" strokeWidth="12" strokeLinecap="round" />
+          <path d={d} fill="none" stroke="#6a4fd6" strokeWidth="2.5" strokeLinecap="round" />
+          <path d={d} fill="none" stroke="#17805a" strokeWidth="3" strokeDasharray="1 16" strokeLinecap="round" />
+        </g>
+      ))}
+      {doors.map(({ x, y, s, c, knob }, i) => (
+        <g key={i} transform={`translate(${x} ${y}) scale(${s})`}>
+          {knob === "antenna" && (
+            <g stroke={c.stroke} strokeWidth="3" fill={c.fill}>
+              <path d="M-14 -86h28v-12h-28z" />
+              <path d="M0 -98v-14" fill="none" />
+              <circle cy="-120" r="9" />
+            </g>
+          )}
+          {knob === "dish" && (
+            <g stroke="#17805a" strokeWidth="2.5" fill="#e0f0e9" transform="translate(-20 -92) rotate(-25)">
+              <path d="M-16 0a16 16 0 0 0 32 0z" />
+              <path d="M0 0l10-18M-6 2l-6 12h24" fill="none" />
+            </g>
+          )}
+          {knob === "spark" && (
+            <path
+              d="M0 -112l4 9 9 4-9 4-4 9-4-9-9-4 9-4z"
+              fill={c.fill}
+              stroke={c.stroke}
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+            />
+          )}
+          <rect x="-60" y="-86" width="120" height="14" rx="7" fill={c.fill} stroke={c.stroke} strokeWidth="2.5" />
+          <rect x="-80" y="-74" width="160" height="148" rx="24" fill="#fff" stroke={c.stroke} strokeWidth="3" />
+          <rect x="-68" y="-62" width="136" height="124" rx="16" fill={c.fill} stroke={c.stroke} strokeWidth="2" />
+          <rect x="-70" y="74" width="140" height="10" rx="3" fill={c.stroke} />
+          <g className={animated ? "vault-dial" : undefined} style={animated ? { animationDuration: `${14 + i * 3}s`, animationDirection: i % 2 ? "reverse" : "normal" } : undefined}>
+            {[44, 32, 20].map((r, k) => (
+              <path
+                key={k}
+                d={wavyRing(r, 9 + k * 2, 3.2 - k * 0.6)}
+                fill="none"
+                stroke={[c.stroke, "#d4508e", "#6a4fd6"][k]}
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+            ))}
+            <circle r="7" fill="#fff" stroke={c.stroke} strokeWidth="2" />
+          </g>
+          <path d="M-80 -30h-10M-80 0h-10M-80 30h-10" stroke={c.stroke} strokeWidth="5" strokeLinecap="round" />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+/** A closed wavy ring: radius r, n waves, amplitude a. */
+function wavyRing(r: number, n: number, a: number) {
+  const points: string[] = [];
+  for (let k = 0; k <= 96; k++) {
+    const t = (k / 96) * Math.PI * 2;
+    const rr = r + Math.sin(t * n) * a;
+    points.push(`${(Math.cos(t) * rr).toFixed(1)} ${(Math.sin(t) * rr).toFixed(1)}`);
+  }
+  return `M${points.join("L")}Z`;
 }
 
 /** Line icons for cards. All 1.75 stroke, 24 grid. */
