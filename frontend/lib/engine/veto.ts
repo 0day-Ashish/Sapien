@@ -18,7 +18,7 @@ export type PendingVeto = {
 };
 
 export async function fetchPendingVetoes(vault: string, fetchFn: typeof fetch = fetch): Promise<PendingVeto[]> {
-  const res = await fetchFn(`${ENGINE_URL}/vaults/${vault}/status`, { cache: "no-store" });
+  const res = await fetchFn(vetoStatusUrl(vault), { cache: "no-store" });
   if (!res.ok) throw new Error(`Engine ${res.status}`);
   const status = (await res.json()) as { pendingVetoes?: PendingVeto[] };
   return status.pendingVetoes ?? [];
@@ -48,3 +48,40 @@ export function describeVeto(p: PendingVeto): string {
   const usdc = Math.round(p.notional).toLocaleString("en-US");
   return `${agentName(p.agentId)} wants to open a ${p.leverage}× ${p.side}: ${p.size} ${p.asset}, about ${usdc} USDC.`;
 }
+
+/** The waiting trades not alerted on yet; marks them seen. */
+export function newVetoes(seen: Set<string>, items: PendingVeto[]): PendingVeto[] {
+  const fresh = items.filter((p) => !seen.has(p.proposalId));
+  for (const p of fresh) seen.add(p.proposalId);
+  return fresh;
+}
+
+export type VetoPoll = { ok: true; items: PendingVeto[] } | { ok: false };
+
+/**
+ * Web Worker that polls the engine's Vault status. Browsers throttle page timers in background tabs (Chrome to once a
+ * minute), which could swallow a 60s Veto Window; worker timers aren't throttled that way. Post {url, ms} to start,
+ * {} to stop; it posts a VetoPoll per poll.
+ */
+export const VETO_WORKER_SOURCE = `
+let timer;
+self.onmessage = (e) => {
+  clearInterval(timer);
+  const { url, ms } = e.data || {};
+  if (!url) return;
+  const poll = async () => {
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(String(res.status));
+      const status = await res.json();
+      self.postMessage({ ok: true, items: status.pendingVetoes || [] });
+    } catch {
+      self.postMessage({ ok: false });
+    }
+  };
+  poll();
+  timer = setInterval(poll, ms);
+};
+`;
+
+export const vetoStatusUrl = (vault: string) => `${ENGINE_URL}/vaults/${vault}/status`;
