@@ -110,33 +110,16 @@ const DECISIONS = [
 
 function ProductDemo() {
   return (
-    <section className="relative mt-6 pb-10">
+    <section className="relative mt-20 pb-10">
       <div className="container-page relative">
-        {/* Timeline bar */}
-        <div className="relative z-10 mt-24 rounded-t-[1.25rem] border border-b-0 border-violet-line bg-violet-tint/90 px-5 py-4 backdrop-blur md:mx-5">
-          <span className="chip chip-solid absolute -top-3 left-[22%] md:left-[18%]">Veto window 42s</span>
-          <div className="flex items-center gap-4">
-            <span aria-hidden="true" className="flex gap-[3px]">
-              <span className="h-3 w-[3px] bg-violet-ink" />
-              <span className="h-3 w-[3px] bg-violet-ink" />
-            </span>
-            <div className="flex flex-1 items-center gap-1.5">
-              {TIMELINE.map((seg, i) => (
-                <span key={i} className={`h-[3px] rounded-full ${seg.c}`} style={{ width: `${seg.w}%` }} />
-              ))}
-            </div>
-            <span className="label-mono !text-xs text-violet-ink">0:42 / 2:10</span>
-          </div>
-        </div>
-
-        {/* Garden spilling over the panel's top-right corner */}
+        {/* Garden behind the panel's top-right corner */}
         <MarketGarden
           seed={11}
           width={520}
           height={190}
           count={75}
           shape="mound"
-          className="pointer-events-none absolute -right-6 top-0 z-0 hidden w-[42%] max-w-[38rem] -translate-y-[38%] md:block"
+          className="pointer-events-none absolute -right-6 top-0 z-0 hidden w-[42%] max-w-[38rem] -translate-y-[45%] md:block"
         />
         <MarketGarden
           seed={17}
@@ -149,7 +132,7 @@ function ProductDemo() {
 
         {/* App frame */}
         <div className="relative z-10 grid overflow-hidden rounded-[1.25rem] border border-violet-line bg-violet-soft/70 p-3 shadow-card md:grid-cols-[15rem_1fr]">
-          <aside className="hidden flex-col gap-3 p-2 md:flex">
+          <aside className="relative hidden flex-col gap-3 p-2 md:flex">
             <div className="grid grid-cols-2 rounded-full bg-white/70 p-1 text-sm text-violet">
               <span className="rounded-full py-1 text-center">Vaults</span>
               <span className="rounded-full bg-white py-1 text-center shadow-sm">Feed</span>
@@ -171,9 +154,29 @@ function ProductDemo() {
                 </li>
               ))}
             </ul>
+            {/* Soft colour wash at the foot of the sidebar */}
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 bottom-12 h-56 bg-[radial-gradient(60%_50%_at_30%_70%,rgb(253_228_239/0.7),transparent),radial-gradient(55%_45%_at_70%_40%,rgb(203_191_244/0.7),transparent)] blur-xl"
+            />
+            <div className="relative mt-auto flex items-center gap-2 pt-6">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-teal text-[0.6875rem] font-semibold text-white">
+                AR
+              </span>
+              <span className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-white/70 py-1.5 text-sm text-violet">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="size-3.5">
+                  <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="2" />
+                  <path d="M16 16l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+                Search
+              </span>
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-violet-line">
+                <span className="size-2 rounded-full bg-green" />
+              </span>
+            </div>
           </aside>
 
-          <div className="flex min-h-[34rem] flex-col rounded-xl bg-white px-5 py-6 md:px-10">
+          <div className="flex min-h-[44rem] flex-col rounded-xl bg-white px-5 py-6 md:px-10">
             <span className="mx-auto rounded-full bg-violet-tint px-3 py-0.5 text-xs text-violet/70">Today</span>
             <div className="mx-auto mt-6 flex w-full max-w-2xl flex-col gap-6">
               <p className="self-end rounded-2xl bg-violet-tint px-4 py-2.5 text-sm text-violet-ink">
@@ -204,20 +207,58 @@ function ProductDemo() {
                 <span className="chip chip-amber">Veto window 42s</span>
               </div>
             </div>
-            <div className="mx-auto mt-auto w-full max-w-2xl rounded-2xl bg-violet-soft/70 p-1.5 pt-0">
-              <p className="px-3 py-2 text-xs text-violet/60">Ask about any trade</p>
-              <div className="flex flex-col gap-6 rounded-xl border border-violet-line bg-white p-3">
+
+            {/* Composer */}
+            <div className="mx-auto mt-auto w-full max-w-2xl rounded-2xl border border-violet-line/70 bg-violet-soft/70 p-1.5 pt-0">
+              <p className="flex items-center gap-2 px-2.5 py-2.5 text-sm">
+                <VaultBot className="size-6" />
+                <span className="font-medium text-violet-ink">Momentum is thinking</span>
+                <span className="text-violet/60">2.9s</span>
+              </p>
+              <div className="flex flex-col gap-8 rounded-xl border border-violet-line bg-white p-3.5">
                 <p className="text-sm text-violet/50">Why did the agent do that? Or type / for Veto, Kill Switch, Replay…</p>
-                <div className="flex items-center justify-between text-violet/60">
-                  <span className="text-lg leading-none">+</span>
-                  <span className="flex size-7 items-center justify-center rounded-full bg-violet/40 text-sm text-white">↑</span>
+                <div className="flex items-center justify-between text-violet">
+                  <span className="flex size-8 items-center justify-center rounded-full bg-violet-tint text-lg leading-none">+</span>
+                  <span className="flex items-center gap-3">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="size-4">
+                      <rect x="9" y="3.5" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="1.9" />
+                      <path d="M6 11.5a6 6 0 0 0 12 0M12 17.5V21" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+                    </svg>
+                    <span className="flex size-8 items-center justify-center rounded-full bg-violet-tint">
+                      <span className="size-2.5 rounded-[3px] bg-violet" />
+                    </span>
+                  </span>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Timeline bar, under the panel */}
+        <div className="relative z-10 rounded-b-[1.25rem] border border-t-0 border-violet-line bg-violet-tint/90 px-5 py-4 backdrop-blur md:mx-5">
+          <div className="flex items-center gap-4">
+            <span aria-hidden="true" className="flex gap-[3px]">
+              <span className="h-3 w-[3px] bg-violet-ink" />
+              <span className="h-3 w-[3px] bg-violet-ink" />
+            </span>
+            <div className="relative flex flex-1 items-center gap-1.5">
+              {TIMELINE.map((seg, i) => (
+                <span key={i} className={`h-[3px] rounded-full ${seg.c}`} style={{ width: `${seg.w}%` }} />
+              ))}
+              {/* Playhead with the badge hanging below it */}
+              <span className="absolute left-[38%] top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center">
+                <span className="size-3 rounded-full bg-pink ring-2 ring-white" />
+              </span>
+              <span className="absolute left-[38%] top-[calc(50%+6px)] flex -translate-x-1/2 flex-col items-center">
+                <span className="h-5 w-[2px] bg-pink" />
+                <span className="chip chip-solid !bg-pink">Veto window 42s</span>
+              </span>
+            </div>
+            <span className="label-mono !text-xs text-violet-ink">0:42 / 2:10</span>
+          </div>
+        </div>
       </div>
-      <MarketGarden seed={23} width={720} height={200} count={110} shape="mound" className="pointer-events-none relative -mt-24 w-[70%] max-w-4xl md:-mt-28 md:w-[52%]" />
+      <MarketGarden seed={23} width={720} height={200} count={110} shape="mound" className="pointer-events-none relative -mt-16 w-[70%] max-w-4xl md:-mt-20 md:w-[52%]" />
       <p className="container-page -mt-2 text-xs text-violet/60">Illustration of the agent&apos;s-eye view. Not live data.</p>
     </section>
   );
@@ -240,7 +281,8 @@ function LetThemTrade() {
             Vault, one Mandate and a record of every decision.
           </p>
         </div>
-        <div className="lg:-mr-[max(0px,calc((100vw-73.625rem)/2))]">
+        {/* Runs off the right edge of the screen; main clips the overflow. */}
+        <div className="-mr-5 lg:-mr-[max(1.25rem,calc((100vw-73.625rem)/2))]">
           <VaultCluster className="h-auto w-full" />
         </div>
       </div>
