@@ -7,7 +7,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "smoke:trade": "tsx scripts/smoke-guarded-trade.ts",
-    "smoke:chain": "tsx scripts/smoke-chain.ts"
+    "smoke:chain": "tsx scripts/smoke-chain.ts",
+    "smoke:agents": "tsx scripts/smoke-agents.ts"
   },
   "devDependencies": {
     "@types/node": "^24",
@@ -16,7 +17,9 @@
     "vitest": "4.1.12"
   },
   "dependencies": {
+    "@google/genai": "2.32.0",
     "@nktkas/hyperliquid": "0.33.3",
+    "@typesafe-ai/sdk": "0.7.0",
     "viem": "2.57.10"
   }
 }
