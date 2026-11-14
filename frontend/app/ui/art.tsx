@@ -1,5 +1,8 @@
 // Original decorative art for the marketing pages: clusters of candlesticks and coins, and a
-// small vault-safe mascot. Everything is drawn here as SVG in the brand colours.
+// small vault-safe mascot. Everything is drawn here as SVG in the brand colours; coin faces carry
+// real token logos (see token-icons.ts), tinted to match.
+
+import { TOKEN_ICONS } from "./token-icons";
 
 const PALETTE = [
   { fill: "#ece7fb", stroke: "#6a4fd6" },
@@ -27,12 +30,14 @@ type Shape = "mound" | "band" | "spray" | "heap";
 
 type Piece =
   | { kind: "candle"; x: number; y: number; w: number; h: number; wick: number; c: number; rot: number }
-  | { kind: "coin"; x: number; y: number; r: number; c: number; stack: number }
-  | { kind: "ring"; x: number; y: number; r: number; c: number }
+  | { kind: "coin"; x: number; y: number; r: number; c: number; stack: number; logo: number }
+  | { kind: "ring"; x: number; y: number; r: number; c: number; logo: number }
   | { kind: "spark"; x: number; y: number; r: number; c: number };
 
 function cluster(seed: number, width: number, height: number, count: number, shape: Shape): Piece[] {
   const rand = random(seed);
+  // Logos come from their own stream so adding them doesn't reshuffle the layout.
+  const pickLogo = random(seed * 131 + 17);
   const pieces: Piece[] = [];
   for (let i = 0; i < count; i++) {
     const u = rand();
@@ -58,14 +63,31 @@ function cluster(seed: number, width: number, height: number, count: number, sha
       const h = 26 + rand() * 54;
       pieces.push({ kind: "candle", x, y, w: 11 + rand() * 9, h, wick: 8 + rand() * 14, c, rot: (rand() - 0.5) * 50 });
     } else if (u < 0.75) {
-      pieces.push({ kind: "coin", x, y, r: 12 + rand() * 16, c, stack: 1 + Math.floor(rand() * 3) });
+      pieces.push({ kind: "coin", x, y, r: 12 + rand() * 16, c, stack: 1 + Math.floor(rand() * 3), logo: Math.floor(pickLogo() * TOKEN_ICONS.length) });
     } else if (u < 0.9) {
-      pieces.push({ kind: "ring", x, y, r: 9 + rand() * 16, c });
+      pieces.push({ kind: "ring", x, y, r: 13 + rand() * 16, c, logo: Math.floor(pickLogo() * TOKEN_ICONS.length) });
     } else {
       pieces.push({ kind: "spark", x, y, r: 7 + rand() * 9, c });
     }
   }
   return pieces.sort((a, b) => a.y - b.y);
+}
+
+/** A token logo fitted into a `size` box centred on (cx, cy); `squash` flattens it onto a tilted coin. */
+function TokenLogo({ logo, cx, cy, size, fill, squash = 1 }: { logo: number; cx: number; cy: number; size: number; fill: string; squash?: number }) {
+  const icon = TOKEN_ICONS[logo]!;
+  const [vx, vy, vw, vh] = icon.viewBox.split(" ").map(Number) as [number, number, number, number];
+  const k = size / Math.max(vw, vh);
+  const tx = cx - (vx + vw / 2) * k;
+  const ty = cy - (vy + vh / 2) * k * squash;
+  return (
+    <path
+      d={icon.d}
+      fill={fill}
+      fillRule="evenodd"
+      transform={`translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${k.toFixed(4)} ${(k * squash).toFixed(4)})`}
+    />
+  );
 }
 
 function PieceSvg({ piece }: { piece: Piece }) {
@@ -111,24 +133,30 @@ function PieceSvg({ piece }: { piece: Piece }) {
       );
     }
     case "coin": {
-      const { x, y, r, stack } = piece;
+      const { x, y, r, stack, logo } = piece;
       return (
         <g>
-          {Array.from({ length: stack }, (_, i) => (
-            <g key={i}>
-              <ellipse cx={x} cy={y - i * r * 0.32} rx={r} ry={r * 0.42} {...common} />
-              <ellipse cx={x} cy={y - i * r * 0.32} rx={r * 0.55} ry={r * 0.22} fill="none" stroke={stroke} strokeWidth={1.2} />
-            </g>
-          ))}
+          {Array.from({ length: stack }, (_, i) => {
+            const cy = y - i * r * 0.32;
+            const top = i === stack - 1;
+            return (
+              <g key={i}>
+                <ellipse cx={x} cy={cy} rx={r} ry={r * 0.42} {...common} />
+                <ellipse cx={x} cy={cy} rx={r * 0.72} ry={r * 0.3} fill="none" stroke={stroke} strokeWidth={1.2} />
+                {top && <TokenLogo logo={logo} cx={x} cy={cy} size={r * 0.95} fill={stroke} squash={0.42} />}
+              </g>
+            );
+          })}
         </g>
       );
     }
     case "ring": {
-      const { x, y, r } = piece;
+      const { x, y, r, logo } = piece;
       return (
         <g>
           <circle cx={x} cy={y} r={r} {...common} />
-          <circle cx={x} cy={y} r={r * 0.45} fill="#fff" stroke={stroke} strokeWidth={1.5} />
+          <circle cx={x} cy={y} r={r * 0.78} fill="#fff" stroke={stroke} strokeWidth={1.5} />
+          <TokenLogo logo={logo} cx={x} cy={y} size={r * 1.05} fill={stroke} />
         </g>
       );
     }
@@ -457,6 +485,16 @@ export function Icon({ name, className = "size-6" }: { name: IconName; className
       </>
     ),
     shield: <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z M9 12l2 2 4-4" {...p} />,
+    vault: (
+      <>
+        {/* Safe body with feet, a round door and a spoked handle wheel */}
+        <rect x="3" y="3" width="18" height="16" rx="2.5" {...p} />
+        <path d="M6.5 19v2M17.5 19v2M19 9v4" {...p} />
+        <circle cx="11" cy="11" r="5" {...p} />
+        <circle cx="11" cy="11" r="1.2" {...p} />
+        <path d="M11 6v3.8M11 12.2V16M6 11h3.8M12.2 11H16" {...p} />
+      </>
+    ),
   };
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
@@ -465,7 +503,7 @@ export function Icon({ name, className = "size-6" }: { name: IconName; className
   );
 }
 
-export type IconName = "mandate" | "timer" | "power" | "bond" | "replay" | "chart" | "shield";
+export type IconName = "mandate" | "timer" | "power" | "bond" | "replay" | "chart" | "shield" | "vault";
 
 /**
  * Illustrations for the three pillar cards: a sealed Mandate, a trading terminal and a vault door.
