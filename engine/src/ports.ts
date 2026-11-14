@@ -52,6 +52,8 @@ export type Fill = { orderId: string; cloid?: Cloid; price: number; size: number
 
 export interface ExchangePort {
   markPrice(asset: string): Promise<number>;
+  /** The size an order will actually carry: `size` rounded down to the asset's size step, as the exchange sends it. */
+  orderSize(asset: string, size: number): Promise<number>;
   /** The Agent Wallet can set leverage (#4); it's a separate Hyperliquid action from the order. */
   setLeverage(vaultId: VaultId, asset: string, leverage: number): Promise<void>;
   placeOrderWithStopLoss(order: OrderWithStopLoss): Promise<PlacedOrder>;

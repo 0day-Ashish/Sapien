@@ -93,6 +93,12 @@ export class HyperliquidExchange implements ExchangePort {
     return (await this.prices(asset)).mark;
   }
 
+  /** Same rounding as the order itself (formatSize to szDecimals), so the engine checks what is really sent. */
+  async orderSize(asset: string, size: number) {
+    const { szDecimals } = await this.asset(asset);
+    return Number(formatSize(size, szDecimals));
+  }
+
   async setLeverage(vaultId: VaultId, asset: string, leverage: number) {
     const { index } = await this.asset(asset);
     await this.call(() => this.client(vaultId).updateLeverage({ asset: index, isCross: true, leverage }));
