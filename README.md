@@ -18,6 +18,7 @@ Plain-English rules, bonded agents and stop-loss protection, in one Vault.
 [![CI](https://github.com/SachPlayZ/Sapien/actions/workflows/ci.yml/badge.svg)](https://github.com/SachPlayZ/Sapien/actions/workflows/ci.yml)
 ![Network](https://img.shields.io/badge/network-testnet%20only-6a4fd6)
 ![Built on](https://img.shields.io/badge/built%20on-Hyperliquid-17805a)
+![NEAR](https://img.shields.io/badge/user%20side-NEAR-000000)
 
 <br />
 
@@ -28,10 +29,11 @@ Plain-English rules, bonded agents and stop-loss protection, in one Vault.
 </div>
 
 > [!IMPORTANT]
-> Sapien runs on test networks only: Hyperliquid testnet, HyperEVM testnet, Base Sepolia and Solana devnet. Test tokens have no monetary value. Stop-loss protection is never a guarantee.
+> Sapien runs on test networks only: NEAR testnet, Hyperliquid testnet and HyperEVM testnet. Test tokens have no monetary value. Stop-loss protection is never a guarantee.
 
 ## Contents
 
+- [NEAR HACKATHON](#near-hackathon)
 - [What it is](#what-it-is)
 - [How a trade happens](#how-a-trade-happens)
 - [The app](#the-app)
@@ -41,6 +43,88 @@ Plain-English rules, bonded agents and stop-loss protection, in one Vault.
 - [Deployment](#deployment)
 - [Project docs](#project-docs)
 - [Team](#team)
+
+## NEAR HACKATHON
+
+**Tracks:** Unstoppable DeFi (`defi`), AI Swarms (`swarms`), AI Security & Defense (`security`), Agent Economy (`agents`).
+
+Your **NEAR account is your Vault's control plane**. You connect a Meteor Wallet and deposit USDC to the Sapien Contract on NEAR. A swarm of bonded AI agents then trades perps for you on Hyperliquid. Every rule they trade under and every decision they make is anchored on NEAR:
+
+| Track | What on NEAR backs it |
+| --- | --- |
+| **Unstoppable DeFi** | Perps Vaults: deposits and withdrawals settle through `sapien-vault.testnet`. On mainnet, the deposit leg is a NEAR Intents 1Click deposit address, NEAR USDC → HyperCore USDC; `/funds` shows a live quote for that route. |
+| **AI Swarms** | Three Specialist Agents (momentum, funding-arb, mean-reversion) compete each Epoch, and the JEV Allocator picks the Lead Agent. Each agent has its own NEAR sub-account (`<agent>.agents.sapien-vault.testnet`), and each decision is a Decision Commitment logged on NEAR (`log_decision`, wired into the runner; one logged so far on testnet). |
+| **AI Security & Defense** | The engine signs on NEAR with a **function-call key** that can only call `register_vault`, `pay_withdraw`, `log_decision` and `pay_agent`. The user commits the Mandate's sha256 from their own NEAR account, and the engine refuses to publish any Mandate that doesn't match. The Kill Switch is a NEAR transaction. The Mandate Check, Veto Window and Bonds slashed for Overshoot sit on top. |
+| **Agent Economy** | Agents earn the Builder's 12% fee share each Epoch, paid in USDC to their own NEAR accounts (`pay_agent`, wired into Epoch settlement; no profitable Epoch has paid out on testnet yet). |
+
+### Verify it in 5 minutes (no keys needed)
+
+```bash
+cd near && cargo test                      # 15 contract tests (Rust 1.95 pinned in rust-toolchain.toml)
+cd ../engine && npm ci && npm test         # 221 tests, incl. NEAR deposit/withdraw/mandate/vault binding
+NEAR_SMOKE_ACCOUNT=e2e.sapien-vault.testnet npm run smoke:near   # read-only, live testnet
+cd ../frontend && npm ci && npm test       # 118 tests, incl. NEAR amount/mandate-hash/view helpers
+```
+
+`smoke:near` reads the live contracts and prints (abridged):
+
+```
+config { "owner": "sapien-vault.testnet", "engine": "engine.sapien-vault.testnet", "usdc": "usdc.sapien-vault.testnet", ... }
+agents [ ["momentum","momentum.agents.sapien-vault.testnet"], ["funding-arb", ...], ["mean-reversion", ...] ]
+deposit 1 e2e.sapien-vault.testnet -> 0xdfcb1ed76d49387498bdfcbda1910826cf5407c6  2 USDC
+withdrawal 1 e2e.sapien-vault.testnet  0.5 USDC requested, 0.5 USDC paid, Paid
+vault_of(e2e.sapien-vault.testnet) { "evmVault": "0xdfcb…07c6", "mandateHash": "d516c9db…3d5d", "killed": true, ... }
+HyperCore perp accountValue 0.488 ...
+```
+
+That last line is the same Vault read on Hyperliquid testnet. The NEAR account's money really traded there.
+
+### The end-to-end run on testnet (14 Nov)
+
+These are all real transactions; the IDs are in [`near/deployments/testnet.json`](near/deployments/testnet.json) and can be checked on [testnet.nearblocks.io](https://testnet.nearblocks.io/address/sapien-vault.testnet).
+
+1. `POST /near/vaults {account: "e2e.sapien-vault.testnet"}`. The engine creates a Vault contract on HyperEVM (`0xdfcb…07c6`) and an Agent Wallet, then binds them on NEAR (`register_vault`).
+2. The user sends `ft_transfer_call` with 2 USDC to `sapien-vault.testnet` (tx `21AJMaVy…`). The contract emits `deposit`, the engine forwarder credits the Vault on HyperCore, and the Vault's account value goes to 1.0 after HyperCore's 1 USDC activation fee.
+3. The user sends `commit_mandate(sha256)` from NEAR (tx `8CTJKhMB…`). The engine publishes the Mandate on HyperEVM (`0xeaafc346…`). The same Mandate with leverage changed from 3× to 20× is **rejected with 409**.
+4. The user sends `request_withdraw(0.5)`. The engine runs `Vault.withdrawToEvm` on HyperEVM and `pay_withdraw` on NEAR, and the withdrawal reads `Paid`.
+5. The user sends `set_killed(true)` (tx `6UQM2WXU…`). The engine's runner reads it every tick and runs the Kill Switch.
+
+### Architecture
+
+```
+Meteor Wallet (NEAR testnet)
+   │ ft_transfer_call / request_withdraw / commit_mandate / set_killed
+   ▼
+sapien-vault.testnet (Rust, near/sapien) ──events + views──▶ Execution Engine (function-call key)
+   ▲   ▲ pay_withdraw / log_decision / pay_agent                 │ VaultFactory.createVault, Mandate, withdrawToEvm
+   │   └─────────────────────────────────────────────────────────┤ HyperEVM testnet
+   │                                                              ▼
+ agents' NEAR accounts ◀── pay_agent        Vault ──CoreWriter──▶ HyperCore testnet (perps, stop-losses)
+```
+
+Mainnet path: NEAR Intents 1Click (`/v0/quote`, deposit address) moves NEAR USDC to the Deposit Account on HyperCore. The engine forwards it to the Vault the same way. NEAR Intents has no testnet, so testnet money moves as test USDC (`usdc.sapien-vault.testnet`, an open faucet) through the Sapien Contract. The Deposit Account credits Vaults from its HyperCore float, and the contract pays withdrawals from its pool. See [ADR-0007](docs/adr/0007-near-replaces-cctp.md).
+
+### What was built during NEAR HACKATHON
+
+Sapien's Hyperliquid core was built before NEAR HACKATHON, as an earlier hackathon project: the HyperEVM contracts, the Execution Engine, the agents and the app. In this repo that is everything up to commit `bada2cc`. The commit history was imported on 14 Nov, so the commit dates don't show when that work was done. The NEAR integration is the hackathon work, which is everything after `bada2cc`:
+
+- [`near/`](near): the Sapien Contract and test USDC (Rust, `near-sdk` 5.30), with tests and the testnet deployment.
+- [`engine/src/near/`](engine/src/near) and [`engine/src/adapters/near.ts`](engine/src/adapters/near.ts):
+  - Vault binding;
+  - the NEAR deposit and withdrawal pollers;
+  - the Mandate hash check;
+  - the Kill Switch read;
+  - Decision Commitments and agent payouts on NEAR.
+- `frontend/`:
+  - the Meteor Wallet through NEAR Connect ([`app/near-wallet.tsx`](frontend/app/near-wallet.tsx));
+  - the NEAR deposit, withdrawal, Mandate and Kill Switch flows;
+  - the NEAR Intents 1Click quote ([`app/api/intents/quote/route.ts`](frontend/app/api/intents/quote/route.ts));
+  - the "On NEAR" panel on `/risk`.
+- Removed: Base Sepolia, Solana and CCTP deposits.
+
+**Libraries:** `near-sdk` / `near-contract-standards` 5.30 (Rust), `near-api-js` 7.5 (engine), `@hot-labs/near-connect` 0.12 (Meteor via NEAR Connect), the NEAR Intents 1Click API, viem, `@nktkas/hyperliquid`, Next.js, Foundry. Much of the code was written with AI coding agents (Claude Code), with the team reviewing it.
+
+**License:** MIT.
 
 ## What it is
 
@@ -81,7 +165,7 @@ The Mandate is enforced by the Execution Engine before it signs, and every decis
 | Page | What it does |
 | --- | --- |
 | [`/mandate`](https://sapien-omega.vercel.app/mandate) | Write a Mandate in plain English, then confirm or edit every field. Also holds live trading and the other app views. |
-| [`/funds`](https://sapien-omega.vercel.app/funds) | Deposit from Base Sepolia or Solana devnet, withdraw, and use the Kill Switch. |
+| [`/funds`](https://sapien-omega.vercel.app/funds) | Connect Meteor, get test USDC, create your Vault, deposit and withdraw through NEAR, see the live NEAR Intents quote, and use the Kill Switch. |
 | [`/live`](https://sapien-omega.vercel.app/live) | The agent's-eye view: each decision as it happens. |
 | [`/replay`](https://sapien-omega.vercel.app/replay) | Step through any past decision; its hash is recomputed in the browser and checked onchain. |
 | [`/leaderboard`](https://sapien-omega.vercel.app/leaderboard) | Specialist Agents ranked by risk-adjusted return, with Bond size and Vaults led. |
@@ -93,7 +177,8 @@ The Mandate is enforced by the Execution Engine before it signs, and every decis
 
 | Package | What |
 | --- | --- |
-| [`contracts/`](contracts) | Foundry, HyperEVM: Vault, VaultFactory, MandateRegistry, DecisionLog, AgentRegistry, ProtectionFund, FeeRouter, MockCctpForwarder. Deployed addresses: [`contracts/deployments/`](contracts/deployments). |
+| [`near/`](near) | Rust, NEAR testnet: the Sapien Contract (`sapien-vault.testnet`) and test USDC. Interface and events: [`near/README.md`](near/README.md). |
+| [`contracts/`](contracts) | Foundry, HyperEVM: Vault, VaultFactory, MandateRegistry, DecisionLog, AgentRegistry, ProtectionFund, FeeRouter. Deployed addresses: [`contracts/deployments/`](contracts/deployments). |
 | [`engine/`](engine) | TypeScript Execution Engine, agents, Allocator, deposit forwarder, smoke scripts. |
 | [`frontend/`](frontend) | Next.js app: the website, the docs and every app flow. |
 
@@ -112,26 +197,25 @@ npm run dev          # http://localhost:3000
 
 ### Engine and smoke scripts
 
-`engine/.env.local` (gitignored) holds `ENGINE_OPERATOR_PRIVATE_KEY` and `DEPOSIT_ACCOUNT_PRIVATE_KEY`.
+`engine/.env.local` (gitignored) holds `ENGINE_OPERATOR_PRIVATE_KEY`, `DEPOSIT_ACCOUNT_PRIVATE_KEY` and `NEAR_ENGINE_PRIVATE_KEY` (the engine's NEAR function-call key). The other `NEAR_*` variables are listed in `engine/.env.example`.
 
 ```bash
 cd engine && npm ci
-npm run deposits:forward            # engine forwarder: keeps polling Base Sepolia, credits Vaults
-npm run smoke:round-trip            # seam 3: deposit 5 USDC -> Vault -> withdraw -> minted on Base Sepolia
-npm run smoke:round-trip -- --amount 10
-npm run smoke:solana                # #22: Solana devnet -> Vault -> withdraw -> minted on Solana (3 USDC)
+npm run serve                       # HTTP: POST /near/vaults, GET /near/vaults/:account, POST /near/mandate
+npm run deposits:forward            # polls the Sapien Contract: forwards deposits to Vaults, pays withdrawals
+npm run deposits:forward -- --once  # one pass
+npm run smoke:near                  # read-only: contract state, agents, deposits, withdrawals, a Vault's HyperCore value
 ```
 
-The smoke script plays the user with the engine operator key, which needs HYPE on HyperEVM and ETH plus USDC on Base Sepolia ([faucet.circle.com](https://faucet.circle.com)). It prints every tx and ends with the round trip's cost (CCTP fees plus the 1 USDC Vault activation). The Deposit Account needs a USDC float on HyperCore testnet to forward from. `smoke:solana` also needs `SOLANA_SMOKE_KEYPAIR` (a JSON secret key) in `engine/.env.local`, holding devnet SOL and devnet USDC (faucet.circle.com, Solana Devnet); it tops up the Deposit Account's HYPE for its HyperEVM calls.
-
-In the app, `/funds` does the same for a connected wallet: deposit with the fee and activation shown up front, then progress through burned, in the Deposit Account and in the Vault. Withdraw shows each step until the mint on Base Sepolia. A Solana wallet (Phantom, Solflare) adds Deposit from Solana and a Solana devnet option on Withdraw. Run `deposits:forward` while depositing.
+In the app, `/funds` takes a Meteor account through these steps: test USDC from the faucet, Create Vault, Deposit, and Withdraw. It shows each step until the money arrives. Run `serve` and `deposits:forward` while you use it. The Deposit Account needs a USDC float on HyperCore testnet to forward from.
 
 ### Tests
 
 ```bash
-cd contracts && forge test     # hook bytes, mock, Vault withdrawal gating, Overshoot waterfall, Epoch fee split with HWM (+ fuzz)
-cd engine && npm test          # deposit-landed credits the right Vault; Solana token account, PDAs, burn bytes
-cd frontend && npm test        # hook bytes, fees, withdraw progress
+cd near && cargo test          # deposits, refunds, withdraw pay + failed-payout revert, access control, Mandate, Kill Switch, agents
+cd contracts && forge test     # Vault withdrawal gating, Overshoot waterfall, Epoch fee split with HWM (+ fuzz)
+cd engine && npm test          # NEAR deposit/withdraw pollers, Mandate hash check, Vault binding, agents, Mandate rules
+cd frontend && npm test        # NEAR amounts, Mandate hash, view encoding, Mandate compiler
 ```
 
 ## Under the hood
@@ -139,16 +223,14 @@ cd frontend && npm test        # hook bytes, fees, withdraw progress
 ### Money round trip (testnet)
 
 ```
-Base Sepolia USDC ──depositForBurnWithHook──▶ MockCctpForwarder ──DepositForBurn event──▶ engine forwarder
-   ▲                                                                                        │ usdSend
-   │ Circle forwarding mint                                       Deposit Account (HyperCore)┘
-   │                                                                     │
- CCTP V2 burn ◀── Vault.bridgeOut ◀── Vault HyperEVM USDC ◀── Vault.withdrawToEvm ◀── Vault (HyperCore perp)
+Meteor ──ft_transfer_call──▶ sapien-vault.testnet ──deposit event──▶ engine forwarder ──usdSend──▶ Vault (HyperCore)
+  ▲                                                                   (from the Deposit Account float)
+  └── ft_transfer ◀── pay_withdraw ◀── engine ◀── Vault.withdrawToEvm (when Flat) ◀── request_withdraw
 ```
 
-- **Deposit (#6).** The user calls `depositForBurnWithHook` with real CCTP V2 arguments: mint recipient and destination caller = Hyperliquid's CctpForwarder, hook data = the Deposit Account, perps. Testnet CCTP only delivers to HyperCore addresses that exist on mainnet, and our Deposit Account is testnet-only, so a **MockCctpForwarder on Base Sepolia** stands in for the cross-chain hop: it checks the same arguments, locks the USDC and emits Circle's exact `DepositForBurn` event. Everything after that is real. The engine matches the depositor to their Vault (`VaultFactory.depositTargetOf`) and sends the USDC from the Deposit Account to the Vault on HyperCore. A Vault's first deposit pays HyperCore's 1 USDC activation fee, and the engine then re-registers the Agent Wallet.
-- **Solana deposit (#22).** Real CCTP V2, no mock. The user calls `deposit_for_burn_with_hook` on Solana devnet: mint recipient = the Deposit Account on HyperEVM, destination caller = anyone, hook data = their Vault's address. Circle attests it; the engine (`deposits:forward`) relays `receiveMessage` on HyperEVM, checks the hook names a factory Vault and credits it from the Deposit Account on HyperCore with `usdSend`. On mainnet the minted USDC would move to HyperCore through Circle's CoreDepositWallet; on testnet CoreDepositWallet drops credits to accounts without mainnet state (tried twice, 6 devnet USDC lost), so the USDC stays on HyperEVM and the Deposit Account's HyperCore float covers it.
-- **Withdraw (#7).** Owner only, and only while the Vault is Flat. `withdrawToEvm` moves USDC from HyperCore to the Vault's HyperEVM address (CoreWriter). `bridgeOut` burns it through CCTP V2 with Circle's forwarding service, which mints it on Base Sepolia, or on Solana devnet (#22) into the user's USDC token account, which the app creates first if missing. Circle's HyperCore withdrawal action is API-signed, so a contract can't use it. HyperCore charges about 0.025 USDC to move USDC to HyperEVM, taken from what stays in the account. A send of the whole balance is dropped silently, so withdrawals keep 0.05 USDC back.
+- **Vault.** `POST /near/vaults` creates the user's Vault contract on HyperEVM with a fresh Agent Wallet, then binds it to the NEAR account with `register_vault`. The engine operator is the Vault's EVM owner on testnet. The step that removes this custody is in ADR-0007.
+- **Deposit.** The user sends `ft_transfer_call` to `sapien-vault.testnet`. The contract refunds the full amount when the token is wrong or the sender has no Vault. Otherwise it stores the deposit by id. The forwarder reads deposits in order from a cursor and sends the amount from the Deposit Account to the Vault on HyperCore. A Vault's first deposit pays HyperCore's 1 USDC activation fee, and the engine then re-registers the Agent Wallet.
+- **Withdraw.** The user calls `request_withdraw`. Once the Vault is Flat, the engine calls `Vault.withdrawToEvm` and then `pay_withdraw`. The contract marks the withdrawal Paying before it transfers, so it can't be paid twice. A failed transfer puts it back to Requested.
 
 ### Overshoot settlement (#15)
 
