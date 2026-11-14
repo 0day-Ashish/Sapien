@@ -345,7 +345,7 @@ export function AgentDemo() {
           </div>
         </aside>
 
-        <div className="relative flex h-[42rem] flex-col overflow-hidden rounded-xl bg-white px-5 py-6 md:px-10" aria-hidden="true">
+        <div className="relative flex h-[34rem] flex-col overflow-hidden rounded-xl bg-white px-4 py-5 sm:px-5 sm:py-6 md:h-[42rem] md:px-10" aria-hidden="true">
           <div className="flex items-center justify-center gap-2">
             <span className="rounded-full bg-violet-tint px-3 py-0.5 text-xs text-violet/70">{title}</span>
           </div>

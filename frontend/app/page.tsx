@@ -342,7 +342,7 @@ function Safeguards() {
 
       <div id="builders" className="mt-16 grid w-full scroll-mt-28 gap-2 text-left sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {SAFEGUARDS.map((s) => (
-          <Link key={s.title} href={s.href} className={`card-outline group flex min-h-[18.5rem] flex-col p-6 transition-colors hover:bg-white ${s.tone}`}>
+          <Link key={s.title} href={s.href} className={`card-outline group flex min-h-[13rem] sm:min-h-[18.5rem] flex-col p-6 transition-colors hover:bg-white ${s.tone}`}>
             <Icon name={s.icon} className="size-9" />
             <h3 className="display-3 mt-8 !text-[2rem]">{s.title}</h3>
             <p className="mt-2 text-[0.9375rem] font-medium leading-snug">{s.body}</p>

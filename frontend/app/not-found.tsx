@@ -32,10 +32,11 @@ export default function NotFound() {
               height={150}
               count={150}
               shape="mound"
-              className="pointer-events-none absolute -bottom-6 left-1/2 w-[min(100%,56rem)] -translate-x-1/2 md:-bottom-10"
+              // Phones: lower, so the pile sits at the foot of the numerals instead of over them.
+              className="pointer-events-none absolute -bottom-16 left-1/2 w-[min(100%,56rem)] -translate-x-1/2 sm:-bottom-6 md:-bottom-10"
             />
           </div>
-          <h1 className="display-serif relative mt-12 md:mt-16">This page is Flat.</h1>
+          <h1 className="display-serif relative mt-24 sm:mt-12 md:mt-16">This page is Flat.</h1>
           <p className="lede mt-4 max-w-xl">
             Nothing is open at this address. The link may be old, or the page may have moved. Your Vault is exactly where you left it.
           </p>

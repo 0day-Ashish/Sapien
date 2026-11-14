@@ -205,6 +205,7 @@ export function MandateComposer() {
 
   /** Switches the main panel and records it in the URL, without leaving the page. */
   function setView(v: View) {
+    setMenuOpen(false);
     setViewState(v);
     const url = new URL(window.location.href);
     if (v === "mandate") url.searchParams.delete("view");
@@ -212,6 +213,10 @@ export function MandateComposer() {
     window.history.replaceState(null, "", url);
   }
   const [collapsed, setCollapsed] = useState(false);
+  /** Small screens: whether the sidebar drawer is open. */
+  const [menuOpen, setMenuOpen] = useState(false);
+  // The icon rail is a desktop choice; the drawer always shows the full sidebar.
+  const narrow = collapsed && !menuOpen;
   const [activeId, setActiveId] = useState<string | null>(null);
   const [text, setText] = useState("");
   /** The conversation with the Mandate assistant, oldest first. */
@@ -323,6 +328,7 @@ export function MandateComposer() {
   }
 
   function openChat(c: Chat) {
+    setMenuOpen(false);
     leaveChat();
     setActiveId(c.id);
     setText("");
@@ -491,16 +497,33 @@ export function MandateComposer() {
     <div className="relative z-10 flex min-h-0 flex-1 flex-col">
       {/* App frame */}
       <div className={`relative z-10 grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] overflow-hidden bg-violet-soft/70 p-3 transition-[grid-template-columns] duration-300 ${collapsed ? "md:grid-cols-[4.25rem_1fr]" : "md:grid-cols-[16rem_1fr]"}`}>
-        <aside className={`relative hidden min-h-0 flex-col gap-4 md:flex ${collapsed ? "items-center px-0 py-2" : "p-2"}`}>
-          <div className={`flex items-center gap-2 ${collapsed ? "flex-col" : ""}`}>
-            {!collapsed && (
+        {/* On small screens the sidebar is a drawer, opened from the header's menu button. */}
+        {menuOpen && <button type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-30 bg-violet-ink/30 md:hidden" />}
+        <aside
+          id="app-menu"
+          className={`fixed inset-y-0 left-0 z-40 flex min-h-0 w-[17.5rem] max-w-[85vw] flex-col gap-4 bg-violet-soft shadow-2xl transition-transform duration-300 ease-out md:visible md:relative md:inset-auto md:z-auto md:w-auto md:max-w-none md:translate-x-0 md:bg-transparent md:shadow-none md:transition-none ${
+            menuOpen ? "visible translate-x-0" : "invisible -translate-x-full"
+          } ${narrow ? "items-center px-0 py-2" : "p-3 md:p-2"}`}
+        >
+          <div className={`flex items-center gap-2 ${narrow ? "flex-col" : ""}`}>
+            {!narrow && (
               <Link href="/" aria-label={`${PRODUCT_NAME} home`} className="px-1">
                 <Logo />
               </Link>
             )}
-            <span className={collapsed ? "" : "ml-auto"}>
-              <SidebarToggle collapsed={collapsed} onToggle={toggleSidebar} />
+            <span className={`hidden md:block ${narrow ? "" : "ml-auto"}`}>
+              <SidebarToggle collapsed={narrow} onToggle={toggleSidebar} />
             </span>
+            <button
+              type="button"
+              aria-label="Close menu"
+              onClick={() => setMenuOpen(false)}
+              className="ml-auto flex size-10 items-center justify-center rounded-full text-violet transition-colors hover:bg-white/70 md:hidden"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="size-5">
+                <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
           </div>
 
           <button
@@ -512,14 +535,14 @@ export function MandateComposer() {
             aria-label="New Mandate"
             title="New Mandate"
             className={`flex items-center justify-center gap-2 rounded-full bg-white text-sm font-medium text-violet shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow ${
-              collapsed ? "size-12" : "py-2"
+              narrow ? "size-12" : "py-2"
             }`}
           >
-            <span className={`leading-none ${collapsed ? "text-2xl" : "text-base"}`}>+</span>
-            {!collapsed && "New Mandate"}
+            <span className={`leading-none ${narrow ? "text-2xl" : "text-base"}`}>+</span>
+            {!narrow && "New Mandate"}
           </button>
 
-          <nav aria-label="App" className={`flex flex-col gap-0.5 ${collapsed ? "items-center" : ""}`}>
+          <nav aria-label="App" className={`flex flex-col gap-0.5 ${narrow ? "items-center" : ""}`}>
             {VIEWS.map((v) => (
               <button
                 key={v.id}
@@ -528,19 +551,19 @@ export function MandateComposer() {
                 title={v.label}
                 aria-current={view === v.id ? "page" : undefined}
                 className={`flex items-center gap-2 rounded-lg text-[0.8125rem] text-violet-ink transition-all duration-200 hover:bg-white/70 ${
-                  collapsed ? "relative size-11 justify-center rounded-xl" : "px-2 py-1.5 text-left"
+                  narrow ? "relative size-11 justify-center rounded-xl" : "px-2 py-1.5 text-left"
                 } ${view === v.id ? "bg-white shadow-sm" : ""}`}
               >
-                <Icon name={v.icon} className={`shrink-0 text-violet ${collapsed ? "size-5" : "size-4"}`} />
-                <span className={collapsed ? "sr-only" : "flex-1"}>{v.label}</span>
+                <Icon name={v.icon} className={`shrink-0 text-violet ${narrow ? "size-5" : "size-4"}`} />
+                <span className={narrow ? "sr-only" : "flex-1"}>{v.label}</span>
                 {v.id === "trading" && (
-                  <span className={`size-1.5 animate-pulse rounded-full bg-green ${collapsed ? "absolute right-2 top-2" : ""}`} aria-hidden="true" />
+                  <span className={`size-1.5 animate-pulse rounded-full bg-green ${narrow ? "absolute right-2 top-2" : ""}`} aria-hidden="true" />
                 )}
               </button>
             ))}
           </nav>
 
-          <div className={`-mx-2 min-h-0 flex-1 flex-col overflow-y-auto px-2 ${collapsed ? "hidden" : "flex"}`}>
+          <div className={`-mx-2 min-h-0 flex-1 flex-col overflow-y-auto px-2 ${narrow ? "hidden" : "flex"}`}>
             <p className="px-1 pb-1.5 text-xs text-violet/70">Recent</p>
             {chats.length === 0 ? (
               <p className="px-1 text-[0.8125rem] leading-snug text-violet/50">Your Mandate drafts appear here, so you can come back to them.</p>
@@ -598,7 +621,7 @@ export function MandateComposer() {
             aria-hidden="true"
             className="demo-wash pointer-events-none absolute inset-x-0 bottom-12 h-56 bg-[radial-gradient(60%_50%_at_30%_70%,rgb(253_228_239/0.7),transparent),radial-gradient(55%_45%_at_70%_40%,rgb(203_191_244/0.7),transparent)] blur-xl"
           />
-          {collapsed ? <div className="flex-1" /> : <WalletSlider />}
+          {narrow ? <div className="flex-1" /> : <WalletSlider />}
         </aside>
 
         <div className="flex min-h-0 flex-col rounded-xl bg-white px-5 py-6 md:px-10">
@@ -612,12 +635,23 @@ export function MandateComposer() {
               </svg>
               Back to home
             </Link>
-            <Link href="/" aria-label="Back to home" className="flex items-center gap-2 text-violet md:hidden">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="size-4">
-                <path d="M19 12H5M11 6l-6 6 6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <Logo />
-            </Link>
+            <span className="flex items-center gap-1 md:hidden">
+              <button
+                type="button"
+                aria-label="Open menu"
+                aria-expanded={menuOpen}
+                aria-controls="app-menu"
+                onClick={() => setMenuOpen(true)}
+                className="-ml-2 flex size-11 items-center justify-center rounded-full text-violet transition-colors hover:bg-violet-tint"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="size-5">
+                  <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+              <Link href="/" aria-label={`${PRODUCT_NAME} home`} className="text-violet">
+                <Logo />
+              </Link>
+            </span>
             <span className="rounded-full bg-violet-tint px-3 py-0.5 text-xs text-violet/70">
               {view === "mandate" ? (activeId ? "Draft" : "New Mandate") : VIEWS.find((v) => v.id === view)!.label}
             </span>
