@@ -58,7 +58,7 @@ const sections: LegalSection[] = [
     body: (
       <p>
         Vault creation, Mandate Versions, Decision Commitments, Bonds, deposits and withdrawals are recorded on public blockchains
-        (HyperEVM, HyperCore, Base Sepolia, Solana devnet). Anyone can read them, and no one, including us, can change or delete
+        (HyperEVM, HyperCore, NEAR testnet). Anyone can read them, and no one, including us, can change or delete
         them.
       </p>
     ),
@@ -86,8 +86,8 @@ const sections: LegalSection[] = [
             "Google (Gemini) and Groq, which draft Mandates from the text you type;",
             "Neon, which hosts the database that holds Mandate chat history;",
             "Hyperliquid (HyperCore and HyperEVM), where Vaults trade and hold funds;",
-            "Circle's CCTP, which moves USDC between chains;",
-            "your wallet provider, and the public RPC endpoints your wallet and the app connect to;",
+            "NEAR (the Sapien contract and its public RPC), where your deposits, withdrawals, Mandate hash and Kill Switch are recorded;",
+            "your wallet provider (Meteor Wallet), and the public RPC endpoints your wallet and the app connect to;",
             "the hosting provider that serves this website.",
           ]}
         />

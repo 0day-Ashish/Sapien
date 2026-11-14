@@ -21,6 +21,27 @@ type Release = {
 // Newest first. Each release groups the pull requests that merged in one stretch of 14 November 2026 (times in UTC).
 const RELEASES: Release[] = [
   {
+    version: "v0.7.0",
+    date: "14 November 2026",
+    summary: "Money and controls move to NEAR: connect Meteor Wallet, deposit and withdraw test USDC through the Sapien NEAR contract, and set your Kill Switch there.",
+    added: [
+      { title: "Meteor Wallet on NEAR testnet", body: "the wallet button connects Meteor and shows your NEAR account. Base Sepolia, Solana and CCTP are gone." },
+      { title: "Sapien NEAR contract", body: "your Vault is bound to your NEAR account. Deposit test USDC, request a withdrawal and follow it until the engine pays it, with a link to every transaction." },
+      { title: "Test USDC faucet", body: "get 1,000 test USDC on NEAR with one click." },
+      { title: "NEAR Intents quote", body: "a live mainnet-route quote (NEAR to HyperCore) beside the deposit, so you can see what the same USDC would cost. Display only." },
+      { title: "On NEAR panel", body: "the Risk Disclosure lists what lives on NEAR: the engine's limited key, your Mandate hash, the Kill Switch and the agents' payout accounts." },
+    ],
+    improved: [
+      { title: "Mandate and Kill Switch from your NEAR wallet", body: "you commit the Mandate's hash on NEAR and set the Kill Switch there; the engine checks both." },
+      { title: "Bonds read-only", body: "registering and topping up a Bond are HyperEVM transactions, so the Bonds page only looks them up in this release." },
+    ],
+    fixed: [],
+    learnMore: [
+      { href: "/docs/funds", label: "Deposits and withdrawals" },
+      { href: "/risk", label: "Risk Disclosure" },
+    ],
+  },
+  {
     version: "v0.6.0",
     date: "14 November 2026 · 10:27 UTC",
     summary: "See every decision and check it yourself: a live view, Replay with an onchain check, a Leaderboard, and fees that settle each Epoch.",
