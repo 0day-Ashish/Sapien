@@ -238,11 +238,13 @@ function ProtectionPanel() {
               loss past your stop-loss with the agent&apos;s own money first.
             </p>
           </div>
-          <div className="grid gap-x-10 gap-y-12 sm:grid-cols-2">
+          <div className="grid gap-x-14 gap-y-16 sm:grid-cols-2">
             {PROTECTION.map((item) => (
-              <div key={item.title} className="flex flex-col gap-3 text-violet">
-                <h3 className="title-serif max-w-[12em]">{item.title}</h3>
-                <p className="text-[0.9375rem] leading-relaxed">{item.body}</p>
+              <div key={item.title} className="flex flex-col gap-5 text-violet">
+                <h3 className="max-w-[11em] font-serif text-[1.625rem] font-semibold leading-[1.05] tracking-[-0.02em]">
+                  {item.title}
+                </h3>
+                <p className="max-w-[20em] text-[1.0625rem] leading-[1.45]">{item.body}</p>
               </div>
             ))}
           </div>
