@@ -276,31 +276,9 @@ body {
   }
 }
 
-/* Crypto coin: slow 3D turn and a gentle float. */
-.coin-spin {
-  animation: coin-spin 6s linear infinite;
-}
-.coin-spin-fast {
-  animation: coin-spin 1.4s linear infinite;
-}
-.coin-float {
-  animation: coin-float 3.6s ease-in-out infinite;
-}
-@keyframes coin-spin {
-  to { transform: rotateY(360deg); }
-}
-@keyframes coin-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8%); }
-}
 /* Also turns the vault-cluster dials. */
 @keyframes bot-spin {
   to { transform: rotate(360deg); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .coin-spin, .coin-spin-fast, .coin-float {
-    animation: none;
-  }
 }
 
 /* Market garden motion: candles sway from their base, coins bob, sparks twinkle. */
