@@ -113,7 +113,7 @@ export function AgentDemo() {
   return (
     <div
       ref={frame}
-      className={`origin-top transition-[transform,opacity] duration-1000 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transform-none motion-reduce:opacity-100 ${
+      className={`relative z-10 origin-top transition-[transform,opacity] duration-1000 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transform-none motion-reduce:opacity-100 ${
         inView ? "scale-100 opacity-100" : "scale-[0.94] opacity-60"
       }`}
     >
