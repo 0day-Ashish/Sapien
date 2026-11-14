@@ -346,7 +346,6 @@ export class HyperEvmChain implements ChainPort {
   /** Finds the MandateVersionSigned log: binary-search the block by the version's signedAt, then read a narrow range. */
   private async signedJson(vault: Address, version: bigint, signedAt: bigint): Promise<Hex> {
     const latest = await this.publicClient.getBlockNumber();
-    let lo = 0n;
     let hi = latest;
     // A block the RPC doesn't serve counts as having the timestamp of the next one it does, which keeps the search
     // monotonic; if it ends inside such a gap, the signing block is the first served block after it.
@@ -355,6 +354,17 @@ export class HyperEvmChain implements ChainPort {
       if (!b) throw new Error(`No block served at or after ${n}`);
       return b;
     };
+    // Step back from the latest block (doubling) until one predates the signature, so the search covers only recent
+    // blocks instead of everything since block 0.
+    let lo = latest;
+    for (let step = 1_000n; ; step *= 2n) {
+      const candidate = latest > step ? latest - step : 0n;
+      if (candidate === 0n || (await servedFrom(candidate)).timestamp < signedAt) {
+        lo = candidate;
+        break;
+      }
+      hi = candidate;
+    }
     while (lo < hi) {
       const mid = (lo + hi) / 2n;
       if ((await servedFrom(mid)).timestamp < signedAt) lo = mid + 1n;
