@@ -370,6 +370,44 @@ body {
   }
 }
 
+/* Market garden motion: candles sway from their base, coins bob, sparks twinkle. */
+.garden-sway,
+.garden-bob,
+.garden-twinkle {
+  transform-box: fill-box;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+.garden-sway {
+  transform-origin: 50% 100%;
+  animation-name: garden-sway;
+}
+.garden-bob {
+  transform-origin: 50% 50%;
+  animation-name: garden-bob;
+}
+.garden-twinkle {
+  transform-origin: 50% 50%;
+  animation-name: garden-twinkle;
+}
+@keyframes garden-sway {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+@keyframes garden-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes garden-twinkle {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.25) rotate(45deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .garden-sway, .garden-bob, .garden-twinkle {
+    animation: none;
+  }
+}
+
 @keyframes marquee {
   from {
     transform: translateX(0);

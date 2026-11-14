@@ -105,7 +105,14 @@ function PieceSvg({ piece }: { piece: Piece }) {
   }
 }
 
-/** A heap of candlesticks and coins. Purely decorative. */
+const MOTION: Record<Piece["kind"], string> = {
+  candle: "garden-sway",
+  coin: "garden-bob",
+  ring: "garden-bob",
+  spark: "garden-twinkle",
+};
+
+/** A heap of candlesticks and coins. Purely decorative. Each piece moves on its own timing. */
 export function MarketGarden({
   seed = 7,
   width = 600,
@@ -113,6 +120,7 @@ export function MarketGarden({
   count = 70,
   shape = "mound",
   className = "",
+  animated = true,
 }: {
   seed?: number;
   width?: number;
@@ -120,13 +128,25 @@ export function MarketGarden({
   count?: number;
   shape?: "mound" | "band" | "spray";
   className?: string;
+  animated?: boolean;
 }) {
   const pieces = cluster(seed, width, height, count, shape);
+  const timing = random(seed * 31 + 5);
   return (
-    <svg viewBox={`-30 -40 ${width + 60} ${height + 80}`} aria-hidden="true" className={className}>
-      {pieces.map((piece, i) => (
-        <PieceSvg key={i} piece={piece} />
-      ))}
+    <svg viewBox={`-30 -40 ${width + 60} ${height + 80}`} aria-hidden="true" className={className} overflow="visible">
+      {pieces.map((piece, i) => {
+        const delay = (-timing() * 6).toFixed(2);
+        const duration = (2.6 + timing() * 2.8).toFixed(2);
+        return (
+          <g
+            key={i}
+            className={animated ? MOTION[piece.kind] : undefined}
+            style={animated ? { animationDelay: `${delay}s`, animationDuration: `${duration}s` } : undefined}
+          >
+            <PieceSvg piece={piece} />
+          </g>
+        );
+      })}
     </svg>
   );
 }

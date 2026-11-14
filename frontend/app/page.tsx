@@ -111,10 +111,9 @@ const DECISIONS = [
 function ProductDemo() {
   return (
     <section className="relative mt-6 pb-10">
-      <MarketGarden seed={11} width={620} height={170} count={70} shape="mound" className="pointer-events-none absolute -top-2 right-[4%] hidden w-[44%] md:block" />
       <div className="container-page relative">
         {/* Timeline bar */}
-        <div className="relative mt-24 rounded-t-[1.25rem] border border-b-0 border-violet-line bg-violet-tint/90 px-5 py-4 backdrop-blur md:mx-5">
+        <div className="relative z-10 mt-24 rounded-t-[1.25rem] border border-b-0 border-violet-line bg-violet-tint/90 px-5 py-4 backdrop-blur md:mx-5">
           <span className="chip chip-solid absolute -top-3 left-[22%] md:left-[18%]">Veto window 42s</span>
           <div className="flex items-center gap-4">
             <span aria-hidden="true" className="flex gap-[3px]">
@@ -129,6 +128,24 @@ function ProductDemo() {
             <span className="label-mono !text-xs text-violet-ink">0:42 / 2:10</span>
           </div>
         </div>
+
+        {/* Garden spilling over the panel's top-right corner */}
+        <MarketGarden
+          seed={11}
+          width={520}
+          height={190}
+          count={75}
+          shape="mound"
+          className="pointer-events-none absolute -right-6 top-0 z-0 hidden w-[42%] max-w-[38rem] -translate-y-[38%] md:block"
+        />
+        <MarketGarden
+          seed={17}
+          width={150}
+          height={320}
+          count={30}
+          shape="spray"
+          className="pointer-events-none absolute -right-10 top-16 z-0 hidden w-[9rem] lg:block"
+        />
 
         {/* App frame */}
         <div className="relative z-10 grid overflow-hidden rounded-[1.25rem] border border-violet-line bg-violet-soft/70 p-3 shadow-card md:grid-cols-[15rem_1fr]">
