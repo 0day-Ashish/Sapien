@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ConnectWallet } from "./connect-wallet";
 
 export default function Home() {
@@ -13,6 +14,9 @@ export default function Home() {
         </p>
       </div>
       <ConnectWallet />
+      <Link href="/mandate" className="self-start text-sm font-medium underline">
+        Write your Mandate
+      </Link>
     </main>
   );
 }
