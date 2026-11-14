@@ -8,6 +8,7 @@ import {
   createChart,
   createSeriesMarkers,
   type IChartApi,
+  type AutoscaleInfo,
   type IPriceLine,
   type ISeriesApi,
   type ISeriesMarkersPluginApi,
@@ -21,6 +22,7 @@ import {
   CHART_INTERVALS,
   HL_WS_URL,
   fetchCandles,
+  chartCoins,
   fetchVaultTrading,
   parseCandleMessage,
   type Candle,
@@ -30,6 +32,8 @@ import {
   type StopOrder,
 } from "@/lib/trading/hyperliquid";
 import { VAULT_FACTORY, factoryAbi } from "@/lib/vault/funds";
+
+const NO_COINS: string[] = [];
 
 const COLORS = {
   up: "#17805a",
@@ -56,19 +60,6 @@ const price = (n: number) => usd(n, n >= 1000 ? 1 : n >= 10 ? 2 : 4);
  * WebSocket; the Vault's trading state is polled. Read-only.
  */
 export function TradingChart({ assets }: { assets: string[] }) {
-  const coins = useMemo(() => (assets.length ? assets : ["BTC", "ETH", "SOL", "HYPE"]), [assets]);
-  const [coin, setCoin] = useState(coins[0]!);
-  const [interval, setInterval_] = useState<ChartInterval>("1m");
-  // Each piece of async state is tagged with what it belongs to, so a stale value is ignored
-  // instead of being reset when the coin, interval or Vault changes.
-  const [lastState, setLastState] = useState<{ key: string; close: number; open: number } | null>(null);
-  const [liveKey, setLiveKey] = useState<string | null>(null);
-  const [errorKey, setErrorKey] = useState<string | null>(null);
-  const [tradingState, setTradingState] = useState<{ key: string; data: Trading } | null>(null);
-
-  const activeCoin = coins.includes(coin) ? coin : coins[0]!;
-  const marketKey = `${activeCoin}:${interval}`;
-
   // The connected owner's Vault, which is its own HyperCore account.
   const { address } = useConnection();
   const { data: vaultAddress } = useReadContract({
@@ -79,6 +70,22 @@ export function TradingChart({ assets }: { assets: string[] }) {
     query: { enabled: Boolean(address) },
   });
   const vault = vaultAddress && vaultAddress !== zeroAddress ? (vaultAddress as Address) : null;
+  // Coins the Vault holds a position in come first, so a live position shows even if the open draft doesn't list it.
+  const [openCoins, setOpenCoins] = useState<{ vault: string; coins: string[] } | null>(null);
+  const [coin, setCoin] = useState<string | null>(null);
+  const [interval, setInterval_] = useState<ChartInterval>("1m");
+  // Each piece of async state is tagged with what it belongs to, so a stale value is ignored
+  // instead of being reset when the coin, interval or Vault changes.
+  const [lastState, setLastState] = useState<{ key: string; close: number; open: number } | null>(null);
+  const [liveKey, setLiveKey] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<string | null>(null);
+  const [tradingState, setTradingState] = useState<{ key: string; data: Trading } | null>(null);
+
+  const vaultOpenCoins = vault && openCoins?.vault === vault ? openCoins.coins : NO_COINS;
+  const coins = useMemo(() => chartCoins(assets.length ? assets : ["BTC", "ETH", "SOL", "HYPE"], vaultOpenCoins), [assets, vaultOpenCoins]);
+  const activeCoin = coin && coins.includes(coin) ? coin : coins[0]!;
+  const marketKey = `${activeCoin}:${interval}`;
+
   const tradingKey = vault ? `${vault}:${activeCoin}` : null;
 
   const last = lastState?.key === marketKey ? lastState : null;
@@ -91,6 +98,8 @@ export function TradingChart({ assets }: { assets: string[] }) {
   const series = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const markers = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   const lines = useRef<IPriceLine[]>([]);
+  /** Prices of the drawn lines; the price scale always includes them, so a stop far below the market stays visible. */
+  const linePrices = useRef<number[]>([]);
 
   // Create the chart once.
   useEffect(() => {
@@ -117,6 +126,18 @@ export function TradingChart({ assets }: { assets: string[] }) {
       borderDownColor: COLORS.down,
       wickUpColor: COLORS.up,
       wickDownColor: COLORS.down,
+      autoscaleInfoProvider: (original: () => AutoscaleInfo | null) => {
+        const info = original();
+        const extra = linePrices.current;
+        if (!info?.priceRange || extra.length === 0) return info;
+        return {
+          ...info,
+          priceRange: {
+            minValue: Math.min(info.priceRange.minValue, ...extra),
+            maxValue: Math.max(info.priceRange.maxValue, ...extra),
+          },
+        };
+      },
     });
     chart.current = c;
     series.current = s;
@@ -194,7 +215,13 @@ export function TradingChart({ assets }: { assets: string[] }) {
     const key = `${vault}:${activeCoin}`;
     const load = () =>
       fetchVaultTrading(vault, activeCoin)
-        .then((data) => !cancelled && setTradingState({ key, data }))
+        .then((data) => {
+          if (cancelled) return;
+          setTradingState({ key, data });
+          setOpenCoins((prev) =>
+            prev?.vault === vault && prev.coins.join() === data.openCoins.join() ? prev : { vault, coins: data.openCoins },
+          );
+        })
         .catch(() => {});
     load();
     const id = window.setInterval(load, TRADING_POLL_MS);
@@ -237,6 +264,8 @@ export function TradingChart({ assets }: { assets: string[] }) {
         s.createPriceLine({ price: stop.triggerPrice, color: COLORS.down, lineWidth: 2, lineStyle: LineStyle.Solid, axisLabelVisible: true, title: "Stop-loss" }),
       );
     }
+    linePrices.current = lines.current.map((l) => l.options().price);
+    chart.current?.priceScale("right").applyOptions({ autoScale: true });
   }, [trading, interval]);
 
   const change = last ? ((last.close - last.open) / last.open) * 100 : null;

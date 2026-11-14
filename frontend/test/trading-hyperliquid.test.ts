@@ -3,6 +3,8 @@ import {
   parseCandleMessage,
   parseCandles,
   parseFills,
+  chartCoins,
+  openPositionCoins,
   parsePosition,
   parseStopOrders,
 } from "../lib/trading/hyperliquid";
@@ -81,5 +83,24 @@ describe("parseCandleMessage", () => {
     expect(parseCandleMessage(msg, "ETH", "1m")).toBeNull();
     expect(parseCandleMessage(msg, "BTC", "5m")).toBeNull();
     expect(parseCandleMessage({ channel: "subscriptionResponse", data: {} }, "BTC", "1m")).toBeNull();
+  });
+});
+
+describe("chart tabs follow the Vault's positions", () => {
+  const state = {
+    assetPositions: [
+      { position: { coin: "BTC", szi: "0.00038", entryPx: "65346" } },
+      { position: { coin: "ETH", szi: "0.0", entryPx: "1880" } },
+    ],
+  };
+
+  it("lists coins with an open position", () => {
+    expect(openPositionCoins(state)).toEqual(["BTC"]);
+    expect(openPositionCoins(null)).toEqual([]);
+  });
+
+  it("puts open-position coins first, even when the draft Mandate doesn't list them", () => {
+    expect(chartCoins(["ETH", "SOL"], ["BTC"])).toEqual(["BTC", "ETH", "SOL"]);
+    expect(chartCoins(["BTC", "ETH"], ["BTC"])).toEqual(["BTC", "ETH"]);
   });
 });

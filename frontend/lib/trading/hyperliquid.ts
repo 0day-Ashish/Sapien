@@ -87,6 +87,18 @@ export function parsePosition(raw: unknown, coin: string): Position | null {
   };
 }
 
+/** Coins the account holds a non-zero position in, from `clearinghouseState`. */
+export function openPositionCoins(raw: unknown): string[] {
+  const positions = (raw as { assetPositions?: { position?: Record<string, unknown> }[] } | null)?.assetPositions;
+  if (!Array.isArray(positions)) return [];
+  return positions.map((a) => a.position).filter((p) => p && typeof p.coin === "string" && num(p.szi)).map((p) => p!.coin as string);
+}
+
+/** Chart tabs: coins with an open position first (so a live position is never hidden), then the rest, no repeats. */
+export function chartCoins(base: string[], open: string[]): string[] {
+  return [...new Set([...open, ...base])];
+}
+
 /** Resting trigger (stop-loss) orders in one coin from `frontendOpenOrders`. */
 export function parseStopOrders(raw: unknown, coin: string): StopOrder[] {
   if (!Array.isArray(raw)) return [];
@@ -135,6 +147,7 @@ export async function fetchVaultTrading(vault: string, coin: string, fetchFn?: t
     fills: parseFills(fills, coin),
     position: parsePosition(state, coin),
     stops: parseStopOrders(orders, coin),
+    openCoins: openPositionCoins(state),
     accountValue: num((state as { marginSummary?: { accountValue?: unknown } })?.marginSummary?.accountValue) ?? null,
   };
 }
