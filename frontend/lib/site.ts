@@ -12,6 +12,10 @@ export const SITE_DESCRIPTION =
   "Every trade must fit the Mandate you sign in plain English, the agent's own Bond pays first when a stop-loss slips, " +
   "and your NEAR account holds the controls: deposits, withdrawals, the Mandate hash and the Kill Switch. Testnet only.";
 
+/** The same in one search-snippet-sized sentence (under 160 characters). */
+export const SITE_SUMMARY =
+  "AI agents trade perps on Hyperliquid for your Vault, inside a Mandate you sign. Their Bond pays first when a stop-loss slips. Controls on NEAR. Testnet.";
+
 export const SITE_KEYWORDS = [
   "AI trading agents",
   "perpetual futures",
@@ -41,13 +45,15 @@ export type SiteRoute = {
   wallet?: boolean;
   /** The same data as JSON, for pages the browser fills in with JavaScript. */
   json?: string;
+  /** A Markdown copy of the page, for agents. */
+  markdown?: string;
 };
 
 export const SITE_ROUTES: SiteRoute[] = [
-  { path: "/", title: PRODUCT_NAME, description: SITE_DESCRIPTION, section: "Product", priority: 1, changeFrequency: "weekly" },
-  { path: "/docs", title: "Docs", description: "The guide to Vaults, Mandates, agents, stop-loss protection, controls and verification.", section: "Product", priority: 0.9, changeFrequency: "weekly" },
-  { path: "/changelog", title: "Changelog", description: "Every Sapien release, newest first.", section: "Product", priority: 0.5, changeFrequency: "weekly" },
-  { path: "/contact", title: "Contact", description: "The team behind Sapien and how to reach them.", section: "Product", priority: 0.4, changeFrequency: "monthly" },
+  { path: "/", title: PRODUCT_NAME, description: SITE_SUMMARY, section: "Product", priority: 1, changeFrequency: "weekly" },
+  { path: "/docs", title: "Docs", description: "The guide to Vaults, Mandates, agents, stop-loss protection, controls and verification.", section: "Product", priority: 0.9, changeFrequency: "weekly", markdown: "/docs.md" },
+  { path: "/changelog", title: "Changelog", description: "Every Sapien release, newest first: what was added, improved and fixed, from the first guarded trade to the move to NEAR.", section: "Product", priority: 0.5, changeFrequency: "weekly", markdown: "/changelog.md" },
+  { path: "/contact", title: "Contact", description: "Meet the three builders behind Sapien, product, engine and chain, and find where to reach them or report an issue.", section: "Product", priority: 0.4, changeFrequency: "monthly" },
   { path: "/mandate", title: "Write your Mandate", description: "Write your trading rules in plain English, confirm every field, then commit the Mandate's hash from your NEAR account.", section: "App", priority: 0.8, changeFrequency: "weekly", wallet: true },
   { path: "/funds", title: "Deposit and withdraw", description: "Connect Meteor Wallet, get test USDC, create your Vault, deposit and withdraw through NEAR, see the NEAR Intents quote and use the Kill Switch.", section: "App", priority: 0.8, changeFrequency: "weekly", wallet: true },
   { path: "/builders", title: "Bonds", description: "Register a Specialist Agent and post its Bond so it can compete to lead Vaults.", section: "App", priority: 0.6, changeFrequency: "weekly", wallet: true },
@@ -55,9 +61,9 @@ export const SITE_ROUTES: SiteRoute[] = [
   { path: "/leaderboard", title: "Leaderboard", description: "Specialist Agents ranked by risk-adjusted return, with Bond size and the Vaults they lead.", section: "Transparency", priority: 0.7, changeFrequency: "hourly", json: "/api/v1/leaderboard" },
   { path: "/replay", title: "Replay", description: "Step through any past decision; its hash is recomputed in your browser and checked against the onchain DecisionLog.", section: "Transparency", priority: 0.7, changeFrequency: "hourly", json: "/api/v1/decisions" },
   { path: "/payouts", title: "Overshoot payouts", description: "Every Overshoot settlement with its evidence, and the Protection Fund's live Coverage Ratio.", section: "Transparency", priority: 0.6, changeFrequency: "daily", json: "/api/v1/payouts" },
-  { path: "/risk", title: "Risk Disclosure", description: "What can go wrong, what stop-loss protection does and doesn't cover, and what lives on NEAR.", section: "Legal", priority: 0.4, changeFrequency: "monthly" },
-  { path: "/terms", title: "Terms of Use", description: "The terms for using Sapien on testnet.", section: "Legal", priority: 0.2, changeFrequency: "yearly" },
-  { path: "/privacy", title: "Privacy Policy", description: "What Sapien stores and why.", section: "Legal", priority: 0.2, changeFrequency: "yearly" },
+  { path: "/risk", title: "Risk Disclosure", description: "What can go wrong, what stop-loss protection does and doesn't cover, and what lives on NEAR.", section: "Legal", priority: 0.4, changeFrequency: "monthly", markdown: "/risk.md" },
+  { path: "/terms", title: "Terms of Use", description: "The rules for using Sapien on testnet: what the service does, what you are responsible for, and what is not promised.", section: "Legal", priority: 0.2, changeFrequency: "yearly", markdown: "/terms.md" },
+  { path: "/privacy", title: "Privacy Policy", description: "What Sapien learns about you, where it goes, and what stays public onchain by design. No accounts, cookies, analytics or ad trackers.", section: "Legal", priority: 0.2, changeFrequency: "yearly", markdown: "/privacy.md" },
 ];
 
 export const routeFor = (path: string) => {
@@ -103,5 +109,5 @@ export function pageMetadata(
 /** Metadata for a page listed in SITE_ROUTES. */
 export const routeMetadata = (path: string) => {
   const r = routeFor(path);
-  return pageMetadata({ title: r.title, description: r.description, path: r.path, json: r.json });
+  return pageMetadata({ title: r.title, description: r.description, path: r.path, json: r.json, markdown: r.markdown });
 };

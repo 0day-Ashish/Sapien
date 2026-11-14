@@ -95,3 +95,10 @@ describe("public API", () => {
     expect(res.headers.get("access-control-allow-origin")).toBe("*");
   });
 });
+
+describe("preview image", () => {
+  it("inlines the same icon as app/icon.svg", () => {
+    const icon = readFileSync(join(__dirname, "../app/icon.svg"), "utf8").trim();
+    expect(readFileSync(join(__dirname, "../app/opengraph-image.tsx"), "utf8")).toContain(icon);
+  });
+});

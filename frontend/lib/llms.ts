@@ -4,13 +4,14 @@ import { AGENT_REGISTRY } from "./agents/bonds";
 import { PRODUCT_NAME } from "./brand";
 import { DECISION_LOG } from "./engine/replay";
 import { NEAR_CONTRACT, NEAR_EXPLORER, NEAR_USDC } from "./near/config";
+import { PAGE_MARKDOWN } from "./page-markdown";
 import { FEE_ROUTER } from "./settlement/epoch";
 import { PROTECTION_FUND } from "./settlement/payouts";
 import { SITE_DESCRIPTION, SITE_ROUTES, SITE_URL, absoluteUrl } from "./site";
 import { VAULT_FACTORY } from "./vault/funds";
 
 // /llms.txt (https://llmstxt.org): a short Markdown index of the site for language models and agents.
-// /llms-full.txt: the same header followed by every docs page in full.
+// /llms-full.txt: the same header followed by every docs page, the legal pages and the changelog in full.
 
 const REPO = "https://github.com/SachPlayZ/Sapien";
 
@@ -46,12 +47,17 @@ function index(): string[] {
     const rows = SITE_ROUTES.filter((r) => r.section === s);
     out.push(
       `## ${s === "App" ? "App (needs a wallet)" : s}`,
-      rows.map((r) => link(r.title, absoluteUrl(r.path), r.json ? `${r.description} JSON: ${SITE_URL}${r.json}` : r.description)).join("\n"),
+      rows
+        .map((r) => {
+          const extra = [r.markdown && `Markdown: ${SITE_URL}${r.markdown}`, r.json && `JSON: ${SITE_URL}${r.json}`].filter(Boolean).join(" ");
+          return link(r.title, absoluteUrl(r.path), extra ? `${r.description} ${extra}` : r.description);
+        })
+        .join("\n"),
     );
   }
   out.push(
     "## Read-only API",
-    `No key needed, JSON, CORS open. Full description: ${SITE_URL}/openapi.json. Big numbers are decimal strings; USDC has 6 decimals.`,
+    `No key needed, JSON, CORS open. Big numbers are decimal strings; USDC has 6 decimals. OpenAPI 3.1 description: ${SITE_URL}/openapi.json`,
     [
       link("Decision feed", `${SITE_URL}/api/v1/feed?limit=50`, "the latest agent decisions, newest first; filter with `vault=0x…`."),
       link("Executed decisions", `${SITE_URL}/api/v1/decisions?limit=200`, "decisions that became orders, with their Decision Commitment hash; `hash=0x…` returns one."),
@@ -83,7 +89,12 @@ function index(): string[] {
 export const llmsTxt = () => [...header(), ...index()].join("\n\n") + "\n";
 
 export const llmsFullTxt = () =>
-  [...header(), `Index: ${SITE_URL}/llms.txt`, ...DOC_PAGES.map((p) => docMarkdown(p).replace(/^# /, "# Docs: ").trim())].join("\n\n") + "\n";
+  [
+    ...header(),
+    `Index: ${SITE_URL}/llms.txt`,
+    ...DOC_PAGES.map((p) => docMarkdown(p).replace(/^# /, "# Docs: ").trim()),
+    ...Object.values(PAGE_MARKDOWN).map((build) => build().trim()),
+  ].join("\n\n") + "\n";
 
 export const textResponse = (body: string) =>
   new Response(body, { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } });

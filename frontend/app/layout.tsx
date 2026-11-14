@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Instrument_Sans, Newsreader } from "next/font/google";
 import { PRODUCT_NAME, PRODUCT_TAGLINE } from "@/lib/brand";
-import { SITE_DESCRIPTION, SITE_KEYWORDS, SITE_URL, absoluteUrl } from "@/lib/site";
+import { SITE_DESCRIPTION, SITE_KEYWORDS, SITE_SUMMARY, SITE_URL, absoluteUrl } from "@/lib/site";
 import "./globals.css";
 import { Providers } from "./providers";
 import { SmoothScroll } from "./ui/smooth-scroll";
@@ -26,7 +26,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: `${PRODUCT_NAME}: ${PRODUCT_TAGLINE}`,
-  description: SITE_DESCRIPTION,
+  description: SITE_SUMMARY,
   applicationName: PRODUCT_NAME,
   keywords: SITE_KEYWORDS,
   category: "finance",
@@ -43,10 +43,10 @@ export const metadata: Metadata = {
     type: "website",
     siteName: PRODUCT_NAME,
     title: `${PRODUCT_NAME}: ${PRODUCT_TAGLINE}`,
-    description: SITE_DESCRIPTION,
+    description: SITE_SUMMARY,
     locale: "en_US",
   },
-  twitter: { card: "summary_large_image", title: `${PRODUCT_NAME}: ${PRODUCT_TAGLINE}`, description: SITE_DESCRIPTION },
+  twitter: { card: "summary_large_image", title: `${PRODUCT_NAME}: ${PRODUCT_TAGLINE}`, description: SITE_SUMMARY },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 } },
   formatDetection: { telephone: false, address: false, email: false },
 };

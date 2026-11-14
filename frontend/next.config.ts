@@ -13,11 +13,13 @@ const nextConfig: NextConfig = {
       beforeFiles: [
         { source: "/docs", has: wantsMarkdown, destination: "/md/docs" },
         { source: "/docs/:slug", has: wantsMarkdown, destination: "/md/docs/:slug" },
+        { source: "/:name(risk|terms|privacy|changelog)", has: wantsMarkdown, destination: "/md/page/:name" },
       ],
       afterFiles: [
         // Markdown copies of the docs for agents: /docs.md and /docs/<slug>.md.
         { source: "/docs.md", destination: "/md/docs" },
         { source: "/docs/:slug.md", destination: "/md/docs/:slug" },
+        { source: "/:name(risk|terms|privacy|changelog).md", destination: "/md/page/:name" },
       ],
       fallback: [],
     };

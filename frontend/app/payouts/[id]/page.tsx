@@ -1,15 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { PRODUCT_NAME } from "@/lib/brand";
+import { pageMetadata } from "@/lib/site";
 import { SiteNav } from "../../ui/site-nav";
 import { CoverageRatio } from "../coverage";
 import { PayoutDetail } from "./payout-detail";
 
-export const metadata: Metadata = {
-  title: `Overshoot payout · ${PRODUCT_NAME}`,
-  description: "One Overshoot settlement: the stop-loss, its fill, who paid, and the evidence with its onchain hash check.",
-};
+const DESCRIPTION = "One Overshoot settlement: the stop-loss, its fill, who paid, and the evidence with its onchain hash check.";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  return {
+    ...pageMetadata({ title: `Overshoot payout ${id.slice(0, 10)}…`, description: DESCRIPTION, path: `/payouts/${id}`, json: `/api/v1/payouts/${id}` }),
+    // Each payout is evidence, not a landing page: the list at /payouts is what search should show.
+    robots: { index: false, follow: true },
+  };
+}
 
 // The claim id is runtime data (no generateStaticParams), so it's read inside a Suspense boundary and the rest of the
 // page stays in the static shell (cacheComponents).
