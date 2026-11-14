@@ -98,6 +98,7 @@ export function ReplayView() {
         >
           <input
             className="w-full rounded-lg border border-violet-line bg-white px-3 py-2 font-mono text-xs text-violet-ink focus:border-violet focus:outline-none"
+            aria-label="Filter decisions by Vault address"
             placeholder="Filter by Vault 0x…"
             value={vaultFilter}
             onChange={(e) => setVaultFilter(e.target.value)}

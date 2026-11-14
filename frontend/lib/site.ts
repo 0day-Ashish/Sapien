@@ -39,6 +39,8 @@ export type SiteRoute = {
   changeFrequency: NonNullable<MetadataRoute.Sitemap[number]["changeFrequency"]>;
   /** Needs a connected wallet to do anything; agents should use the documented APIs instead. */
   wallet?: boolean;
+  /** The same data as JSON, for pages the browser fills in with JavaScript. */
+  json?: string;
 };
 
 export const SITE_ROUTES: SiteRoute[] = [
@@ -49,10 +51,10 @@ export const SITE_ROUTES: SiteRoute[] = [
   { path: "/mandate", title: "Write your Mandate", description: "Write your trading rules in plain English, confirm every field, then commit the Mandate's hash from your NEAR account.", section: "App", priority: 0.8, changeFrequency: "weekly", wallet: true },
   { path: "/funds", title: "Deposit and withdraw", description: "Connect Meteor Wallet, get test USDC, create your Vault, deposit and withdraw through NEAR, see the NEAR Intents quote and use the Kill Switch.", section: "App", priority: 0.8, changeFrequency: "weekly", wallet: true },
   { path: "/builders", title: "Bonds", description: "Register a Specialist Agent and post its Bond so it can compete to lead Vaults.", section: "App", priority: 0.6, changeFrequency: "weekly", wallet: true },
-  { path: "/live", title: "Live agents", description: "Each agent decision as it happens: market regime, Lead Agent, proposal, Mandate Check and result.", section: "Transparency", priority: 0.7, changeFrequency: "always" },
-  { path: "/leaderboard", title: "Leaderboard", description: "Specialist Agents ranked by risk-adjusted return, with Bond size and the Vaults they lead.", section: "Transparency", priority: 0.7, changeFrequency: "hourly" },
-  { path: "/replay", title: "Replay", description: "Step through any past decision; its hash is recomputed in your browser and checked against the onchain DecisionLog.", section: "Transparency", priority: 0.7, changeFrequency: "hourly" },
-  { path: "/payouts", title: "Overshoot payouts", description: "Every Overshoot settlement with its evidence, and the Protection Fund's live Coverage Ratio.", section: "Transparency", priority: 0.6, changeFrequency: "daily" },
+  { path: "/live", title: "Live agents", description: "Each agent decision as it happens: market regime, Lead Agent, proposal, Mandate Check and result.", section: "Transparency", priority: 0.7, changeFrequency: "always", json: "/api/v1/feed" },
+  { path: "/leaderboard", title: "Leaderboard", description: "Specialist Agents ranked by risk-adjusted return, with Bond size and the Vaults they lead.", section: "Transparency", priority: 0.7, changeFrequency: "hourly", json: "/api/v1/leaderboard" },
+  { path: "/replay", title: "Replay", description: "Step through any past decision; its hash is recomputed in your browser and checked against the onchain DecisionLog.", section: "Transparency", priority: 0.7, changeFrequency: "hourly", json: "/api/v1/decisions" },
+  { path: "/payouts", title: "Overshoot payouts", description: "Every Overshoot settlement with its evidence, and the Protection Fund's live Coverage Ratio.", section: "Transparency", priority: 0.6, changeFrequency: "daily", json: "/api/v1/payouts" },
   { path: "/risk", title: "Risk Disclosure", description: "What can go wrong, what stop-loss protection does and doesn't cover, and what lives on NEAR.", section: "Legal", priority: 0.4, changeFrequency: "monthly" },
   { path: "/terms", title: "Terms of Use", description: "The terms for using Sapien on testnet.", section: "Legal", priority: 0.2, changeFrequency: "yearly" },
   { path: "/privacy", title: "Privacy Policy", description: "What Sapien stores and why.", section: "Legal", priority: 0.2, changeFrequency: "yearly" },
@@ -68,7 +70,7 @@ export const absoluteUrl = (path: string) => `${SITE_URL}${path === "/" ? "" : p
 
 /** Full metadata for one page: title, description, canonical, Open Graph and Twitter card. */
 export function pageMetadata(
-  input: { title: string; description: string; path: string; markdown?: string; noIndex?: boolean },
+  input: { title: string; description: string; path: string; markdown?: string; json?: string; noIndex?: boolean },
 ): Metadata {
   const title = input.path === "/" ? `${PRODUCT_NAME}: ${PRODUCT_TAGLINE}` : `${input.title} · ${PRODUCT_NAME}`;
   // Named explicitly: pages with generated metadata don't inherit app/opengraph-image.tsx.
@@ -78,7 +80,11 @@ export function pageMetadata(
     description: input.description,
     alternates: {
       canonical: input.path,
-      ...(input.markdown ? { types: { "text/markdown": input.markdown } } : {}),
+      types: {
+        "text/plain": "/llms.txt",
+        ...(input.markdown ? { "text/markdown": input.markdown } : {}),
+        ...(input.json ? { "application/json": input.json } : {}),
+      },
     },
     openGraph: {
       type: "website",
@@ -97,5 +103,5 @@ export function pageMetadata(
 /** Metadata for a page listed in SITE_ROUTES. */
 export const routeMetadata = (path: string) => {
   const r = routeFor(path);
-  return pageMetadata({ title: r.title, description: r.description, path: r.path });
+  return pageMetadata({ title: r.title, description: r.description, path: r.path, json: r.json });
 };

@@ -14,12 +14,6 @@ import { VAULT_FACTORY } from "./vault/funds";
 
 const REPO = "https://github.com/SachPlayZ/Sapien";
 
-/** The engine's public base URL, or the production engine when the env points at localhost. */
-function engineUrl() {
-  const env = process.env.NEXT_PUBLIC_ENGINE_URL;
-  return env && !/127\.0\.0\.1|localhost/.test(env) ? env.replace(/\/$/, "") : "https://sapien.152-67-0-76.sslip.io";
-}
-
 const link = (title: string, url: string, note: string) => `- [${title}](${url}): ${note}`;
 
 function header(): string[] {
@@ -52,17 +46,21 @@ function index(): string[] {
     const rows = SITE_ROUTES.filter((r) => r.section === s);
     out.push(
       `## ${s === "App" ? "App (needs a wallet)" : s}`,
-      rows.map((r) => link(r.title, absoluteUrl(r.path), r.description)).join("\n"),
+      rows.map((r) => link(r.title, absoluteUrl(r.path), r.json ? `${r.description} JSON: ${SITE_URL}${r.json}` : r.description)).join("\n"),
     );
   }
-  const engine = engineUrl();
   out.push(
-    "## Read-only APIs",
+    "## Read-only API",
+    `No key needed, JSON, CORS open. Full description: ${SITE_URL}/openapi.json. Big numbers are decimal strings; USDC has 6 decimals.`,
     [
-      link("Decision feed", `${engine}/feed?limit=50`, "the latest agent decisions, newest first; filter with `vault=0x…`."),
-      link("Executed decisions", `${engine}/decisions?limit=200`, "executed decisions with their Decision Commitment hash; `hash=0x…` returns one."),
-      link("Leaderboard", `${engine}/leaderboard`, "Specialist Agents with Bond, risk-adjusted return and Vaults led."),
-      link("Vault status", `${engine}/vaults/{vault}/status`, "a Vault's Lead Agent and any Automatic Kill."),
+      link("Decision feed", `${SITE_URL}/api/v1/feed?limit=50`, "the latest agent decisions, newest first; filter with `vault=0x…`."),
+      link("Executed decisions", `${SITE_URL}/api/v1/decisions?limit=200`, "decisions that became orders, with their Decision Commitment hash; `hash=0x…` returns one."),
+      link("Verify a decision", `${SITE_URL}/api/v1/decisions/verify?hash={hash}`, "re-hashes the logged decision and checks it on the DecisionLog contract; `verified: true` only if both match."),
+      link("Leaderboard", `${SITE_URL}/api/v1/leaderboard`, "Specialist Agents with Bond, risk-adjusted return and Vaults led."),
+      link("Vault status", `${SITE_URL}/api/v1/vaults/{vault}/status`, "a Vault's Lead Agent and any Automatic Kill."),
+      link("Overshoot payouts", `${SITE_URL}/api/v1/payouts`, "every settlement with who paid, and the Protection Fund's Coverage Ratio; `/api/v1/payouts/{id}` for one with its evidence."),
+      link("NEAR Vault", `${SITE_URL}/api/v1/near/vaults/{account}`, "the Vault a NEAR account owns: HyperEVM address, Mandate hash, Kill Switch, deposits and withdrawals."),
+      link("NEAR contract config", `${SITE_URL}/api/v1/near/config`, "the Sapien contract's config and each agent's payout account."),
       link("NEAR Intents quote", `${SITE_URL}/api/intents/quote?amount=5`, "a live 1Click quote, NEAR USDC → HyperCore USDC (`dry: true`, nothing is moved)."),
     ].join("\n"),
     "## Onchain",
@@ -75,6 +73,7 @@ function index(): string[] {
     [
       link("Full docs in one file", `${SITE_URL}/llms-full.txt`, "every docs page as Markdown."),
       link("Source code", REPO, "contracts, NEAR contract, engine and this site (MIT)."),
+      link("OpenAPI", `${SITE_URL}/openapi.json`, "the read-only API above, as OpenAPI 3.1."),
       link("Sitemap", `${SITE_URL}/sitemap.xml`, "every public URL."),
     ].join("\n"),
   );

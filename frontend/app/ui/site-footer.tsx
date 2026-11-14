@@ -46,6 +46,8 @@ const columns: { title: string; groups: FooterLink[][] }[] = [
         { href: REPO, label: "GitHub", strong: true, external: true },
         { href: "/docs", label: "Docs" },
         { href: "/changelog", label: "Changelog" },
+        { href: "/llms.txt", label: "For AI agents", external: true },
+        { href: "/openapi.json", label: "Public API", external: true },
         { href: "/contact", label: "Contact" },
         { href: `${REPO}/tree/main/docs/adr`, label: "Design decisions", external: true },
         { href: `${REPO}/blob/main/GLOSSARY.md`, label: "Glossary", external: true },
@@ -84,6 +86,7 @@ export function SiteFooter() {
                   <li key={link.label}>
                     <Link
                       href={link.href}
+                      prefetch={link.external ? false : undefined}
                       {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                       className={`hover:text-violet-ink ${link.strong ? "font-medium" : ""}`}
                     >
