@@ -56,6 +56,26 @@ contract VaultMandateTest is Test {
         assertEq(data, abi.encodePacked(uint8(1), uint24(9), abi.encode(agentWallet, "engine")));
     }
 
+    function test_createVault_setsDepositTarget() public {
+        assertEq(factory.depositTargetOf(user), address(vault));
+        vm.prank(user);
+        Vault second = factory.createVault(agentWallet);
+        assertEq(factory.depositTargetOf(user), address(second));
+        vm.prank(user);
+        factory.setDepositTarget(address(vault));
+        assertEq(factory.depositTargetOf(user), address(vault));
+    }
+
+    function test_setDepositTarget_onlyOwnerOfFactoryVault() public {
+        vm.prank(makeAddr("stranger"));
+        vm.expectRevert(VaultFactory.NotVaultOwner.selector);
+        factory.setDepositTarget(address(vault));
+
+        vm.prank(user);
+        vm.expectRevert(VaultFactory.NotVaultOwner.selector);
+        factory.setDepositTarget(makeAddr("notAVault"));
+    }
+
     function test_onlyEngine_canReportFlatOrRegisterAgentWallet() public {
         vm.startPrank(user);
         vm.expectRevert(Vault.NotEngine.selector);

@@ -1,7 +1,17 @@
 {
   "chainId": 998,
   "engineOperator": "0xB995DbCc9d2f64530dbE756f2D783C00ff50D577",
-  "VaultFactory": { "address": "0xDE6A33788aA0e0f9EdD93BA169d421f025E7f600", "deployBlock": 69577594 },
-  "MandateRegistry": { "address": "0xC08aA5bc113B8CC4Acd5006c9a9B8419Fab4475E", "deployBlock": 69577594 },
-  "DecisionLog": { "address": "0x6DfD8c2b39b22Ff630691D9b915a3DF8339BDc5D", "deployBlock": 69577833 }
+  "VaultFactory": {
+    "address": "0x4a3Dea7Eca92d7f7cdE668ACE4f1EC9395E62020",
+    "deployBlock": 69578606,
+    "note": "v2 adds depositTargetOf (#6). v1 0xDE6A33788aA0e0f9EdD93BA169d421f025E7f600 retired."
+  },
+  "MandateRegistry": {
+    "address": "0xC08aA5bc113B8CC4Acd5006c9a9B8419Fab4475E",
+    "deployBlock": 69577594
+  },
+  "DecisionLog": {
+    "address": "0x6DfD8c2b39b22Ff630691D9b915a3DF8339BDc5D",
+    "deployBlock": 69577833
+  }
 }
