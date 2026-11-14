@@ -1,0 +1,15 @@
+[Unit]
+Description=Sapien engine (agents, runner, HTTP on 127.0.0.1:8787)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/sapien/engine
+ExecStart=/home/ubuntu/sapien/engine/node_modules/.bin/tsx scripts/run-engine.ts
+Restart=always
+RestartSec=15
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
