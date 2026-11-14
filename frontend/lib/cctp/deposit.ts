@@ -9,8 +9,13 @@ export const CCTP = {
   baseSepoliaDomain: 6,
   hyperEvmDomain: 19,
   baseSepoliaUsdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-  /** Real CCTP V2 TokenMessengerV2 on Base Sepolia. Not used while deposits go through the mock (see below). */
+  /** Real CCTP V2 TokenMessengerV2 on Base Sepolia. Not used while deposits go through the mock. */
   tokenMessengerV2: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
+  /**
+   * What the UI calls `depositForBurnWithHook` on. Testnet CCTP can't reach our testnet-only Deposit Account, so this is
+   * our MockCctpForwarder (contracts/deployments/base-sepolia.json). Same args and event as TokenMessengerV2.
+   */
+  depositMessenger: "0xDE6A33788aA0e0f9EdD93BA169d421f025E7f600",
   /** HyperEVM testnet CctpForwarder: the only valid mint recipient and destination caller. */
   cctpForwarder: "0x02e39ECb8368b41bF68FF99ff351aC9864e5E2a2",
   /** Protocol Deposit Account (#3, ADR-0004): every deposit lands here, then the engine forwards it to the Vault. */
