@@ -3,6 +3,7 @@ import { PRODUCT_NAME } from "@/lib/brand";
 import { Icon, MarketGarden, PillarArt, SafeguardSeal, VaultCluster, type IconName } from "./ui/art";
 import { AgentDemo } from "./ui/agent-demo";
 import { BrandMark } from "./ui/brand-icons";
+import { FaqList } from "./ui/faq-list";
 import { WaveText } from "./ui/wave-text";
 import { LogoMark } from "./ui/logo";
 import { SiteFooter } from "./ui/site-footer";
@@ -20,6 +21,7 @@ export default function Home() {
         <ProtectionPanel />
         <Principles />
         <Safeguards />
+        <Faq />
         <StartToday />
       </main>
       <SiteFooter />
@@ -90,7 +92,7 @@ function Hero() {
 
 function ProductDemo() {
   return (
-    <section className="relative mt-20 pb-10">
+    <section className="relative mt-20 pb-36 md:pb-44">
       <div className="container-page relative">
         {/* Garden behind the panel's top-right corner */}
         <MarketGarden
@@ -110,9 +112,18 @@ function ProductDemo() {
           className="pointer-events-none absolute -right-10 top-16 z-0 hidden w-[9rem] lg:block"
         />
 
+        {/* And one behind the bottom-left corner, mirroring the top right: its base hangs below the timeline bar */}
+        <MarketGarden
+          seed={23}
+          width={520}
+          height={190}
+          count={75}
+          shape="mound"
+          className="pointer-events-none absolute -left-6 bottom-0 z-0 w-[70%] max-w-[38rem] translate-y-[52%] md:w-[42%]"
+        />
+
         <AgentDemo />
       </div>
-      <MarketGarden seed={23} width={720} height={200} count={110} shape="mound" className="pointer-events-none relative z-0 -mt-16 w-[70%] max-w-4xl md:-mt-20 md:w-[52%]" />
     </section>
   );
 }
@@ -121,7 +132,7 @@ function ProductDemo() {
 
 function LetThemTrade() {
   return (
-    <section id="how-it-works" className="scroll-mt-20 pb-4 pt-12 lg:pb-6 lg:pt-14">
+    <section id="how-it-works" className="scroll-mt-20 pb-14 pt-12 lg:pb-24 lg:pt-14">
       <div className="mx-auto grid w-full max-w-[73.625rem] items-center gap-14 px-5 lg:grid-cols-[minmax(0,36rem)_1fr] xl:px-0">
         <div className="flex flex-col">
           <p className="font-mono text-[0.8125rem] font-medium uppercase tracking-[0.1em] text-violet">Let them trade it</p>
@@ -185,7 +196,7 @@ function Pillars() {
             key={pillar.title}
             className={`card-outline flex flex-col rounded-[0.875rem] pt-6 lg:row-span-5 lg:grid lg:grid-rows-subgrid ${pillar.tone}`}
           >
-            <PillarArt kind={pillar.art} className="ml-6 size-[7.5rem]" />
+            <PillarArt kind={pillar.art} className="ml-3 h-44 w-auto self-start" />
             <span aria-hidden="true" className="min-h-16 lg:min-h-36" />
             <h3 className="px-6 pb-9 font-sans text-[2.25rem] font-normal leading-none tracking-[-0.02em]">{pillar.title}</h3>
             {pillar.rows.map((row) => (
@@ -341,6 +352,88 @@ function Safeguards() {
           </Link>
         ))}
       </div>
+    </section>
+  );
+}
+
+/* ---------- FAQ ---------- */
+
+const FAQS: { q: string; a: React.ReactNode }[] = [
+  {
+    q: `What is ${PRODUCT_NAME}?`,
+    a: "An arena where bonded AI agents trade perpetual futures on Hyperliquid for your Vault. Every trade has to fit the Mandate you write and sign, and the agent's own Bond pays first when a stop-loss fills worse than its trigger.",
+  },
+  {
+    q: "Is this real money?",
+    a: (
+      <>
+        No. {PRODUCT_NAME} runs on test networks only: Hyperliquid testnet, HyperEVM testnet, Base Sepolia and Solana devnet. Test tokens
+        have no monetary value. The <Link href="/risk">Risk Disclosure</Link> has the detail.
+      </>
+    ),
+  },
+  {
+    q: "Can an agent withdraw my funds?",
+    a: "No. Each Vault has an Agent Wallet, a trade-only key that can place and cancel orders but can't withdraw. Only the Vault's owner can withdraw, and only while the Vault has no open positions.",
+  },
+  {
+    q: "What is a Mandate?",
+    a: (
+      <>
+        The policy your Vault trades under, signed by your wallet: allowed assets, leverage cap, stop-loss, drawdown cap, blackout windows
+        and a veto threshold. You write it in plain English and confirm or edit every field before signing.{" "}
+        <Link href="/docs/mandate">See it field by field</Link>.
+      </>
+    ),
+  },
+  {
+    q: "What happens if a stop-loss fills past its trigger?",
+    a: (
+      <>
+        The difference is called Overshoot. The agent&apos;s Bond pays it first. If no stop-loss was resting when the trigger was crossed, the
+        Protocol Reserve pays instead. The shared Protection Fund covers what is left, up to 10% of your Vault per Epoch. It is stop-loss
+        protection, never a guarantee. <Link href="/docs/protection">How protection works</Link>.
+      </>
+    ),
+  },
+  {
+    q: "Can I stop a trade or stop everything?",
+    a: "Yes. Trades above your veto threshold wait 60 seconds, and one click cancels them. The Kill Switch closes every position, freezes the Lead Agent and unlocks withdrawal.",
+  },
+  {
+    q: "How do I know the agent followed my rules?",
+    a: (
+      <>
+        A hash of every decision is written onchain before its order is sent. <Link href="/replay">Replay</Link> recomputes that hash in your
+        browser and checks it against the chain, so a record that was changed afterwards shows a mismatch.
+      </>
+    ),
+  },
+  {
+    q: "Can I bring my own agent?",
+    a: (
+      <>
+        Yes. Register a Specialist Agent and post its Bond on <Link href="/builders">Bring an agent</Link>. The Bond Minimum is 5% of the
+        combined value of the Vaults your agent leads.
+      </>
+    ),
+  },
+];
+
+function Faq() {
+  return (
+    <section id="faq" aria-labelledby="faq-title" className="container-page section grid scroll-mt-20 gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
+      <div className="lg:sticky lg:top-28 lg:self-start">
+        <p className="eyebrow">FAQ</p>
+        <h2 id="faq-title" className="display-serif mt-6">
+          Questions, answered
+        </h2>
+        <p className="mt-5 max-w-sm text-[1.0625rem] leading-relaxed text-violet">
+          The short answers. The <Link href="/docs" className="underline decoration-violet/30 underline-offset-4 hover:decoration-violet">docs</Link> go
+          deeper, and you can always <Link href="/contact" className="underline decoration-violet/30 underline-offset-4 hover:decoration-violet">ask us</Link>.
+        </p>
+      </div>
+      <FaqList items={FAQS} />
     </section>
   );
 }
