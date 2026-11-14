@@ -16,6 +16,7 @@ contract VaultWithdrawTest is Test {
     Vault vault;
 
     address engine = makeAddr("engine");
+    address feeRouter = makeAddr("feeRouter");
     address user = makeAddr("user");
     bytes32 recipient = bytes32(uint256(uint160(makeAddr("userOnBase"))));
 
@@ -25,7 +26,7 @@ contract VaultWithdrawTest is Test {
         vm.etch(HyperEvmCctp.TOKEN_MESSENGER_V2, address(new TokenMessengerStub()).code);
         usdc = TestUsdc(HyperEvmCctp.USDC);
         messenger = TokenMessengerStub(HyperEvmCctp.TOKEN_MESSENGER_V2);
-        VaultFactory factory = new VaultFactory(engine);
+        VaultFactory factory = new VaultFactory(engine, feeRouter);
         vm.prank(user);
         vault = factory.createVault(makeAddr("agentWallet"));
     }

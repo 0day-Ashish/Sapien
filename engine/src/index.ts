@@ -14,3 +14,4 @@ export * from "./service/agent-wallets.js";
 export * from "./service/http.js";
 export * from "./service/leaderboard.js";
 export * from "./runner/runner.js";
+export { PREMIUM_K, premiumRate, riskTier, toPpm, type RiskTier } from "./premium.js";
