@@ -20,6 +20,9 @@ import {
   type HyperCoreAccount,
 } from "@/lib/vault/funds";
 import { hyperEvmTestnet, wagmiConfig } from "@/lib/wagmi";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { fetchSolanaWithdrawFeeQuotes, solanaBridgeOutArgs, solanaTx } from "@/lib/cctp/solana";
+import { SolanaDepositCard, SolanaWallet, useEnsureUsdcAccount } from "./solana-funds";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -121,6 +124,7 @@ export function FundsPanel() {
         </p>
       </section>
       <DepositCard core={core} refresh={refresh} />
+      <SolanaDepositCard vault={vault} core={core} refresh={refresh} />
       <WithdrawCard vault={vault} owner={address} core={core} isFlat={isFlat} evmBalance={evmBalance} refresh={refresh} />
     </div>
   );
@@ -258,21 +262,34 @@ function WithdrawCard(props: {
 }) {
   const { vault, owner, core, isFlat, evmBalance, refresh } = props;
   const [input, setInput] = useState("");
+  const [to, setTo] = useState<"base" | "solana">("base");
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const { publicKey: solanaOwner } = useWallet();
+  const ensureUsdcAccount = useEnsureUsdcAccount();
+  const toSolana = to === "solana";
+  const destination = toSolana ? "Solana devnet" : "Base Sepolia";
 
   const max = maxWithdraw(core?.perpWithdrawable ?? BigInt(0));
   const amount = parseUsdc(input);
 
   async function bridge(amountOnEvm: bigint, s: Step[], show: () => void) {
-    const quotes = await fetchWithdrawFeeQuotes();
+    let args: readonly [bigint, number, `0x${string}`, bigint];
+    if (toSolana) {
+      if (!solanaOwner) throw new Error("Connect a Solana wallet");
+      // Circle's forwarding mints into the USDC token account, so it has to exist before the burn.
+      await ensureUsdcAccount();
+      args = solanaBridgeOutArgs(amountOnEvm, solanaOwner, await fetchSolanaWithdrawFeeQuotes());
+    } else {
+      args = bridgeOutArgs(amountOnEvm, owner, await fetchWithdrawFeeQuotes());
+    }
     const burn = await writeContract(wagmiConfig, {
       chainId: hyperEvmTestnet.id,
       address: vault,
       abi: vaultAbi,
       functionName: "bridgeOut",
-      args: bridgeOutArgs(amountOnEvm, owner, quotes),
+      args,
     });
     await waitForTransactionReceipt(wagmiConfig, { chainId: hyperEvmTestnet.id, hash: burn });
     s[1] = { ...s[1], state: "done", detail: short(burn), href: hyperEvmTx(burn) };
@@ -283,7 +300,7 @@ function WithdrawCard(props: {
       if (stage?.stage === "delayed") s[2] = { ...s[2], detail: `delayed: ${stage.reason}` };
       if (stage?.stage === "attested" || stage?.stage === "minted") s[2] = { ...s[2], state: "done", detail: undefined };
       if (stage?.stage === "minted") {
-        s[3] = { ...s[3], state: "done", detail: short(stage.mintTx!), href: baseTx(stage.mintTx!) };
+        s[3] = { ...s[3], state: "done", detail: short(stage.mintTx!), href: toSolana ? solanaTx(stage.mintTx!) : baseTx(stage.mintTx!) };
         show();
         return;
       }
@@ -298,7 +315,7 @@ function WithdrawCard(props: {
       { label: "Moved to HyperEVM", state: "active" },
       { label: "Burned on HyperEVM", state: "pending" },
       { label: "Attested by Circle", state: "pending" },
-      { label: "Minted on Base Sepolia", state: "pending" },
+      { label: `Minted on ${destination}`, state: "pending" },
     ];
     const show = () => setSteps(s.map((x) => ({ ...x })));
     show();
@@ -359,8 +376,8 @@ function WithdrawCard(props: {
       <div className="flex flex-col gap-1">
         <h2 className="display-3">Withdraw</h2>
         <p className="text-sm text-ink-soft">
-          From your Vault to your wallet on Base Sepolia. Two signatures: one moves the USDC off HyperCore, one sends it
-          through CCTP.
+          From your Vault to your wallet on Base Sepolia or Solana devnet. Two signatures: one moves the USDC off
+          HyperCore, one sends it through CCTP.
         </p>
       </div>
       {!isFlat ? (
@@ -369,6 +386,21 @@ function WithdrawCard(props: {
         </p>
       ) : (
         <>
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Withdraw to">
+            {(["base", "solana"] as const).map((d) => (
+              <button
+                key={d}
+                role="radio"
+                aria-checked={to === d}
+                className={`btn ${to === d ? "btn-primary" : "btn-secondary"}`}
+                disabled={busy}
+                onClick={() => setTo(d)}
+              >
+                {d === "base" ? "Base Sepolia" : "Solana devnet"}
+              </button>
+            ))}
+          </div>
+          {toSolana && <SolanaWallet />}
           <label className="flex flex-col gap-2 text-sm">
             <span className="label-mono">Amount (USDC) · available {formatUsdc(max)}</span>
             <input
@@ -388,12 +420,12 @@ function WithdrawCard(props: {
             </p>
           )}
           <div className="flex flex-wrap gap-3">
-            <button className="btn btn-primary" disabled={busy || !amount || tooMuch} onClick={withdraw}>
+            <button className="btn btn-primary" disabled={busy || !amount || tooMuch || (toSolana && !solanaOwner)} onClick={withdraw}>
               {busy ? "Withdrawing…" : "Withdraw"}
             </button>
             {!busy && evmBalance > BigInt(0) && (
-              <button className="btn btn-secondary" onClick={resume}>
-                Send {formatUsdc(evmBalance)} on to Base Sepolia
+              <button className="btn btn-secondary" disabled={toSolana && !solanaOwner} onClick={resume}>
+                Send {formatUsdc(evmBalance)} on to {destination}
               </button>
             )}
           </div>
