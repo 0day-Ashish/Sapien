@@ -7,6 +7,7 @@ import {
   blackoutEventIds,
   compiledMandateSchema,
   type CompiledMandate,
+  type MandateDraft,
 } from "./schema";
 
 // Gemini drafts; Groq takes over if Gemini fails. Plain fetch to both APIs, so no SDK dependency.
@@ -34,6 +35,20 @@ export type DraftMandate = (input: string | Turn[]) => Promise<RawDraft>;
 
 const turnsOf = (input: string | Turn[]): Turn[] => (typeof input === "string" ? [{ role: "user", text: input }] : input);
 
+/**
+ * The newest MAX_TURNS turns, starting on a user turn. Cutting a long conversation can leave an assistant turn
+ * first, which some model APIs reject.
+ */
+export function recentTurns(turns: Turn[]): Turn[] {
+  const recent = turns.slice(-MAX_TURNS);
+  const firstUser = recent.findIndex((t) => t.role === "user");
+  return firstUser <= 0 ? recent : recent.slice(firstUser);
+}
+
+/** The line that tells the model what the form holds now, so a new draft keeps the user's hand edits. */
+export const currentDraftNote = (draft: MandateDraft) =>
+  `Current draft: ${JSON.stringify(draft)}`;
+
 const range = (l: { min: number; max: number }) => `${l.min} to ${l.max}`;
 
 export const SYSTEM_PROMPT = `You are the Mandate assistant in Sapien, where bonded AI agents trade a user's perpetual-futures Vault on Hyperliquid. You help the user write a Mandate: the policy the agents must obey. The user reviews and edits every field of a draft before signing it, so your job is an accurate first draft, not a final decision.
@@ -41,6 +56,7 @@ export const SYSTEM_PROMPT = `You are the Mandate assistant in Sapien, where bon
 Each turn, read the whole conversation and choose an action:
 - "reply" while the user has not yet given any specific risk rule. Greetings, questions about Sapien, vague wishes ("I want to make money", "keep it safe") and small talk are not specific rules. Answer in 1 to 3 short, friendly sentences, then ask about the rules you need, one or two at a time: which assets, how much leverage, how far a stop-loss may sit from entry, the most they would accept losing in a month, news events to avoid, and the trade size above which they want 60 seconds to veto. Explain a term in plain words if they ask. Never give investment advice or tell them what to trade, and never say returns or protection are guaranteed (say "stop-loss protected").
 - "draft" as soon as the conversation contains at least one specific rule: a supported asset, a number for any field, a risk appetite (conservative, balanced, aggressive, or words that clearly mean one), or a scheduled event to avoid. Draft from every rule mentioned anywhere in the conversation, the latest wins when they conflict, and fill the rest as described below. In reply, write one short sentence introducing the draft.
+If the user's latest message ends with a line starting "Current draft:", that JSON is the draft the user already has on screen, including values they edited by hand. Keep every value in it exactly, change only what the latest message asks to change, and do not list kept values in assumptions.
 When the action is "reply", still fill mandate with the balanced defaults and leave assumptions empty; they are ignored.
 
 Fields:
@@ -169,8 +185,13 @@ export const draftWithLlm: DraftMandate = fallbackDraft([geminiDraft(), groqDraf
  * Answers the user's latest message: a conversational reply until they give a specific rule, then a Mandate draft.
  * The LLM only drafts: a draft is `ok` only if it passes the same schema the signature step requires.
  */
-export async function compileMandate(input: string | Turn[], draft: DraftMandate = draftWithLlm): Promise<CompileResult> {
-  const turns = turnsOf(input).slice(-MAX_TURNS);
+export async function compileMandate(
+  input: string | Turn[],
+  draft: DraftMandate = draftWithLlm,
+  /** The draft on the user's screen, if any. Sent with the latest message so hand edits survive a re-draft. */
+  current?: MandateDraft,
+): Promise<CompileResult> {
+  const turns = recentTurns(turnsOf(input));
   const text = turns.at(-1)?.role === "user" ? turns.at(-1)!.text : "";
   const trimmed = text.trim();
   if (!trimmed) {
@@ -186,7 +207,9 @@ export async function compileMandate(input: string | Turn[], draft: DraftMandate
 
   let raw: RawDraft;
   try {
-    raw = await draft(typeof input === "string" ? trimmed : turns.map((t, i) => (i === turns.length - 1 ? { ...t, text: trimmed } : t)));
+    // The length check above is on the user's own words; the note about the current draft is added after it.
+    const latest = current ? `${trimmed}\n\n${currentDraftNote(current)}` : trimmed;
+    raw = await draft(typeof input === "string" && !current ? trimmed : turns.map((t, i) => (i === turns.length - 1 ? { ...t, text: latest } : t)));
   } catch (error) {
     console.error("Mandate compiler call failed", error);
     return {

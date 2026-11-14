@@ -13,8 +13,21 @@ export type StoredChat = {
 };
 
 export const MAX_CHATS = 20;
-/** The largest chat the server accepts, as JSON. A real draft is well under 5 KB. */
-export const MAX_CHAT_BYTES = 20_000;
+/** How many messages of a conversation are stored: the same number the assistant is sent. */
+export const MAX_STORED_MESSAGES = 20;
+/** The longest a stored message may be. User messages are capped at 2,000 characters and replies at 1,200. */
+export const MAX_MESSAGE_CHARS = 2000;
+/**
+ * The largest chat the server accepts, as JSON. Sized so that any chat the schema allows fits: 20 messages of
+ * 2,000 characters at up to 3 bytes each (120 KB), plus the title, the assumptions and the form (about 45 KB).
+ */
+export const MAX_CHAT_BYTES = 200_000;
+
+/** The messages worth storing: the newest MAX_STORED_MESSAGES. */
+export const storedMessages = <T,>(messages: T[]): T[] => messages.slice(-MAX_STORED_MESSAGES);
+
+/** Ids deleted in this browser whose removal the server has not confirmed yet, so a reload can't bring them back. */
+export const TOMBSTONES_KEY = "sapien.mandate.deletedChats";
 
 /**
  * Combines two lists of chats. For a chat in both, the one edited last wins. Newest first, capped at MAX_CHATS.

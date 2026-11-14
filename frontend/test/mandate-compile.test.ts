@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { compileMandate, fallbackDraft, geminiDraft, groqDraft, type DraftMandate } from "../lib/mandate/compile";
+import { MAX_TURNS, compileMandate, currentDraftNote, fallbackDraft, geminiDraft, groqDraft, recentTurns, type DraftMandate, type Turn } from "../lib/mandate/compile";
+import { MAX_MANDATE_TEXT_LENGTH } from "../lib/mandate/limits";
 import { validateMandateDraft, type MandateDraft } from "../lib/mandate/schema";
 
 const validMandate: MandateDraft = {
@@ -55,6 +56,39 @@ describe("compileMandate", () => {
     ];
     expect(await compileMandate(conversation, spy)).toMatchObject({ ok: true, kind: "draft" });
     expect(seen).toEqual([...conversation.slice(0, 2), { role: "user", text: "BTC and ETH" }]);
+  });
+
+  it("sends the draft on screen with the latest message, so hand edits survive a re-draft", async () => {
+    let seen: unknown;
+    const spy: DraftMandate = async (input) => {
+      seen = input;
+      return { refused: false, output: { action: "draft", reply: "", mandate: validMandate, assumptions: [] } };
+    };
+    const conversation: Turn[] = [
+      { role: "user", text: "BTC and ETH, balanced" },
+      { role: "assistant", text: "Here's a draft." },
+      { role: "user", text: "also avoid FOMC" },
+    ];
+    await compileMandate(conversation, spy, validMandate);
+    expect(seen).toEqual([...conversation.slice(0, 2), { role: "user", text: `also avoid FOMC\n\n${currentDraftNote(validMandate)}` }]);
+    expect(currentDraftNote(validMandate)).toContain('"leverageCap":2');
+  });
+
+  it("checks the length of the user's own words, not of the note about the current draft", async () => {
+    const longest = "x".repeat(MAX_MANDATE_TEXT_LENGTH);
+    const draft = returns({ action: "draft", reply: "", mandate: validMandate, assumptions: [] });
+    expect(await compileMandate([{ role: "user", text: longest }], draft, validMandate)).toMatchObject({ ok: true });
+    expect(await compileMandate([{ role: "user", text: `${longest}x` }], draft, validMandate)).toMatchObject({ ok: false, reason: "too-long" });
+  });
+
+  it("never starts a trimmed conversation on an assistant turn", () => {
+    // 11 exchanges and a new message: cutting to the newest 20 turns would start on the assistant's reply.
+    const long: Turn[] = Array.from({ length: 23 }, (_, i) => ({ role: i % 2 ? "assistant" : "user", text: `turn ${i}` }));
+    const recent = recentTurns(long);
+    expect(recent[0]!.role).toBe("user");
+    expect(recent.at(-1)).toEqual(long.at(-1));
+    expect(recent.length).toBeLessThanOrEqual(MAX_TURNS);
+    expect(recentTurns(long.slice(0, 3))).toEqual(long.slice(0, 3));
   });
 
   it("treats an empty conversational answer as a failure, not a draft", async () => {
