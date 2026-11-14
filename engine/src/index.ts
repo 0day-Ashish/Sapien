@@ -10,3 +10,5 @@ export * from "./agents/regime.js";
 export type * from "./agents/types.js";
 export * from "./agents/gemini-rationale.js";
 export * from "./agents/jev-allocator.js";
+export * from "./service/agent-wallets.js";
+export * from "./service/http.js";
