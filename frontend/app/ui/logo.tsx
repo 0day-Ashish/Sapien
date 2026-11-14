@@ -1,21 +1,19 @@
 import { PRODUCT_NAME } from "@/lib/brand";
 
 /**
- * The Sapien mark: a geometric "S" made of two linked arcs, read both as the initial and as a
- * market curve, on a violet tile. The orange dot is the spark of the agent's decision.
+ * The Sapien mark: a bold "S" inside a ring, drawn as a single line in brand violet.
+ * Uses currentColor, so it follows the text colour around it.
  */
 export function LogoMark({ className = "size-8" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" aria-hidden="true" className={className}>
-      <rect width="32" height="32" rx="9" fill="var(--color-violet, #6a4fd6)" />
+    <svg viewBox="0 0 32 32" fill="none" aria-hidden="true" className={className}>
+      <circle cx="16" cy="16" r="13.4" stroke="currentColor" strokeWidth="2.8" />
       <path
-        d="M21.2 8.4A5.8 5.8 0 1 0 16 16.2A5.8 5.8 0 1 1 10.8 24"
-        fill="none"
-        stroke="#ffffff"
-        strokeWidth="3.4"
+        d="M21.4 11.4a5.2 3.6 0 0 0-5.4-2.3c-3.1 0-5.4 1.5-5.4 3.5 0 4.8 10.8 2.1 10.8 6.9 0 2-2.4 3.5-5.4 3.5a5.6 3.8 0 0 1-5.7-2.5"
+        stroke="currentColor"
+        strokeWidth="2.8"
         strokeLinecap="round"
       />
-      <circle cx="24.6" cy="7.4" r="2.3" fill="var(--color-orange, #c8561c)" />
     </svg>
   );
 }

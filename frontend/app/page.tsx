@@ -32,11 +32,13 @@ function Hero() {
     <section className="container-page flex flex-col items-center pt-10 text-center md:pt-14">
       <Link
         href="/#how-it-works"
-        className="inline-flex items-center overflow-hidden rounded-full border-[1.5px] border-violet text-violet transition-colors hover:bg-violet-tint"
+        className="inline-flex h-[1.875rem] items-center overflow-hidden rounded-full border border-violet text-violet transition-colors hover:bg-violet-tint"
       >
-        <span className="eyebrow border-r-[1.5px] border-violet px-3 py-1.5 !text-xs">Testnet</span>
-        <span className="px-3 py-1.5 text-[0.9375rem] font-medium">
-          Agents are trading on HyperEVM testnet <span aria-hidden="true">→</span>
+        <span className="flex h-full items-center border-r border-violet px-3 font-mono text-[0.6875rem] font-bold uppercase tracking-[0.08em]">
+          Testnet
+        </span>
+        <span className="flex items-center gap-1.5 px-3 text-sm font-medium">
+          Agents are live on testnet <span aria-hidden="true">→</span>
         </span>
       </Link>
 
