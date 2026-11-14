@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentProfile } from "../src/agents/allocator.js";
 import { FundingArbAgent } from "../src/agents/funding-arb.js";
 import type { LeadSelector } from "../src/agents/jev-allocator.js";
@@ -6,7 +6,7 @@ import { MeanReversionAgent } from "../src/agents/mean-reversion.js";
 import { MomentumAgent } from "../src/agents/momentum.js";
 import type { MarketSnapshot } from "../src/agents/types.js";
 import { createEngine } from "../src/index.js";
-import { createRunner, type RunnerRecord } from "../src/runner/runner.js";
+import { createRunner, type RunnerConfig, type RunnerRecord } from "../src/runner/runner.js";
 import { defaultMandate, fakePorts } from "../src/testing/fakes.js";
 import { chop, uptrendBreakout } from "./fixtures/candles.js";
 
@@ -20,7 +20,7 @@ const neverCalled: LeadSelector = async () => {
   throw new Error("one candidate per Regime: Jev shouldn't be asked");
 };
 
-function setup(snapshot: MarketSnapshot) {
+function setup(snapshot: MarketSnapshot, extra: Partial<RunnerConfig> = {}) {
   const ports = fakePorts();
   ports.exchange.marks.set("BTC", snapshot.markPrice);
   ports.exchange.accountValueByVault.set("vault-1", 1_000);
@@ -37,6 +37,7 @@ function setup(snapshot: MarketSnapshot) {
     select: neverCalled,
     log: (r) => records.push(r),
     fillDelayMs: 0,
+    ...extra,
   });
   return { ports, engine, runner, records, setSnap: (s: MarketSnapshot) => (snap = s) };
 }
@@ -144,5 +145,27 @@ describe("Runner tick", () => {
     ports.chain.mandates.set("vault-1", { ...defaultMandate, allowedAssets: ["ETH"] });
     await runner.tick();
     expect(records[0]).toMatchObject({ result: { kind: "rejected", rejection: { code: "asset-not-allowed" } } });
+  });
+
+  describe("Veto Window", () => {
+    afterEach(() => vi.useRealTimers());
+
+    it("holds a trade above the veto threshold, alerts once, and ends the window itself after 60s", async () => {
+      vi.useFakeTimers();
+      const alerts: string[] = [];
+      const { ports, runner: alerted, records } = setup(trend, { onVetoWindow: (vault, p) => void alerts.push(`${vault}:${p.proposalId}`) });
+      ports.chain.mandates.set("vault-1", { ...defaultMandate, vetoThresholdUsdc: 1 });
+
+      await alerted.tick();
+      expect(records[0]).toMatchObject({ result: { kind: "veto-window" } });
+      expect(ports.exchange.orders).toEqual([]);
+
+      await alerted.tick(); // the agent proposes again: no second alert, no second timer
+      expect(alerts).toHaveLength(1);
+
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(records.at(-1)).toMatchObject({ note: "Veto Window ended", result: { kind: "executed" } });
+      expect(ports.exchange.orders).toHaveLength(1);
+    });
   });
 });

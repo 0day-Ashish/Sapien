@@ -68,13 +68,19 @@ export type DecisionCommitment = { vaultId: VaultId; agentId: AgentId; decisionH
 
 export type OvershootClaim = {
   vaultId: VaultId;
+  /** The Lead Agent whose position it was: its Bond is slashed first for a market gap. */
+  agentId: AgentId;
+  /** The stop-loss order's cloid: one claim per position. */
   positionId: string;
   triggerPrice: number;
   fillPrice: number;
   /** The stop's filled size, not its order size (#4: a stop can be larger than the position it closes). */
   size: number;
   infrastructureFailure: boolean;
+  /** The evidence as JSON (stop cloid, placement time, its state on HyperCore, the fill): hashed and kept onchain. */
   evidenceRef: string;
+  /** The Vault's value now (USDC), the Protection Fund cap's basis if no Epoch-start value was reported yet. */
+  vaultValueUsdc: number;
 };
 
 export interface ChainPort {
@@ -83,6 +89,8 @@ export interface ChainPort {
   commitDecision(commitment: DecisionCommitment): Promise<{ txHash: string }>;
   reportFlat(vaultId: VaultId): Promise<void>;
   submitOvershootClaim(claim: OvershootClaim): Promise<void>;
+  /** Total open stop-loss exposure (USDC), the Coverage Ratio's denominator. */
+  reportExposure(totalUsdc: number): Promise<void>;
   settleEpoch(epoch: number): Promise<void>;
   meetsBondMinimum(agentId: AgentId): Promise<boolean>;
 }

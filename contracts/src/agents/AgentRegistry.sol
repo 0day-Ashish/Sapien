@@ -6,7 +6,8 @@ import {IERC20} from "forge-std/interfaces/IERC20.sol";
 /// @notice Specialist Agents and their Bonds (#12). A Builder registers an agent, stakes a USDC Bond, tops it up at any
 /// time, and can start Unbonding only while the agent leads no Vault; the Bond is withdrawable 3 days later and stays
 /// slashable until then. The Execution Engine reports which agent leads each Vault and the Vault's value, which sets the
-/// Bond Minimum (5% of the combined value of the Vaults the agent leads), and is the only account that may slash.
+/// Bond Minimum (5% of the combined value of the Vaults the agent leads). Only the engine and the Overshoot settlement
+/// contract (`slasher`, the ProtectionFund, #15) may slash.
 /// Agents are keyed by the engine's agent id string, as in the DecisionLog.
 contract AgentRegistry {
     uint256 public constant UNBONDING_DELAY = 3 days;
@@ -40,6 +41,8 @@ contract AgentRegistry {
     IERC20 public immutable usdc;
     /// @notice The Execution Engine operator: reports Lead Agents and slashes.
     address public immutable engine;
+    /// @notice The Overshoot settlement contract (ProtectionFund, #15): slashes Bonds first in the waterfall.
+    address public immutable slasher;
 
     mapping(bytes32 agentKey => Agent) internal _agents;
     mapping(address vault => Lead) internal _leads;
@@ -52,6 +55,7 @@ contract AgentRegistry {
     event LeadReported(address indexed vault, string agentId, uint256 vaultValue);
 
     error NotEngine();
+    error NotSlasher();
     error NotBuilder();
     error UnknownAgent();
     error AgentExists();
@@ -65,9 +69,10 @@ contract AgentRegistry {
     error Unbonding();
     error TransferFailed();
 
-    constructor(IERC20 usdc_, address engine_) {
+    constructor(IERC20 usdc_, address engine_, address slasher_) {
         usdc = usdc_;
         engine = engine_;
+        slasher = slasher_;
     }
 
     // --- Builder ---
@@ -143,7 +148,7 @@ contract AgentRegistry {
     /// @notice Slashes up to `amount` USDC from the Bond to `to`, and returns what was actually slashed (the Bond may
     /// be smaller). Unbonding Bonds stay slashable.
     function slash(string calldata agentId, uint256 amount, address to) external returns (uint256 slashed) {
-        _onlyEngine();
+        if (msg.sender != engine && msg.sender != slasher) revert NotSlasher();
         Agent storage a = _agent(agentId);
         slashed = amount < a.bond ? amount : a.bond;
         a.bond -= slashed;

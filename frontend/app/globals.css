@@ -363,9 +363,18 @@ body {
 @keyframes bot-orbit {
   to { transform: rotate(360deg); }
 }
+/* Keeps the orbiting token upright: spins back around its own centre as the orbit turns. */
+.bot-orbit-counter {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bot-orbit-counter 6s linear infinite;
+}
+@keyframes bot-orbit-counter {
+  to { transform: rotate(-360deg); }
+}
 @media (prefers-reduced-motion: reduce) {
   .bot-hover, .bot-tilt, .bot-antenna, .bot-leg-left, .bot-leg-right, .bot-handle,
-  .bot-dial, .bot-blink, .bot-shadow, .bot-orbit {
+  .bot-dial, .bot-blink, .bot-shadow, .bot-orbit, .bot-orbit-counter {
     animation: none;
   }
 }

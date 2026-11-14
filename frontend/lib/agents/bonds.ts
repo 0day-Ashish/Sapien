@@ -3,7 +3,7 @@ import { parseAbi, type Address } from "viem";
 // Builder Bonds (ticket #12): register a Specialist Agent, stake and top up its Bond, start Unbonding, withdraw.
 // Contract: contracts/src/agents/AgentRegistry.sol. Address: contracts/deployments/hyperevm-testnet.json.
 
-export const AGENT_REGISTRY = (process.env.NEXT_PUBLIC_AGENT_REGISTRY_ADDRESS || null) as Address | null;
+export const AGENT_REGISTRY = (process.env.NEXT_PUBLIC_AGENT_REGISTRY_ADDRESS || "0xDFC36B699526318cE43fF68Eb836475D483Fbd71") as Address | null;
 
 export const agentRegistryAbi = parseAbi([
   "struct Agent { address builder; uint8 regimes; uint256 bond; uint64 unbondingEndsAt; uint32 ledVaults; uint256 ledValue; }",

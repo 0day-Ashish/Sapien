@@ -7,7 +7,7 @@ import type { AgentProfile } from "../agents/allocator.js";
 import { classifyRegime, type RegimeReading } from "../agents/regime.js";
 import type { AgentProposal, SpecialistAgent } from "../agents/specialist.js";
 import type { MarketSnapshot, RationaleWriter } from "../agents/types.js";
-import type { Engine, HandleResult } from "../engine.js";
+import type { Engine, HandleResult, PendingVeto } from "../engine.js";
 import type { TradeProposal } from "../events.js";
 import type { ExchangePort } from "../ports.js";
 
@@ -38,6 +38,8 @@ export type RunnerConfig = {
   select: LeadSelector;
   write?: RationaleWriter;
   log: (r: RunnerRecord) => void;
+  /** Called once when a trade enters its Veto Window, e.g. to alert the user. */
+  onVetoWindow?: (vaultId: string, pending: PendingVeto) => void | Promise<void>;
   /** Wait before reading positions after a reduce/close, so the fill has landed. Default 3s. */
   fillDelayMs?: number;
   now?: () => number;
@@ -46,6 +48,26 @@ export type RunnerConfig = {
 export function createRunner(c: RunnerConfig) {
   const now = c.now ?? Date.now;
   const executed = new Set<string>();
+  /** Veto Windows whose end is already scheduled, by proposalId. */
+  const windows = new Set<string>();
+
+  /** At the window's end the engine checks again and sends or drops; the outcome is logged like any tick. */
+  function scheduleWindowEnd(v: RunnerVault, proposal: TradeProposal, expiresAt: number) {
+    windows.add(proposal.proposalId);
+    setTimeout(async () => {
+      const rec: RunnerRecord = { at: now(), vaultId: v.vaultId, asset: v.asset, proposal, note: "Veto Window ended" };
+      try {
+        rec.result = await c.engine.handle({ type: "veto-window-end", vaultId: v.vaultId, proposalId: proposal.proposalId });
+        if (rec.result.kind === "executed") executed.add(proposal.proposalId);
+      } catch (e) {
+        rec.error = (e as Error).message;
+      } finally {
+        windows.delete(proposal.proposalId);
+      }
+      c.log(rec);
+    }, Math.max(0, expiresAt - now()));
+  }
+
   const sleep = (ms: number) => (ms > 0 ? new Promise((r) => setTimeout(r, ms)) : Promise.resolve());
 
   async function tickVault(v: RunnerVault): Promise<RunnerRecord> {
@@ -85,6 +107,10 @@ export function createRunner(c: RunnerConfig) {
     rec.proposal = proposal;
     rec.result = await c.engine.handle(proposal);
 
+    if (rec.result.kind === "veto-window" && !windows.has(proposal.proposalId)) {
+      scheduleWindowEnd(v, proposal, rec.result.expiresAt);
+      await Promise.resolve(c.onVetoWindow?.(v.vaultId, rec.result.pending)).catch(() => {});
+    }
     if (rec.result.kind === "executed") {
       executed.add(proposal.proposalId);
       if (proposal.intent !== "open") {

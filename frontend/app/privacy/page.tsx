@@ -98,7 +98,7 @@ const sections: LegalSection[] = [
     body: (
       <Bullets
         items={[
-          "You can disconnect your wallet at any time from the wallet icon in the navigation bar.",
+          "You can disconnect your wallet from Sapien at any time, in the app or in your wallet.",
           "You don't have to draft with AI: you can fill in a Mandate by hand.",
           "You can ask us to remove off-chain trading records for your Vault. Onchain records can't be removed.",
         ]}
