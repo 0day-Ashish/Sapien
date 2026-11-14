@@ -452,8 +452,14 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
 
     const markPrice = await exchange.markPrice(p.asset);
     const notional = p.size * markPrice;
-    if (notional < MIN_ORDER_USD) {
-      return reject("below-minimum-order", `Order value ${notional.toFixed(2)} USDC is under Hyperliquid's 10 USDC minimum (with rounding margin)`);
+    // Checked on the size actually sent: the exchange rounds it down to the asset's size step, which can take an order
+    // that looks big enough under the minimum after the Decision Commitment is already onchain.
+    const sentNotional = (await exchange.orderSize(p.asset, p.size)) * markPrice;
+    if (sentNotional < MIN_ORDER_USD) {
+      return reject(
+        "below-minimum-order",
+        `Order value ${sentNotional.toFixed(2)} USDC (size rounded to the exchange's step) is under Hyperliquid's 10 USDC minimum (with rounding margin)`,
+      );
     }
 
     // Above the veto threshold, a new position waits so the user can stop it. Reducing and closing never wait.

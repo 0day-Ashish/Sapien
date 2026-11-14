@@ -99,6 +99,20 @@ describe("Mandate Check on a Trade Proposal", () => {
     expect(ports.exchange.orders).toEqual([]);
   });
 
+  it("checks the minimum on the size the exchange will send, after rounding to its size step", async () => {
+    // Seen on testnet: 0.00015976 BTC at 65,246 is 10.42 USDC, but BTC sizes step by 0.00001, so the order went out
+    // as 0.00015 BTC (9.79 USDC) and Hyperliquid refused it after the Decision Commitment was already onchain.
+    const { ports, engine } = setup();
+    ports.exchange.marks.set("BTC", 65_246);
+    ports.exchange.sizeSteps.set("BTC", 0.00001);
+    const result = await engine.handle(proposal({ size: 0.00015975958679459275 }));
+
+    expect(result).toMatchObject({ kind: "rejected", rejection: { code: "below-minimum-order" } });
+    if (result.kind === "rejected") expect(result.rejection.message).toMatch(/9\.79/);
+    expect(ports.chain.commitments).toEqual([]);
+    expect(ports.exchange.orders).toEqual([]);
+  });
+
   it("rejects malformed proposals", async () => {
     const { ports, engine } = setup();
     for (const bad of [{ size: 0 }, { size: -1 }, { leverage: 0 }, { size: Number.NaN }]) {

@@ -42,6 +42,8 @@ export class FakeExchange implements ExchangePort {
   flowsByVault = new Map<string, { usdc: number; at: number }[]>();
   /** Set to make order placement throw, like an exchange rejection. */
   rejectOrdersWith?: string;
+  /** Size step per asset (e.g. BTC 0.00001); sizes round down to it. No entry: sizes are sent as is. */
+  sizeSteps = new Map<string, number>();
 
   constructor(private journal: string[] = []) {}
 
@@ -49,6 +51,12 @@ export class FakeExchange implements ExchangePort {
     const mark = this.marks.get(asset);
     if (mark === undefined) throw new Error(`no mark for ${asset}`);
     return mark;
+  }
+  async orderSize(asset: string, size: number) {
+    const step = this.sizeSteps.get(asset);
+    if (!step) return size;
+    const steps = Math.floor(size / step + 1e-9); // tolerate float noise just under a whole step
+    return Number((steps * step).toFixed(12));
   }
   async setLeverage(vaultId: string, asset: string, leverage: number) {
     this.journal.push("exchange.setLeverage");
