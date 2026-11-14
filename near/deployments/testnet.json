@@ -1,0 +1,25 @@
+{
+  "network": "testnet",
+  "sapien": "sapien-vault.testnet",
+  "usdc": "usdc.sapien-vault.testnet",
+  "engine": "engine.sapien-vault.testnet",
+  "engineFunctionCallKey": {
+    "publicKey": "ed25519:FxgeWhqSj49W4PKXeBeGk27HFrFnWpHXBE4VbpBNudyL",
+    "methods": ["register_vault", "pay_withdraw", "log_decision", "pay_agent"],
+    "allowance": "0.5 NEAR"
+  },
+  "deployTx": {
+    "usdc": "6C297Uft3AU3YwKmSjxY3NsFJbDE9pNRc1PTUAgzGH2g",
+    "sapien": "FFNLvdWEPvp6sVLbE73HrD9BEjiwq3g4XsDuiaLMbLRU"
+  },
+  "smoke": {
+    "account": "smoke.sapien-vault.testnet",
+    "faucet": "DkF3KMfrMD9SAmTTQZ1Wfyq8dx1Tzsi41vwTfEcVx2d3",
+    "registerVault": "Ak3M5YQZCkzPa8qGJHpbs2BKEVpXz32rtWgxwMSn2iMT",
+    "deposit": "31219AZa96UoYgX4JdV4tcspibPaD8txRoHBZBpYaicv",
+    "commitMandate": "FdJCPfYQ5s776fkz4HFLtUSg2vjUHWCAP7NK1vZKtbyJ",
+    "logDecision": "ApBdqUhjX1SNVDgeyMvpZP9ppK4uBCJnmG5TGmrDKvAH",
+    "requestWithdraw": "5tJSh74o4PDxcKBJonUMSofT19t8852GWvZcsBy4TuJU",
+    "payWithdraw": "GWYLfojFEjXB2hQKVmw58nHyB77jN6sSUrMHSybP2A4x"
+  }
+}
