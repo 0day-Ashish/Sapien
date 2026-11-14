@@ -5,11 +5,11 @@ import { Logo } from "./logo";
 const REPO = "https://github.com/0day-Ashish/hackmatrix-26";
 
 const links = [
-  { href: "/#how-it-works", label: "How it works" },
   { href: "/#protection", label: "Protection" },
   { href: "/#safeguards", label: "Safeguards" },
   { href: "/#builders", label: "Builders" },
   { href: REPO, label: "Docs", external: true },
+  { href: `${REPO}/issues`, label: "Contact", external: true },
 ];
 
 export function SiteNav() {
