@@ -52,6 +52,23 @@ Tickets are vertical slices, so the owner drives the slice end to end and pulls 
 - After #8, all three lanes run in parallel.
 - Start #23 (continuous testnet run) as soon as #14 and #15 close; the track record needs days.
 
+## Starting your agent
+
+Take a lane, put your name next to it above, then paste this into your agent (swap in your lane letter and name):
+
+```text
+I own Lane <A|B|C> (<lane name>) on hackmatrix-26. Read CLAUDE.md, GLOSSARY.md,
+docs/adr/, docs/team-map.md, and spec issue #1 (gh issue view 1). Then list every
+ticket in my lane's queue with its current state:
+  gh issue view <n> --json number,title,state,assignees,blockedBy
+plus open PRs (gh pr list). Pick the first ticket in my queue that is open,
+unassigned, and has no open blockers. Claim it, branch <lane>/<n>-<slug>, and
+follow the Agent workflow in CLAUDE.md. Ask me before changing any interface
+another lane consumes.
+```
+
+The agent picks up everything else (spec, ADRs, ticket bodies, blockers, PRs) from the repo and `gh`.
+
 ## Working rules
 
 - Read `GLOSSARY.md` and `docs/adr/` before starting. Use glossary terms in code and PRs.
