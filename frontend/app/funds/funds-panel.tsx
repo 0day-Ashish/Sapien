@@ -19,9 +19,11 @@ import {
   vaultAbi,
   type HyperCoreAccount,
 } from "@/lib/vault/funds";
+import { MANDATE_REGISTRY, killMandateArgs, mandateRegistryAbi, requestKill } from "@/lib/vault/kill";
 import { hyperEvmTestnet, wagmiConfig } from "@/lib/wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { fetchSolanaWithdrawFeeQuotes, solanaBridgeOutArgs, solanaTx } from "@/lib/cctp/solana";
+import { VaultRisk } from "./vault-risk";
 import { SolanaDepositCard, SolanaWallet, useEnsureUsdcAccount } from "./solana-funds";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -80,11 +82,14 @@ export function FundsPanel() {
       return undefined;
     }
     setVault(v);
-    const [account, flat, balance] = await Promise.all([
+    const [account, flat, held, fees] = await Promise.all([
       hyperCoreAccount(v),
       readContract(wagmiConfig, { chainId: hyperEvmTestnet.id, address: v, abi: vaultAbi, functionName: "isFlat" }),
       readContract(wagmiConfig, { chainId: hyperEvmTestnet.id, address: HYPEREVM_USDC, abi: erc20Abi, functionName: "balanceOf", args: [v] }),
+      // Epoch fees (#17) waiting for the FeeRouter aren't the owner's to bridge. Vaults before #17 have none.
+      readContract(wagmiConfig, { chainId: hyperEvmTestnet.id, address: v, abi: vaultAbi, functionName: "feesPending" }).catch(() => BigInt(0)),
     ]);
+    const balance = held > fees ? held - fees : BigInt(0);
     setCore(account);
     setIsFlat(flat);
     setEvmBalance(balance);
@@ -123,6 +128,7 @@ export function FundsPanel() {
           {isFlat ? <span className="chip chip-forest">Flat</span> : <span className="chip chip-amber">Open positions</span>}
         </p>
       </section>
+      <VaultRisk vault={vault} />
       <DepositCard core={core} refresh={refresh} />
       <SolanaDepositCard vault={vault} core={core} refresh={refresh} />
       <WithdrawCard vault={vault} owner={address} core={core} isFlat={isFlat} evmBalance={evmBalance} refresh={refresh} />
@@ -381,9 +387,7 @@ function WithdrawCard(props: {
         </p>
       </div>
       {!isFlat ? (
-        <p className="text-sm">
-          Your Vault has open positions. Use the Kill Switch to close them, then withdraw once the Vault is Flat.
-        </p>
+        <KillSwitch vault={vault} refresh={refresh} />
       ) : (
         <>
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Withdraw to">
@@ -438,5 +442,115 @@ function WithdrawCard(props: {
         </p>
       )}
     </section>
+  );
+}
+
+/**
+ * Kill Switch: one confirmed click records the kill flag onchain (a tighter Mandate Version, effective at once),
+ * then the engine closes every position, freezes the Lead Agent and reports the Vault Flat, which unlocks withdrawal.
+ */
+function KillSwitch({ vault, refresh }: { vault: Address; refresh: Refresh }) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [steps, setSteps] = useState<Step[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function kill() {
+    setBusy(true);
+    setError(null);
+    const s: Step[] = [
+      { label: "Kill flag recorded onchain", state: "active" },
+      { label: "Positions closed by the engine", state: "pending" },
+      { label: "Vault Flat: withdrawal unlocked", state: "pending" },
+    ];
+    const show = () => setSteps(s.map((x) => ({ ...x })));
+    show();
+    try {
+      await switchChain(wagmiConfig, { chainId: hyperEvmTestnet.id });
+      const [, m] = await readContract(wagmiConfig, {
+        chainId: hyperEvmTestnet.id,
+        address: MANDATE_REGISTRY,
+        abi: mandateRegistryAbi,
+        functionName: "currentMandate",
+        args: [vault],
+      });
+      // Already killed onchain (e.g. a retry after the engine was unreachable): skip straight to closing.
+      if (!m.killFlag) {
+        const tx = await writeContract(wagmiConfig, {
+          chainId: hyperEvmTestnet.id,
+          address: MANDATE_REGISTRY,
+          abi: mandateRegistryAbi,
+          functionName: "signMandateVersion",
+          args: killMandateArgs(vault, m).args,
+        });
+        const receipt = await waitForTransactionReceipt(wagmiConfig, { chainId: hyperEvmTestnet.id, hash: tx });
+        if (receipt.status !== "success") throw new Error("Recording the kill flag reverted");
+        s[0] = { ...s[0], state: "done", detail: short(tx), href: hyperEvmTx(tx) };
+      } else {
+        s[0] = { ...s[0], state: "done", detail: "already set" };
+      }
+      s[1] = { ...s[1], state: "active" };
+      show();
+
+      const result = await requestKill(vault);
+      if (result.kind === "kill-refused") throw new Error(`The engine refused: ${result.reason}`);
+      s[1] = {
+        ...s[1],
+        state: "done",
+        detail: result.closes.length ? result.closes.map((c) => `${c.side} ${c.size} ${c.asset}`).join(", ") : "none were open",
+      };
+      s[2] = { ...s[2], state: "active" };
+      show();
+
+      for (let i = 0; i < 40; i++) {
+        const flat = await readContract(wagmiConfig, { chainId: hyperEvmTestnet.id, address: vault, abi: vaultAbi, functionName: "isFlat" });
+        if (flat) {
+          s[2] = { ...s[2], state: "done" };
+          show();
+          await refresh();
+          return;
+        }
+        await sleep(3000);
+      }
+      throw new Error("Positions are closing, but the Vault isn't reported Flat yet. Try again in a moment.");
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+      setConfirming(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-orange/40 bg-orange-soft/50 p-4 text-sm">
+      <p>
+        Your Vault has open positions. The <strong>Kill Switch</strong> closes all of them at market, freezes the Lead Agent and
+        unlocks withdrawal. It is recorded onchain, and agents stay frozen until you sign a new Mandate.
+      </p>
+      <div className="flex flex-wrap gap-3">
+        {!confirming ? (
+          <button type="button" className="btn border-orange bg-orange text-white hover:bg-orange/90" disabled={busy} onClick={() => setConfirming(true)}>
+            Kill Switch
+          </button>
+        ) : (
+          <>
+            <button type="button" className="btn border-orange bg-orange text-white hover:bg-orange/90" disabled={busy} onClick={kill}>
+              {busy ? "Closing…" : "Close every position"}
+            </button>
+            {!busy && (
+              <button type="button" className="btn btn-secondary" onClick={() => setConfirming(false)}>
+                Cancel
+              </button>
+            )}
+          </>
+        )}
+      </div>
+      {steps && <Steps steps={steps} />}
+      {error && (
+        <p role="alert" className="text-orange">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }

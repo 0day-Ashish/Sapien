@@ -30,6 +30,50 @@ export class ExchangeError extends Error {
 
 type AssetMeta = { index: number; szDecimals: number };
 
+/** A HyperCore ledger update, as far as perp-balance flows go (userNonFundingLedgerUpdates). */
+export type LedgerDelta = {
+  type: string;
+  usdc?: string;
+  toPerp?: boolean;
+  user?: string;
+  destination?: string;
+  fee?: string;
+  sourceDex?: string;
+  destinationDex?: string;
+  usdcValue?: string;
+};
+
+/**
+ * USDC into (+) or out of (-) `account`'s perp balance from one ledger update: deposits, withdrawals, transfers between
+ * accounts and between perp and spot. Liquidations, vault and staking updates aren't flows. The receiver of an internal
+ * transfer gets `usdc - fee` (the fee activates new accounts; proven on testnet).
+ */
+export function perpFlowUsdc(d: LedgerDelta, account: string): number {
+  const me = account.toLowerCase();
+  const n = (x?: string) => Number(x ?? 0);
+  switch (d.type) {
+    case "deposit":
+      return n(d.usdc);
+    case "withdraw":
+      return -n(d.usdc);
+    case "accountClassTransfer":
+      return d.toPerp ? n(d.usdc) : -n(d.usdc);
+    case "internalTransfer":
+    case "subAccountTransfer": {
+      const into = d.destination?.toLowerCase() === me ? n(d.usdc) - n(d.fee) : 0;
+      const out = d.user?.toLowerCase() === me ? n(d.usdc) : 0;
+      return into - out;
+    }
+    case "send": {
+      const into = d.destination?.toLowerCase() === me && d.destinationDex === "" ? n(d.usdcValue) : 0;
+      const out = d.user?.toLowerCase() === me && d.sourceDex === "" ? n(d.usdcValue) : 0;
+      return into - out;
+    }
+    default:
+      return 0;
+  }
+}
+
 export class HyperliquidExchange implements ExchangePort {
   private info: InfoClient;
   private transport: HttpTransport;
@@ -139,6 +183,11 @@ export class HyperliquidExchange implements ExchangePort {
       size: Number(f.sz),
       at: f.time,
     }));
+  }
+
+  async netFlows(vaultId: VaultId, sinceMs: number): Promise<number> {
+    const updates = await this.info.userNonFundingLedgerUpdates({ user: vaultId as `0x${string}`, startTime: Math.floor(sinceMs) + 1 });
+    return updates.reduce((sum, u) => sum + perpFlowUsdc(u.delta as LedgerDelta, vaultId), 0);
   }
 
   // ---------- market data for the Allocator and Specialist Agents (not part of the ExchangePort) ----------

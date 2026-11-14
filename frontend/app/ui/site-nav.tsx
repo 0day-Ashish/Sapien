@@ -41,7 +41,7 @@ export function SiteNav() {
         <div className="flex items-center gap-3">
           <NavWallet />
           <Link href="/mandate" className="btn btn-primary">
-            Write a Mandate
+            Chat
           </Link>
         </div>
       </div>

@@ -216,79 +216,6 @@ export function MarketGarden({
   );
 }
 
-/**
- * The mascot: a small vault safe with a dial face, an antenna and stubby legs. When `animated`,
- * it hovers, blinks, spins its dial, swings its legs and has a coin in orbit (see globals.css).
- */
-export function VaultBot({ className = "", animated = false }: { className?: string; animated?: boolean }) {
-  const a = (name: string) => (animated ? name : undefined);
-  return (
-    <svg viewBox="0 0 140 160" aria-hidden="true" className={className} overflow="visible">
-      {/* Shadow on the ground, shrinking as the bot rises */}
-      <ellipse cx="70" cy="152" rx="34" ry="5" fill="#3a2a86" opacity="0.12" className={a("bot-shadow")} />
-      <g className={a("bot-hover")}>
-        <g className={a("bot-tilt")}>
-          {/* Antenna */}
-          <g className={a("bot-antenna")}>
-            <line x1="70" y1="12" x2="70" y2="32" stroke="#3a2a86" strokeWidth="3" strokeLinecap="round" />
-            <circle cx="70" cy="11" r="6.5" fill="#ffe3d0" stroke="#c8561c" strokeWidth="2.5" />
-          </g>
-          {/* Legs */}
-          <g className={a("bot-leg-left")}>
-            <path d="M47 112v16" stroke="#3a2a86" strokeWidth="5" strokeLinecap="round" />
-            <path d="M39 130h16" stroke="#3a2a86" strokeWidth="5" strokeLinecap="round" />
-          </g>
-          <g className={a("bot-leg-right")}>
-            <path d="M93 112v16" stroke="#3a2a86" strokeWidth="5" strokeLinecap="round" />
-            <path d="M85 130h16" stroke="#3a2a86" strokeWidth="5" strokeLinecap="round" />
-          </g>
-          {/* Body */}
-          <rect x="26" y="32" width="88" height="84" rx="19" fill="#ece7fb" stroke="#3a2a86" strokeWidth="3" />
-          <rect x="35" y="41" width="70" height="66" rx="13" fill="#ffffff" stroke="#6a4fd6" strokeWidth="2.5" />
-          {/* Handle */}
-          <rect x="111" y="58" width="10" height="32" rx="4.5" fill="#fbeccd" stroke="#a3690e" strokeWidth="2.5" className={a("bot-handle")} />
-          {/* Dial face */}
-          <circle cx="70" cy="74" r="21" fill="#e0f0e9" stroke="#17805a" strokeWidth="2.5" />
-          <g className={a("bot-dial")}>
-            {Array.from({ length: 8 }, (_, i) => {
-              const angle = (i * Math.PI) / 4;
-              return (
-                <line
-                  key={i}
-                  x1={70 + Math.cos(angle) * 15}
-                  y1={74 + Math.sin(angle) * 15}
-                  x2={70 + Math.cos(angle) * 19}
-                  y2={74 + Math.sin(angle) * 19}
-                  stroke="#17805a"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              );
-            })}
-          </g>
-          <g className={a("bot-blink")}>
-            <circle cx="63" cy="70" r="3.2" fill="#3a2a86" />
-            <circle cx="77" cy="70" r="3.2" fill="#3a2a86" />
-          </g>
-          <path d="M62.5 80q7.5 6.5 15 0" fill="none" stroke="#3a2a86" strokeWidth="2.5" strokeLinecap="round" />
-        </g>
-        {/* Orbiting token: a Bitcoin coin that circles the bot and counter-spins so its logo stays upright */}
-        {animated && (
-          <g className="bot-orbit">
-            <g className="bot-orbit-counter">
-              <circle cx="132" cy="75.5" r="11" fill="#a3690e" />
-              <circle cx="132" cy="74" r="11" fill="#fbeccd" stroke="#a3690e" strokeWidth="2" />
-              <svg x="123" y="65" width="18" height="18" viewBox={TOKEN_ICONS[0]!.viewBox}>
-                <path d={TOKEN_ICONS[0]!.d} fill="#a3690e" />
-              </svg>
-            </g>
-          </g>
-        )}
-      </g>
-    </svg>
-  );
-}
-
 /** Three vault doors joined by a cable: the illustration for "one Vault per user". */
 export function VaultRow({ className = "" }: { className?: string }) {
   const doors = [
@@ -443,6 +370,86 @@ function wavyRing(r: number, n: number, a: number) {
     points.push(`${(Math.cos(t) * rr).toFixed(1)} ${(Math.sin(t) * rr).toFixed(1)}`);
   }
   return `M${points.join("L")}Z`;
+}
+
+/**
+ * The safeguards seal: a scalloped rosette with a turning text ring, a vault door at its centre,
+ * and three small badges (shield, coin stack, candlestick) circling it. Original art.
+ */
+export function SafeguardSeal({ className = "" }: { className?: string }) {
+  const rosette = Array.from({ length: 36 }, (_, k) => {
+    const a = (k / 36) * Math.PI * 2;
+    const r = k % 2 ? 84 : 90;
+    return `${k ? "L" : "M"}${(100 + Math.cos(a) * r).toFixed(1)} ${(100 + Math.sin(a) * r).toFixed(1)}`;
+  }).join("") + "Z";
+  const ring = "STOP-LOSS PROTECTED · BONDED AGENTS · SIGNED MANDATES · ";
+  return (
+    <svg viewBox="0 0 200 200" aria-hidden="true" className={className} overflow="visible">
+      <defs>
+        <path id="seal-text-path" d="M100 100m-66 0a66 66 0 1 1 132 0a66 66 0 1 1-132 0" />
+        <pattern id="seal-dots" width="6" height="6" patternUnits="userSpaceOnUse">
+          <circle cx="3" cy="3" r="0.9" fill="#6a4fd6" fillOpacity="0.35" />
+        </pattern>
+      </defs>
+
+      {/* Rosette and rim */}
+      <path d={rosette} fill="#ece7fb" stroke="#6a4fd6" strokeWidth="2.5" strokeLinejoin="round" />
+      <circle cx="100" cy="100" r="76" fill="url(#seal-dots)" stroke="#6a4fd6" strokeWidth="2" />
+      <circle cx="100" cy="100" r="56" fill="#fff" stroke="#6a4fd6" strokeWidth="2.5" />
+
+      {/* Turning text ring */}
+      <g className="seal-turn">
+        <text fontFamily="var(--font-geist-mono), ui-monospace, monospace" fontSize="8.6" fontWeight="500" letterSpacing="1.6" fill="#4b35a8">
+          <textPath href="#seal-text-path">{ring}</textPath>
+        </text>
+      </g>
+
+      {/* Vault door */}
+      <g transform="translate(100 100)">
+        <rect x="-34" y="-34" width="68" height="68" rx="12" fill="#e0f0e9" stroke="#17805a" strokeWidth="2.5" />
+        <path d="M-34 -16h-5M-34 0h-5M-34 16h-5" stroke="#17805a" strokeWidth="3.5" strokeLinecap="round" />
+        <circle r="22" fill="#fff" stroke="#17805a" strokeWidth="2.2" />
+        {Array.from({ length: 10 }, (_, k) => {
+          const a = (k / 10) * Math.PI * 2;
+          return <circle key={k} cx={Math.cos(a) * 17} cy={Math.sin(a) * 17} r="1.6" fill="#17805a" />;
+        })}
+        <g className="seal-handle">
+          {[0, 1, 2].map((k) => {
+            const a = (k / 3) * Math.PI * 2 - Math.PI / 2;
+            return (
+              <line key={k} x1={Math.cos(a) * 4} y1={Math.sin(a) * 4} x2={Math.cos(a) * 12} y2={Math.sin(a) * 12} stroke="#17805a" strokeWidth="3" strokeLinecap="round" />
+            );
+          })}
+          <circle r="5" fill="#e0f0e9" stroke="#17805a" strokeWidth="2" />
+        </g>
+        <rect x="26" y="-8" width="5" height="16" rx="2" fill="#fbeccd" stroke="#a3690e" strokeWidth="1.6" />
+      </g>
+
+      {/* Orbiting badges */}
+      <g className="seal-orbit">
+        {/* Shield */}
+        <g transform="translate(100 6)">
+          <circle r="15" fill="#fff" stroke="#6a4fd6" strokeWidth="2.2" />
+          <path d="M0 -8l7 2.6v4.4c0 4.3-2.9 7-7 9-4.1-2-7-4.7-7-9v-4.4z" fill="#ece7fb" stroke="#6a4fd6" strokeWidth="1.6" strokeLinejoin="round" />
+          <path d="M-3 -0.5l2.2 2.2 4-4.4" fill="none" stroke="#6a4fd6" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+        {/* Coin stack */}
+        <g transform="translate(181 147)">
+          <circle r="15" fill="#fff" stroke="#a3690e" strokeWidth="2.2" />
+          {[4, 0, -4].map((y) => (
+            <ellipse key={y} cy={y} rx="7.5" ry="3.2" fill="#fbeccd" stroke="#a3690e" strokeWidth="1.5" />
+          ))}
+        </g>
+        {/* Candlestick */}
+        <g transform="translate(19 147)">
+          <circle r="15" fill="#fff" stroke="#c8561c" strokeWidth="2.2" />
+          <path d="M-3.5 -9v18M3.5 -6v14" stroke="#c8561c" strokeWidth="1.5" strokeLinecap="round" />
+          <rect x="-6" y="-5" width="5" height="9" rx="1.2" fill="#c8561c" />
+          <rect x="1" y="-2" width="5" height="7" rx="1.2" fill="#ffe3d0" stroke="#c8561c" strokeWidth="1.4" />
+        </g>
+      </g>
+    </svg>
+  );
 }
 
 /** Line icons for cards. All 1.75 stroke, 24 grid. */

@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
-import type { AgentId, Allocation, EngineEvent, FillUpdate, PriceTick, TradeProposal, VaultId, Veto, VetoWindowEnd } from "./events.js";
-import type { Cloid, Mandate, OvershootClaim, PlacedOrder, Ports } from "./ports.js";
+import type { AgentId, Allocation, EngineEvent, EpochTick, FillUpdate, KillSwitch, PriceTick, TradeProposal, VaultId, Veto, VetoWindowEnd } from "./events.js";
+import type { Cloid, EpochSettlement, Mandate, OvershootClaim, PlacedOrder, Ports } from "./ports.js";
+import { premiumRate } from "./premium.js";
 import { isInfrastructureFailure, overshootUsdc, type StopRecord, stopExposureUsdc } from "./overshoot.js";
 
 export type RejectionCode =
@@ -24,7 +25,9 @@ export type RejectionCode =
   /** Committed onchain, then the exchange refused the order (e.g. outside the oracle band). Nothing was placed. */
   | "order-failed"
   /** At the end of a Veto Window, the price had moved past the slippage cap since the proposal: dropped. */
-  | "price-moved";
+  | "price-moved"
+  /** The user hit the Kill Switch: the Lead Agent is frozen until a later Mandate Version clears the kill flag. */
+  | "kill-switch";
 
 export type Rejection = { code: RejectionCode; message: string };
 
@@ -75,6 +78,12 @@ export type HandleResult =
   /** Above the veto threshold: nothing committed or sent yet. Send `veto-window-end` at `expiresAt`. */
   | { kind: "veto-window"; proposalId: string; vaultId: VaultId; expiresAt: number; pending: PendingVeto }
   | { kind: "vetoed"; proposalId: string }
+  /** An Epoch tick: the Vaults settled, those that failed (retried next Epoch), and Lead Agent switches applied. */
+  | { kind: "epoch-settled"; epoch: number; settled: EpochSettlement[]; failed: { vaultId: VaultId; error: string }[]; switched: VaultId[] }
+  /** Kill Switch: every position got a reduce-only close; `flat` once none is left open. */
+  | { kind: "killed"; vaultId: VaultId; closes: { asset: string; side: "long" | "short"; size: number; cloid: Cloid }[]; vetoed: string[]; flat: boolean }
+  /** Kill Switch refused (e.g. the kill flag isn't set onchain yet); nothing was sent. */
+  | { kind: "kill-refused"; vaultId: VaultId; reason: string }
   | {
       kind: "executed";
       proposalId: string;
@@ -101,6 +110,8 @@ export type EngineOptions = {
   vetoWindowMs?: number;
   /** At the end of a Veto Window: the most the price may have moved since the proposal, and the order's slippage cap. */
   vetoSlippageCap?: number;
+  /** Kill Switch closes: worst price as a fraction past the mark, wide so the IOC fills. Default 5%. */
+  killSlippage?: number;
 };
 
 const DEFAULT_ENTRY_SLIPPAGE = 0.01;
@@ -108,6 +119,7 @@ const DEFAULT_VETO_WINDOW_MS = 60_000;
 const DEFAULT_VETO_SLIPPAGE_CAP = 0.01;
 /** Hyperliquid's minimum order value is $10; sizes get rounded down to the asset's lot, so keep a 2% margin. */
 const MIN_ORDER_USD = 10.2;
+const EPOCH_MS = 24 * 3600 * 1000;
 /** Automatic Kill fires when the oracle is more than this far from the reference... */
 const ORACLE_DEVIATION = 0.02;
 /** ...for longer than this. */
@@ -122,6 +134,46 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
   const vetoSlippageCap = options.vetoSlippageCap ?? DEFAULT_VETO_SLIPPAGE_CAP;
   /** Per proposalId: a trade waiting in its Veto Window. */
   const vetoWindows = new Map<string, { proposal: TradeProposal; pending: PendingVeto }>();
+  const killSlippage = options.killSlippage ?? 0.05;
+  /** Per Vault frozen by the Kill Switch: the Mandate Version it was killed under. A later version without the kill flag unfreezes it. */
+  const killed = new Map<VaultId, number>();
+
+  /**
+   * Kill Switch. The owner first signs a Mandate Version with the kill flag (recorded onchain, and only the owner can).
+   * The engine acts only once it reads that flag, so the trigger itself needs no other authentication.
+   */
+  async function onKillSwitch(k: KillSwitch): Promise<HandleResult> {
+    let mandate: Mandate;
+    try {
+      mandate = await chain.currentMandate(k.vaultId);
+    } catch (e) {
+      return { kind: "kill-refused", vaultId: k.vaultId, reason: `Can't read the Vault's Mandate: ${(e as Error).message}` };
+    }
+    if (!mandate.killFlag) {
+      return { kind: "kill-refused", vaultId: k.vaultId, reason: "The kill flag isn't set onchain: sign a Mandate Version with the kill flag first" };
+    }
+    killed.set(k.vaultId, mandate.version);
+
+    // Trades waiting for a veto are dropped: the user has said stop.
+    const vetoed = [...vetoWindows.values()].filter((w) => w.proposal.vaultId === k.vaultId).map((w) => w.proposal.proposalId);
+    for (const id of vetoed) vetoWindows.delete(id);
+
+    const closes: Extract<HandleResult, { kind: "killed" }>["closes"] = [];
+    for (const pos of await exchange.positions(k.vaultId)) {
+      if (pos.size === 0) continue;
+      // The order's side is the position's side (as for any reduce); a long closes by selling below the mark.
+      const side = pos.size > 0 ? "long" : "short";
+      const mark = await exchange.markPrice(pos.asset);
+      const cloid = newCloid();
+      const size = Math.abs(pos.size);
+      await exchange.placeReduceOnly({ vaultId: k.vaultId, asset: pos.asset, side, size, limitPrice: mark * (side === "long" ? 1 - killSlippage : 1 + killSlippage), cloid });
+      closes.push({ asset: pos.asset, side, size, cloid });
+    }
+
+    const flat = (await exchange.positions(k.vaultId)).every((p) => p.size === 0);
+    if (flat) await chain.reportFlat(k.vaultId);
+    return { kind: "killed", vaultId: k.vaultId, closes, vetoed, flat };
+  }
 
   /** Per Vault: this calendar month's High-Water Mark, and a drawdown kill that holds until the month ends. */
   const drawdown = new Map<VaultId, { month: string; highWaterMark: number; kill?: AutomaticKill }>();
@@ -131,6 +183,8 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
   const stops = new Map<Cloid, StopRecord>();
   /** Cloids of every order the engine placed: a fill outside this set (liquidation, manual close) wasn't the engine's. */
   const ownOrders = new Set<string>();
+  /** Per Vault: when its last Epoch was settled. The first settlement looks back one Epoch. */
+  const lastSettledAt = new Map<VaultId, number>();
   /** Per asset: since when the oracle has been out of range, and the kill once it has been for over 30s. */
   const oracle = new Map<string, { deviatingSince?: number; kill?: AutomaticKill }>();
 
@@ -234,6 +288,54 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
     if (lead?.pendingAgentId) leads.set(f.vaultId, { agentId: lead.pendingAgentId, reason: lead.reason });
   }
 
+  /**
+   * Epoch (#17): settle each allocated Vault under the Lead Agent that led it, with its premium rate recalibrated from
+   * its Mandate and the assets' volatility; then apply pending Lead Agent switches on Vaults that are Flat. One Vault
+   * failing doesn't stop the others.
+   */
+  async function onEpochTick(e: EpochTick): Promise<HandleResult> {
+    const at = now();
+    const result = { kind: "epoch-settled" as const, epoch: e.epoch, settled: [] as EpochSettlement[], failed: [] as { vaultId: VaultId; error: string }[], switched: [] as VaultId[] };
+    for (const [vaultId, lead] of leads) {
+      try {
+        const since = lastSettledAt.get(vaultId) ?? at - EPOCH_MS;
+        const [mandate, valueUsdc, netFlowsUsdc, fills] = await Promise.all([
+          chain.currentMandate(vaultId),
+          exchange.accountValue(vaultId),
+          exchange.netFlows(vaultId, since),
+          exchange.fills(vaultId),
+        ]);
+        const settlement: EpochSettlement = {
+          vaultId,
+          epoch: e.epoch,
+          valueUsdc,
+          netFlowsUsdc,
+          agentId: lead.agentId,
+          premiumRate: premiumRate(mandate, e.dailyVolatility),
+          tradedNotionalUsdc: fills.filter((f) => f.at > since && f.at <= at).reduce((n, f) => n + f.price * Math.abs(f.size), 0),
+        };
+        await chain.settleEpoch(settlement);
+        lastSettledAt.set(vaultId, at);
+        result.settled.push(settlement);
+      } catch (err) {
+        result.failed.push({ vaultId, error: (err as Error).message });
+      }
+      if (lead.pendingAgentId && (await isFlat(vaultId))) {
+        leads.set(vaultId, { agentId: lead.pendingAgentId, reason: lead.reason });
+        result.switched.push(vaultId);
+      }
+    }
+    return result;
+  }
+
+  async function isFlat(vaultId: VaultId) {
+    try {
+      return (await exchange.positions(vaultId)).every((p) => p.size === 0);
+    } catch {
+      return false;
+    }
+  }
+
   function onVeto(v: Veto): HandleResult {
     const w = vetoWindows.get(v.proposalId);
     if (!w || w.proposal.vaultId !== v.vaultId) return { kind: "ignored" };
@@ -268,6 +370,13 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
 
     const invalid = validate(p);
     if (invalid) return reject("invalid-proposal", invalid);
+
+    const killedAt = killed.get(p.vaultId);
+    if (killedAt !== undefined) {
+      const m = await chain.currentMandate(p.vaultId).catch(() => undefined);
+      if (m && m.version > killedAt && !m.killFlag) killed.delete(p.vaultId);
+      else return reject("kill-switch", `The Kill Switch froze ${p.vaultId}: no trades until a new Mandate Version clears the kill flag`);
+    }
 
     const lead = leads.get(p.vaultId);
     if (lead && lead.agentId !== p.agentId) {
@@ -414,8 +523,11 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
           return onVeto(event);
         case "veto-window-end":
           return onVetoWindowEnd(event);
+        case "epoch-tick":
+          return onEpochTick(event);
+        case "kill-switch":
+          return onKillSwitch(event);
         default:
-          // Kill Switch (#9), epochs (#17).
           return { kind: "ignored" };
       }
     },
