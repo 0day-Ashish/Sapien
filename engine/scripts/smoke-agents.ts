@@ -24,6 +24,7 @@ console.log("Regime:", reading);
 const roster: AgentProfile[] = [
   { agentId: "momentum", regimes: ["trend"], bondUsdc: 1_000, epochReturns: [0.012, 0.018, -0.004, 0.01] },
   { agentId: "funding-arb", regimes: ["funding-skew"], bondUsdc: 600, epochReturns: [] },
+  { agentId: "basis-arb-demo", regimes: ["funding-skew"], bondUsdc: 900, epochReturns: [0.004, 0.006, -0.001, 0.005] },
   { agentId: "mean-reversion", regimes: ["chop"], bondUsdc: 800, epochReturns: [0.006, 0.004, 0.009] },
   { agentId: "trend-follower-demo", regimes: ["trend", "chop"], bondUsdc: 300, epochReturns: [0.02, 0.025] },
 ];
