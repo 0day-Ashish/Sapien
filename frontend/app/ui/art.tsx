@@ -131,36 +131,72 @@ export function MarketGarden({
   );
 }
 
-/** The mascot: a small vault safe with a dial face, an antenna and stubby legs. */
-export function VaultBot({ className = "" }: { className?: string }) {
+/**
+ * The mascot: a small vault safe with a dial face, an antenna and stubby legs. When `animated`,
+ * it hovers, blinks, spins its dial, swings its legs and has a coin in orbit (see globals.css).
+ */
+export function VaultBot({ className = "", animated = false }: { className?: string; animated?: boolean }) {
+  const a = (name: string) => (animated ? name : undefined);
   return (
-    <svg viewBox="0 0 120 140" aria-hidden="true" className={className}>
-      <line x1="60" y1="10" x2="60" y2="28" stroke="#3a2a86" strokeWidth="3" strokeLinecap="round" />
-      <circle cx="60" cy="9" r="6" fill="#ffe3d0" stroke="#c8561c" strokeWidth="2.5" />
-      <rect x="18" y="28" width="84" height="82" rx="18" fill="#ece7fb" stroke="#3a2a86" strokeWidth="3" />
-      <rect x="27" y="37" width="66" height="64" rx="12" fill="#ffffff" stroke="#6a4fd6" strokeWidth="2.5" />
-      <circle cx="60" cy="69" r="20" fill="#e0f0e9" stroke="#17805a" strokeWidth="2.5" />
-      {Array.from({ length: 8 }, (_, i) => {
-        const a = (i * Math.PI) / 4;
-        return (
-          <line
-            key={i}
-            x1={60 + Math.cos(a) * 14}
-            y1={69 + Math.sin(a) * 14}
-            x2={60 + Math.cos(a) * 18}
-            y2={69 + Math.sin(a) * 18}
-            stroke="#17805a"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        );
-      })}
-      <circle cx="53" cy="65" r="3" fill="#3a2a86" />
-      <circle cx="67" cy="65" r="3" fill="#3a2a86" />
-      <path d="M53 75q7 6 14 0" fill="none" stroke="#3a2a86" strokeWidth="2.5" strokeLinecap="round" />
-      <rect x="99" y="54" width="9" height="30" rx="4" fill="#fbeccd" stroke="#a3690e" strokeWidth="2.5" />
-      <path d="M38 110v14M82 110v14" stroke="#3a2a86" strokeWidth="5" strokeLinecap="round" />
-      <path d="M30 126h16M74 126h16" stroke="#3a2a86" strokeWidth="5" strokeLinecap="round" />
+    <svg viewBox="0 0 140 160" aria-hidden="true" className={className} overflow="visible">
+      {/* Shadow on the ground, shrinking as the bot rises */}
+      <ellipse cx="70" cy="152" rx="34" ry="5" fill="#3a2a86" opacity="0.12" className={a("bot-shadow")} />
+      <g className={a("bot-hover")}>
+        <g className={a("bot-tilt")}>
+          {/* Antenna */}
+          <g className={a("bot-antenna")}>
+            <line x1="70" y1="12" x2="70" y2="32" stroke="#3a2a86" strokeWidth="3" strokeLinecap="round" />
+            <circle cx="70" cy="11" r="6.5" fill="#ffe3d0" stroke="#c8561c" strokeWidth="2.5" />
+          </g>
+          {/* Legs */}
+          <g className={a("bot-leg-left")}>
+            <path d="M47 112v16" stroke="#3a2a86" strokeWidth="5" strokeLinecap="round" />
+            <path d="M39 130h16" stroke="#3a2a86" strokeWidth="5" strokeLinecap="round" />
+          </g>
+          <g className={a("bot-leg-right")}>
+            <path d="M93 112v16" stroke="#3a2a86" strokeWidth="5" strokeLinecap="round" />
+            <path d="M85 130h16" stroke="#3a2a86" strokeWidth="5" strokeLinecap="round" />
+          </g>
+          {/* Body */}
+          <rect x="26" y="32" width="88" height="84" rx="19" fill="#ece7fb" stroke="#3a2a86" strokeWidth="3" />
+          <rect x="35" y="41" width="70" height="66" rx="13" fill="#ffffff" stroke="#6a4fd6" strokeWidth="2.5" />
+          {/* Handle */}
+          <rect x="111" y="58" width="10" height="32" rx="4.5" fill="#fbeccd" stroke="#a3690e" strokeWidth="2.5" className={a("bot-handle")} />
+          {/* Dial face */}
+          <circle cx="70" cy="74" r="21" fill="#e0f0e9" stroke="#17805a" strokeWidth="2.5" />
+          <g className={a("bot-dial")}>
+            {Array.from({ length: 8 }, (_, i) => {
+              const angle = (i * Math.PI) / 4;
+              return (
+                <line
+                  key={i}
+                  x1={70 + Math.cos(angle) * 15}
+                  y1={74 + Math.sin(angle) * 15}
+                  x2={70 + Math.cos(angle) * 19}
+                  y2={74 + Math.sin(angle) * 19}
+                  stroke="#17805a"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              );
+            })}
+          </g>
+          <g className={a("bot-blink")}>
+            <circle cx="63" cy="70" r="3.2" fill="#3a2a86" />
+            <circle cx="77" cy="70" r="3.2" fill="#3a2a86" />
+          </g>
+          <path d="M62.5 80q7.5 6.5 15 0" fill="none" stroke="#3a2a86" strokeWidth="2.5" strokeLinecap="round" />
+        </g>
+        {/* Orbiting coin */}
+        {animated && (
+          <g className="bot-orbit">
+            <g transform="translate(70 74)">
+              <ellipse cx="62" cy="0" rx="9" ry="4" fill="#fbeccd" stroke="#a3690e" strokeWidth="2" />
+              <ellipse cx="62" cy="-3" rx="9" ry="4" fill="#fbeccd" stroke="#a3690e" strokeWidth="2" />
+            </g>
+          </g>
+        )}
+      </g>
     </svg>
   );
 }
