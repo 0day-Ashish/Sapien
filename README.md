@@ -195,19 +195,19 @@ Details, rollback and operations are in [`docs/deploy.md`](docs/deploy.md). Only
 
 <table>
   <tr>
-    <td align="center" width="33%">
+    <td align="center" valign="top" width="33%">
       <a href="https://github.com/0day-Ashish"><img src="frontend/public/ashish.jpg" alt="Ashish" width="110" /></a><br />
       <b>Ashish</b><br />
       <a href="https://github.com/0day-Ashish">@0day-Ashish</a><br />
       Product and frontend
     </td>
-    <td align="center" width="33%">
+    <td align="center" valign="top" width="33%">
       <a href="https://github.com/arya232006"><img src="frontend/public/aryadeep.jpg" alt="Aryadeep" width="110" /></a><br />
       <b>Aryadeep</b><br />
       <a href="https://github.com/arya232006">@arya232006</a><br />
       Engine and agents
     </td>
-    <td align="center" width="33%">
+    <td align="center" valign="top" width="33%">
       <a href="https://github.com/SachPlayZ"><img src="frontend/public/sachindra.jpg" alt="Sachindra" width="110" /></a><br />
       <b>Sachindra</b><br />
       <a href="https://github.com/SachPlayZ">@SachPlayZ</a><br />
