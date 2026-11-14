@@ -12,6 +12,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
 import { forwardDeposit } from "../src/deposits/forward.js";
 import { liveDepositPorts, readBurns } from "../src/deposits/live.js";
+import { AgentWalletStore } from "../src/service/agent-wallets.js";
 
 process.loadEnvFile(new URL("../.env.local", import.meta.url).pathname);
 const json = (rel: string) => JSON.parse(readFileSync(new URL(rel, import.meta.url), "utf8"));
@@ -26,6 +27,7 @@ const ports = liveDepositPorts({
   vaultFactory: hyperEvm.VaultFactory.address,
   depositAccount,
   engine: privateKeyToAccount(process.env.ENGINE_OPERATOR_PRIVATE_KEY as Hex),
+  agentWallets: new AgentWalletStore(new URL("../.data/agent-wallets.json", import.meta.url).pathname),
 });
 // No chain object: the OP-stack chain types make the client incompatible with a plain PublicClient.
 const source = createPublicClient({ transport: http(baseSepolia.rpcUrls.default.http[0]) });

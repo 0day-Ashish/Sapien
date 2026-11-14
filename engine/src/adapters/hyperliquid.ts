@@ -7,6 +7,7 @@
 import { ApiRequestError, ExchangeClient, HttpTransport, InfoClient } from "@nktkas/hyperliquid";
 import { formatPrice, formatSize } from "@nktkas/hyperliquid/utils";
 import type { PrivateKeyAccount } from "viem/accounts";
+import type { Candle } from "../agents/types.js";
 import type { VaultId } from "../events.js";
 import type { Cloid, ExchangePort, Fill, OrderState, OrderWithStopLoss, PlacedOrder, Position, ReduceOnlyOrder } from "../ports.js";
 
@@ -138,6 +139,31 @@ export class HyperliquidExchange implements ExchangePort {
       size: Number(f.sz),
       at: f.time,
     }));
+  }
+
+  // ---------- market data for the Allocator and Specialist Agents (not part of the ExchangePort) ----------
+
+  /** Closed 4h candles, oldest first. */
+  async candles4h(asset: string, count = 60): Promise<Candle[]> {
+    const H4 = 4 * 3600 * 1000;
+    const end = Date.now();
+    const rows = await this.info.candleSnapshot({ coin: asset, interval: "4h", startTime: end - (count + 1) * H4, endTime: end });
+    return rows
+      .map((r) => ({ t: r.t, o: Number(r.o), h: Number(r.h), l: Number(r.l), c: Number(r.c), v: Number(r.v) }))
+      .filter((c) => c.t + H4 <= end); // drop the candle still forming
+  }
+
+  /** Current hourly funding rate. */
+  async fundingRateHourly(asset: string) {
+    const { index } = await this.asset(asset);
+    const [, ctxs] = await this.info.metaAndAssetCtxs();
+    return Number(ctxs[index]!.funding);
+  }
+
+  /** Hourly funding rates over the last `hours`, oldest first. */
+  async fundingHistoryHourly(asset: string, hours = 8): Promise<number[]> {
+    const rows = await this.info.fundingHistory({ coin: asset, startTime: Date.now() - hours * 3600 * 1000 });
+    return rows.map((r) => Number(r.fundingRate));
   }
 
   // ---------- internals ----------

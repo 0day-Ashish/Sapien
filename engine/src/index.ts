@@ -1,3 +1,14 @@
 export * from "./engine.js";
 export type * from "./events.js";
 export type * from "./ports.js";
+export * from "./agents/allocator.js";
+export * from "./agents/momentum.js";
+export * from "./agents/funding-arb.js";
+export * from "./agents/mean-reversion.js";
+export * from "./agents/specialist.js";
+export * from "./agents/regime.js";
+export type * from "./agents/types.js";
+export * from "./agents/gemini-rationale.js";
+export * from "./agents/jev-allocator.js";
+export * from "./service/agent-wallets.js";
+export * from "./service/http.js";
