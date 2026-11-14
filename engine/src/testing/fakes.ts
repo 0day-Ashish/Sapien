@@ -3,14 +3,17 @@
 
 import type {
   ChainPort,
+  Cloid,
   DecisionCommitment,
   ExchangePort,
   Fill,
   Mandate,
+  OrderState,
   OrderWithStopLoss,
   OvershootClaim,
   PlacedOrder,
   Position,
+  ReduceOnlyOrder,
 } from "../ports.js";
 
 export const defaultMandate: Mandate = {
@@ -25,21 +28,46 @@ export const defaultMandate: Mandate = {
 };
 
 export class FakeExchange implements ExchangePort {
+  marks = new Map<string, number>();
   orders: OrderWithStopLoss[] = [];
-  cancelled: string[] = [];
+  reduceOnlyOrders: ReduceOnlyOrder[] = [];
+  leverage: { vaultId: string; asset: string; leverage: number }[] = [];
+  cancelled: Cloid[] = [];
+  orderStates = new Map<Cloid, OrderState>();
   positionsByVault = new Map<string, Position[]>();
   accountValueByVault = new Map<string, number>();
   fillsByVault = new Map<string, Fill[]>();
-  private listeners = new Set<(vaultId: string, fill: Fill) => void>();
-  private nextId = 1;
 
-  async placeOrderWithStopLoss(order: OrderWithStopLoss): Promise<PlacedOrder> {
-    this.orders.push(order);
-    const id = this.nextId++;
-    return { orderId: `o${id}`, stopLossOrderId: `sl${id}`, placedAt: Date.now() };
+  constructor(private journal: string[] = []) {}
+
+  async markPrice(asset: string) {
+    const mark = this.marks.get(asset);
+    if (mark === undefined) throw new Error(`no mark for ${asset}`);
+    return mark;
   }
-  async cancel(_vaultId: string, orderId: string) {
-    this.cancelled.push(orderId);
+  async setLeverage(vaultId: string, asset: string, leverage: number) {
+    this.journal.push("exchange.setLeverage");
+    this.leverage.push({ vaultId, asset, leverage });
+  }
+  async placeOrderWithStopLoss(order: OrderWithStopLoss): Promise<PlacedOrder> {
+    this.journal.push("exchange.placeOrderWithStopLoss");
+    this.orders.push(order);
+    this.orderStates.set(order.entryCloid, "filled");
+    this.orderStates.set(order.stopLoss.cloid, "resting");
+    return { entryCloid: order.entryCloid, stopLossCloid: order.stopLoss.cloid, placedAt: Date.now() };
+  }
+  async placeReduceOnly(order: ReduceOnlyOrder): Promise<PlacedOrder> {
+    this.journal.push("exchange.placeReduceOnly");
+    this.reduceOnlyOrders.push(order);
+    this.orderStates.set(order.cloid, "filled");
+    return { entryCloid: order.cloid, placedAt: Date.now() };
+  }
+  async orderStatus(_vaultId: string, cloid: Cloid) {
+    return this.orderStates.get(cloid) ?? "unknown";
+  }
+  async cancel(_vaultId: string, cloid: Cloid) {
+    this.cancelled.push(cloid);
+    this.orderStates.set(cloid, "cancelled");
   }
   async positions(vaultId: string) {
     return this.positionsByVault.get(vaultId) ?? [];
@@ -50,17 +78,6 @@ export class FakeExchange implements ExchangePort {
   async fills(vaultId: string) {
     return this.fillsByVault.get(vaultId) ?? [];
   }
-  onFill(listener: (vaultId: string, fill: Fill) => void) {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
-  /** Test helper: simulate a fill arriving from the exchange. */
-  emitFill(vaultId: string, fill: Fill) {
-    const fills = this.fillsByVault.get(vaultId) ?? [];
-    fills.push(fill);
-    this.fillsByVault.set(vaultId, fills);
-    for (const l of this.listeners) l(vaultId, fill);
-  }
 }
 
 export class FakeChain implements ChainPort {
@@ -70,13 +87,16 @@ export class FakeChain implements ChainPort {
   claims: OvershootClaim[] = [];
   settledEpochs: number[] = [];
   belowBondMinimum = new Set<string>();
-  /** Set to make the next commitDecision reject. */
+  /** While true, every commitDecision rejects. */
   failCommitments = false;
+
+  constructor(private journal: string[] = []) {}
 
   async currentMandate(vaultId: string) {
     return this.mandates.get(vaultId) ?? defaultMandate;
   }
   async commitDecision(commitment: DecisionCommitment) {
+    this.journal.push("chain.commitDecision");
     if (this.failCommitments) throw new Error("Decision Commitment failed");
     this.commitments.push(commitment);
     return { txHash: `0x${this.commitments.length.toString(16).padStart(64, "0")}` };
@@ -95,6 +115,8 @@ export class FakeChain implements ChainPort {
   }
 }
 
+/** Both fakes share a journal, so tests can check the order of calls across ports (e.g. commit before order). */
 export function fakePorts() {
-  return { exchange: new FakeExchange(), chain: new FakeChain() };
+  const journal: string[] = [];
+  return { exchange: new FakeExchange(journal), chain: new FakeChain(journal), journal };
 }
