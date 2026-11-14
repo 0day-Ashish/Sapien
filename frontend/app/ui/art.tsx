@@ -515,118 +515,116 @@ export function Icon({ name, className = "size-6" }: { name: IconName; className
 
 export type IconName = "mandate" | "timer" | "power" | "bond" | "replay" | "chart" | "shield" | "vault";
 
+/* ---------- Pillar illustrations: isometric line art ---------- */
+
+type Pt = [number, number];
+
+/** Isometric projection: x runs down-right, y down-left, z up. */
+const iso = (x: number, y: number, z: number): Pt => [85 + (x - y) * 0.866, 62 + (x + y) * 0.5 - z];
+
+const f = (n: number) => n.toFixed(1);
+
+/** A closed polygon with its corners rounded by `r`, plus the mid-point of each rounded corner. */
+function rounded(points: Pt[], r: number) {
+  const corners = points.map((v, i) => {
+    const prev = points[(i + points.length - 1) % points.length]!;
+    const next = points[(i + 1) % points.length]!;
+    const toward = (to: Pt): Pt => {
+      const d = Math.hypot(to[0] - v[0], to[1] - v[1]);
+      return [v[0] + ((to[0] - v[0]) / d) * r, v[1] + ((to[1] - v[1]) / d) * r];
+    };
+    const p1 = toward(prev);
+    const p2 = toward(next);
+    const mid: Pt = [(p1[0] + 2 * v[0] + p2[0]) / 4, (p1[1] + 2 * v[1] + p2[1]) / 4];
+    return { v, p1, p2, mid };
+  });
+  const d = corners.map((c, i) => `${i ? "L" : "M"}${f(c.p1[0])} ${f(c.p1[1])}Q${f(c.v[0])} ${f(c.v[1])} ${f(c.p2[0])} ${f(c.p2[1])}`).join("") + "Z";
+  return { d, mids: corners.map((c) => c.mid) };
+}
+
+const PAPER = "var(--color-cream)";
+
 /**
- * Illustrations for the three pillar cards: a sealed Mandate, a trading terminal and a vault door.
- * Line work in the card's colour (currentColor) over soft pattern fills.
+ * A rounded isometric slab or box: centre (x, y), half-sizes a and b, standing on height z, h tall.
+ * Neutral pieces are drawn in a soft line; `accent` pieces take the card's colour with a tinted fill.
+ */
+function Prism({ x, y, z, a, b, h, accent = false, r = 3 }: { x: number; y: number; z: number; a: number; b: number; h: number; accent?: boolean; r?: number }) {
+  const face = (height: number) => rounded([iso(x - a, y - b, height), iso(x + a, y - b, height), iso(x + a, y + b, height), iso(x - a, y + b, height)], r);
+  const top = face(z + h);
+  const bottom = face(z);
+  // Corner order is back, right, front, left.
+  const [, tr, tf, tl] = top.mids as [Pt, Pt, Pt, Pt];
+  const [, br, bf, bl] = bottom.mids as [Pt, Pt, Pt, Pt];
+  const band = [tl, tf, tr, br, bf, bl].map((p, i) => `${i ? "L" : "M"}${f(p[0])} ${f(p[1])}`).join("") + "Z";
+  const edges = [
+    [tl, bl],
+    [tf, bf],
+    [tr, br],
+  ]
+    .map(([p, q]) => `M${f(p![0])} ${f(p![1])}L${f(q![0])} ${f(q![1])}`)
+    .join("");
+  const stroke = { stroke: "currentColor", strokeOpacity: accent ? 1 : 0.5, strokeWidth: accent ? 1.4 : 1.2, strokeLinejoin: "round" as const, strokeLinecap: "round" as const };
+  const tint = accent ? { fill: "currentColor", fillOpacity: 0.16 } : { fill: "none" };
+  return (
+    <g>
+      <path d={bottom.d} fill={PAPER} {...stroke} />
+      <path d={band} fill={PAPER} />
+      {accent && <path d={band} {...tint} />}
+      <path d={edges} fill="none" {...stroke} />
+      <path d={top.d} fill={PAPER} {...stroke} />
+      {accent && <path d={top.d} {...tint} />}
+    </g>
+  );
+}
+
+/** A line drawn flat on a surface at height z, through the given (x, y) points. */
+function flat(points: Pt[], z: number) {
+  return points.map(([x, y], i) => `${i ? "L" : "M"}${f(iso(x, y, z)[0])} ${f(iso(x, y, z)[1])}`).join("");
+}
+
+/**
+ * Illustrations for the three pillar cards, as clean isometric line art on a shared base slab: a Mandate with its
+ * seal, the engine taking an order, and the three layers of protection. Neutral lines are soft; the one accent
+ * piece in each takes the card's colour (currentColor).
  */
 export function PillarArt({ kind, className = "" }: { kind: "mandate" | "execute" | "protect"; className?: string }) {
-  const line = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  const id = `pillar-${kind}`;
+  const soft = { fill: "none", stroke: "currentColor", strokeOpacity: 0.5, strokeWidth: 1.2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  const bold = { fill: "none", stroke: "currentColor", strokeWidth: 1.6, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   return (
-    <svg viewBox="0 0 140 140" aria-hidden="true" className={className}>
-      <defs>
-        <pattern id={`${id}-grid`} width="8" height="8" patternUnits="userSpaceOnUse">
-          <path d="M8 0H0V8" fill="none" stroke="currentColor" strokeOpacity="0.25" strokeWidth="1" />
-        </pattern>
-        <pattern id={`${id}-dots`} width="7" height="7" patternUnits="userSpaceOnUse">
-          <circle cx="3.5" cy="3.5" r="1" fill="currentColor" fillOpacity="0.3" />
-        </pattern>
-      </defs>
+    <svg viewBox="0 0 170 120" aria-hidden="true" className={className}>
+      <Prism x={0} y={0} z={-5} a={44} b={44} h={5} r={4} />
 
       {kind === "mandate" && (
         <>
-          {/* Document with a ruled checklist, a signature and a scalloped wax seal */}
-          <rect x="22" y="12" width="84" height="114" rx="8" {...line} fill="var(--color-violet-soft)" />
-          <rect x="30" y="20" width="68" height="98" rx="4" {...line} fill={`url(#${id}-grid)`} strokeWidth="1.5" />
-          {[38, 54, 70].map((y, k) => (
-            <g key={y}>
-              <rect x="36" y={y - 5} width="10" height="10" rx="2" {...line} fill="#fff" strokeWidth="1.6" />
-              <path d={`M38 ${y}l2.5 2.5 4-5`} {...line} strokeWidth="1.6" />
-              <path d={`M52 ${y}h${k === 2 ? 26 : 38}`} {...line} strokeWidth="2.4" />
-            </g>
-          ))}
-          <path d="M36 98c5-9 9 5 14-1s7-8 11 0 6-3 9-5" {...line} />
-          <path d="M34 106h40" {...line} strokeWidth="1.2" strokeDasharray="2 3" />
-          <g transform="translate(100 98)">
-            <path
-              d={Array.from({ length: 16 }, (_, k) => {
-                const a = (k / 16) * Math.PI * 2;
-                const r = k % 2 ? 15 : 18;
-                return `${k ? "L" : "M"}${(Math.cos(a) * r).toFixed(1)} ${(Math.sin(a) * r).toFixed(1)}`;
-              }).join("") + "Z"}
-              {...line}
-              fill="var(--color-violet-line)"
-             
-            />
-            <circle r="9.5" {...line} fill="#fff" strokeWidth="1.6" />
-            <path d="M-4.5 0l3 3 6-6.5" {...line} strokeWidth="2" />
-            <path d="M-7 16l-5 16 7-4 4 6 3-15M7 16l5 16-7-4-4 6" {...line} fill="var(--color-violet-soft)" strokeWidth="1.6" />
-          </g>
+          {/* The Mandate: a sheet with ruled lines, a dashed line to sign on, and its seal */}
+          <Prism x={-2} y={0} z={0} a={22} b={32} h={3} />
+          <path d={[-20, -11, -2].map((y) => flat([[-16, y], [10, y]], 3)).join("")} {...soft} />
+          <path d={flat([[-16, 9], [-4, 9]], 3)} {...soft} strokeDasharray="2.5 2.5" />
+          <Prism x={6} y={20} z={3} a={9} b={9} h={4} accent />
+          <path d={flat([[3, 24], [7, 24], [7, 15]], 7)} {...bold} />
         </>
       )}
 
       {kind === "execute" && (
         <>
-          {/* Trading terminal on a stand: candlesticks, a rising line and a lightning bolt */}
-          <path d="M70 14v10M62 14h16" {...line} />
-          <circle cx="70" cy="11" r="3.5" {...line} fill="var(--color-orange-soft)" strokeWidth="1.6" />
-          <rect x="14" y="24" width="112" height="78" rx="12" {...line} fill="var(--color-orange-soft)" />
-          <rect x="22" y="32" width="96" height="62" rx="6" {...line} fill={`url(#${id}-dots)`} strokeWidth="1.6" />
-          {[
-            [34, 58, 76, 52, 84],
-            [46, 52, 68, 46, 74],
-            [58, 60, 78, 54, 84],
-            [70, 46, 62, 40, 68],
-            [82, 40, 56, 34, 62],
-          ].map(([x, top, bottom, wickTop, wickBottom], k) => (
-            <g key={k}>
-              <path d={`M${x} ${wickTop}V${wickBottom}`} {...line} strokeWidth="1.6" />
-              <rect x={x! - 3.5} y={top} width="7" height={bottom! - top!} rx="1.5" {...line} fill={k % 2 ? "#fff" : "currentColor"} strokeWidth="1.6" />
-            </g>
-          ))}
-          <path d="M28 86l14-10 12 4 14-14 14 2 14-16 12-6" {...line} strokeDasharray="1 4" />
-          <path d="M106 40l-8 14h7l-4 12 11-17h-7l5-9z" {...line} fill="#fff" strokeWidth="1.8" />
-          <path d="M58 102l-10 26M82 102l10 26M42 128h56" {...line} />
-          <path d="M60 114h20" {...line} strokeWidth="1.4" />
+          {/* The engine: a box with a slot on top, and an order sitting ready to go in */}
+          <Prism x={2} y={2} z={0} a={23} b={23} h={26} />
+          <path d={rounded([iso(6, -6, 26), iso(18, -6, 26), iso(18, 16, 26), iso(6, 16, 26)], 3).d} {...soft} />
+          {[1, 9].map((y) => {
+            const [cx, cy] = iso(12, y, 26);
+            return <ellipse key={y} cx={f(cx)} cy={f(cy)} rx="1.9" ry="1.2" fill="currentColor" />;
+          })}
+          <Prism x={-9} y={-9} z={26} a={9} b={9} h={4} accent />
         </>
       )}
 
       {kind === "protect" && (
         <>
-          {/* Vault door front-on: bolts, a spoked wheel and a shield at the hub */}
-          <rect x="12" y="12" width="116" height="116" rx="18" {...line} fill="var(--color-green-soft)" />
-          <circle cx="70" cy="70" r="46" {...line} fill={`url(#${id}-grid)`} />
-          <circle cx="70" cy="70" r="46" {...line} fill="none" />
-          {Array.from({ length: 12 }, (_, k) => {
-            const a = (k / 12) * Math.PI * 2;
-            return (
-              <circle
-                key={k}
-                cx={70 + Math.cos(a) * 39}
-                cy={70 + Math.sin(a) * 39}
-                r="2.6"
-                {...line}
-                fill="#fff"
-                strokeWidth="1.4"
-              />
-            );
-          })}
-          <circle cx="70" cy="70" r="28" {...line} fill="#fff" />
-          {Array.from({ length: 6 }, (_, k) => {
-            const a = (k / 6) * Math.PI * 2 + Math.PI / 6;
-            return (
-              <path
-                key={k}
-                d={`M${70 + Math.cos(a) * 17} ${70 + Math.sin(a) * 17}L${70 + Math.cos(a) * 28} ${70 + Math.sin(a) * 28}`}
-                {...line}
-                strokeWidth="3"
-              />
-            );
-          })}
-          <path d="M70 55l13 5v8c0 8-5 13-13 17-8-4-13-9-13-17v-8z" {...line} fill="var(--color-green-soft)" />
-          <path d="M64 70l4 4 8-9" {...line} />
-          <path d="M12 40h-4M12 70h-4M12 100h-4" {...line} strokeWidth="4" />
-          <rect x="112" y="58" width="8" height="24" rx="3" {...line} fill="#fff" strokeWidth="1.6" />
+          {/* Three layers of protection, stacked: the top one, the Bond, pays first */}
+          <Prism x={0} y={0} z={0} a={31} b={31} h={7} />
+          <Prism x={0} y={0} z={7} a={24} b={24} h={7} />
+          <Prism x={0} y={0} z={14} a={17} b={17} h={7} accent />
+          <path d={flat([[-5, 6], [1, 6], [1, -8]], 21)} {...bold} />
         </>
       )}
     </svg>
