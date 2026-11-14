@@ -18,3 +18,5 @@ docs/
 .env
 .env.*
 !.env.example
+# Testnet deploys: addresses live in deployments/
+/broadcast/*/998/
