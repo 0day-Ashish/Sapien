@@ -90,3 +90,30 @@ describe("Engine HTTP: POST /agent-wallets", () => {
     expect((await fetch(`${server.url}/nope`)).status).toBe(404);
   });
 });
+
+describe("Engine HTTP: feed and Vault status", () => {
+  let close: (() => Promise<void>) | undefined;
+  afterEach(async () => close?.());
+
+  it("serves the agent's-eye feed newest first, filtered by Vault, and a Vault's status", async () => {
+    const feed = [
+      { at: 1, vaultId: "0xA", asset: "ETH", regime: "chop" as const },
+      { at: 2, vaultId: "0xB", asset: "BTC", regime: "trend" as const },
+      { at: 3, vaultId: "0xA", asset: "ETH", regime: "funding-skew" as const },
+    ];
+    const server = await startHttp({
+      port: 0,
+      agentWallets: new AgentWalletStore(tmp()),
+      feed: () => feed,
+      vaultStatus: (id) => ({ leadAgent: { agentId: "funding-arb", reason: `for ${id}` } }),
+    });
+    close = server.close;
+
+    const all = (await (await fetch(`${server.url}/feed?limit=2`)).json()) as { items: { at: number }[] };
+    expect(all.items.map((r) => r.at)).toEqual([3, 2]);
+    const a = (await (await fetch(`${server.url}/feed?vault=0xa`)).json()) as { items: { at: number }[] };
+    expect(a.items.map((r) => r.at)).toEqual([3, 1]);
+    const st = await (await fetch(`${server.url}/vaults/0xA/status`)).json();
+    expect(st).toEqual({ leadAgent: { agentId: "funding-arb", reason: "for 0xA" } });
+  });
+});

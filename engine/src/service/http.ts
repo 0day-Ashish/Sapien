@@ -3,6 +3,8 @@
 
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
+import type { VaultStatus } from "../engine.js";
+import type { RunnerRecord } from "../runner/runner.js";
 import type { AgentWalletStore } from "./agent-wallets.js";
 
 export type HttpOptions = {
@@ -11,6 +13,10 @@ export type HttpOptions = {
   agentWallets: AgentWalletStore;
   /** The frontend's origin, for CORS. Default: any origin (testnet demo). */
   allowOrigin?: string;
+  /** Recent runner records, newest last: the agent's-eye view feed. */
+  feed?: () => RunnerRecord[];
+  /** A Vault's protection and Lead Agent state. */
+  vaultStatus?: (vaultId: string) => VaultStatus;
 };
 
 export async function startHttp(o: HttpOptions) {
@@ -32,6 +38,19 @@ async function route(req: IncomingMessage, res: ServerResponse, o: HttpOptions) 
 
   // The UI calls this right before VaultFactory.createVault(agentWallet).
   if (req.method === "POST" && path === "/agent-wallets") return send(res, 201, { address: o.agentWallets.create() });
+
+  // Agent's-eye view feed, newest first: GET /feed?vault=0x…&limit=50
+  if (req.method === "GET" && path === "/feed" && o.feed) {
+    const q = new URL(req.url ?? "/", "http://engine").searchParams;
+    const vault = q.get("vault")?.toLowerCase();
+    const limit = Math.min(500, Number(q.get("limit") ?? 50));
+    const items = o.feed().filter((r) => !vault || r.vaultId.toLowerCase() === vault).slice(-limit).reverse();
+    return send(res, 200, { items });
+  }
+
+  // GET /vaults/0x…/status → { automaticKill?, leadAgent? }
+  const status = path.match(/^\/vaults\/([^/]+)\/status$/);
+  if (req.method === "GET" && status && o.vaultStatus) return send(res, 200, o.vaultStatus(status[1]!));
 
   send(res, 404, { error: `No route ${req.method} ${path}` });
 }
