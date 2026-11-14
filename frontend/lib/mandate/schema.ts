@@ -68,6 +68,26 @@ export const compiledMandateSchema = z.strictObject({
 
 export type CompiledMandate = z.infer<typeof compiledMandateSchema>;
 
+/**
+ * A blackout window with real times: unix seconds, UTC. Built from a draft window by
+ * looking up the event's release calendar (see calendar.ts).
+ */
+export const resolvedBlackoutWindowSchema = z
+  .strictObject({
+    event: z.enum(blackoutEventIds),
+    start: z.number().int().positive(),
+    end: z.number().int().positive(),
+  })
+  .refine((w) => w.start < w.end, "Blackout window must start before it ends");
+
+/** The Mandate the user signs: the confirmed draft with blackout windows as real times. */
+export const mandateSchema = mandateDraftSchema.extend({
+  blackoutWindows: z.array(resolvedBlackoutWindowSchema).max(100),
+});
+
+export type ResolvedBlackoutWindow = z.infer<typeof resolvedBlackoutWindowSchema>;
+export type Mandate = z.infer<typeof mandateSchema>;
+
 export type ValidationResult =
   | { ok: true; mandate: MandateDraft }
   | { ok: false; errors: Record<string, string> };

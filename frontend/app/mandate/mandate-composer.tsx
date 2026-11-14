@@ -8,9 +8,10 @@ import {
   SUPPORTED_ASSETS,
   blackoutEventIds,
   validateMandateDraft,
+  type Mandate,
   type MandateDraft,
 } from "@/lib/mandate/schema";
-import { compileMandateAction } from "./actions";
+import { compileMandateAction, finalizeMandateAction } from "./actions";
 
 const EXAMPLE =
   "Conservative, BTC and ETH only, never lose more than 8% a month, no trades during US CPI releases.";
@@ -79,8 +80,10 @@ export function MandateComposer() {
   const [form, setForm] = useState<Form | null>(null);
   const [assumptions, setAssumptions] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState<MandateDraft | null>(null);
+  const [confirmed, setConfirmed] = useState<{ mandate: Mandate; coveredUntil: number } | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [isCompiling, startCompile] = useTransition();
+  const [isConfirming, startConfirm] = useTransition();
 
   const validation = form ? validateMandateDraft(fromForm(form)) : null;
   const errors = validation && !validation.ok ? validation.errors : {};
@@ -88,6 +91,16 @@ export function MandateComposer() {
   function update(patch: Partial<Form>) {
     setForm((current) => (current ? { ...current, ...patch } : current));
     setConfirmed(null);
+    setConfirmError(null);
+  }
+
+  function confirm(draft: MandateDraft) {
+    setConfirmError(null);
+    startConfirm(async () => {
+      const result = await finalizeMandateAction(draft);
+      if (result.ok) setConfirmed({ mandate: result.mandate, coveredUntil: result.coveredUntil });
+      else setConfirmError(result.message);
+    });
   }
 
   function compile() {
@@ -286,18 +299,44 @@ export function MandateComposer() {
           <div className="flex flex-col gap-3 border-t border-zinc-200 pt-6 dark:border-zinc-800">
             <button
               className={`${primaryButton} self-start`}
-              disabled={!validation?.ok}
-              onClick={() => validation?.ok && setConfirmed(validation.mandate)}
+              disabled={!validation?.ok || isConfirming}
+              onClick={() => validation?.ok && confirm(validation.mandate)}
             >
-              Confirm Mandate
+              {isConfirming ? "Looking up release dates…" : "Confirm Mandate"}
             </button>
             {validation && !validation.ok && (
               <p className="text-sm text-red-600">Fix the highlighted fields before you can confirm.</p>
             )}
+            {confirmError && (
+              <p role="alert" className="text-sm text-red-600">
+                {confirmError}
+              </p>
+            )}
             {confirmed && (
               <div className="rounded-md border border-zinc-300 p-4 text-sm dark:border-zinc-700">
                 <p className="font-medium">Mandate confirmed. This is exactly what you will sign:</p>
-                <pre className="mt-2 overflow-x-auto font-mono text-xs">{JSON.stringify(confirmed, null, 2)}</pre>
+                {confirmed.mandate.blackoutWindows.length > 0 && (
+                  <div className="mt-3">
+                    <p>
+                      No new positions open during these {confirmed.mandate.blackoutWindows.length} windows (your
+                      local time):
+                    </p>
+                    <ul className="mt-2 max-h-48 list-disc overflow-y-auto pl-5">
+                      {confirmed.mandate.blackoutWindows.map((w) => (
+                        <li key={`${w.event}-${w.start}`}>
+                          {BLACKOUT_EVENTS[w.event]}: {formatTime(w.start)} to {formatTime(w.end)}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+                      Release dates are listed through {formatDay(confirmed.coveredUntil)}. To stay covered after
+                      that, sign a new Mandate Version.
+                    </p>
+                  </div>
+                )}
+                <pre className="mt-3 max-h-64 overflow-auto font-mono text-xs">
+                  {JSON.stringify(confirmed.mandate, null, 2)}
+                </pre>
                 <p className="mt-3 text-zinc-600 dark:text-zinc-400">
                   Signing with your wallet arrives with Vault creation (ticket #5).
                 </p>
@@ -309,6 +348,11 @@ export function MandateComposer() {
     </div>
   );
 }
+
+const formatTime = (unixSeconds: number) =>
+  new Date(unixSeconds * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+const formatDay = (unixSeconds: number) =>
+  new Date(unixSeconds * 1000).toLocaleDateString(undefined, { dateStyle: "medium" });
 
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
