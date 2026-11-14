@@ -13,7 +13,8 @@ import {
 } from "@/lib/mandate/schema";
 import Link from "next/link";
 import { PRODUCT_NAME } from "@/lib/brand";
-import { Icon, VaultBot, type IconName } from "../ui/art";
+import { Icon, type IconName } from "../ui/art";
+import { CryptoCoin } from "../ui/crypto-coin";
 import { Logo } from "../ui/logo";
 import { WalletSlider } from "../ui/wallet-slider";
 import { TradingChart } from "../ui/trading-chart";
@@ -386,7 +387,7 @@ export function MandateComposer() {
           <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6">
             {!sentText && !form && (
               <div className="flex flex-1 flex-col items-center justify-center gap-4 py-10 text-center">
-                <VaultBot className="size-20" />
+                <CryptoCoin className="size-20" />
                 <p className="title-serif text-violet-ink">Tell me how careful to be with your money.</p>
                 <p className="max-w-md text-sm text-violet/70">
                   Describe your risk rules in plain English. You confirm or edit every field before you sign, and agents
@@ -613,7 +614,7 @@ export function MandateComposer() {
           {/* Composer */}
           <div className="mx-auto mt-6 w-full shrink-0 max-w-2xl rounded-2xl border border-violet-line/70 bg-violet-soft/70 p-1.5 pt-0">
             <p className="flex items-center gap-2 px-2.5 py-2.5 text-sm">
-              <VaultBot className="size-6" animated={isCompiling || isConfirming} />
+              <CryptoCoin className="size-6" busy={isCompiling || isConfirming} />
               <span className="font-medium text-violet-ink">{status_.title}</span>
               <span className="text-violet/60">{status_.detail}</span>
             </p>

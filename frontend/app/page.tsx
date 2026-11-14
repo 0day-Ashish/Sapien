@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PRODUCT_NAME } from "@/lib/brand";
-import { Icon, MarketGarden, PillarArt, VaultBot, VaultCluster, type IconName } from "./ui/art";
+import { Icon, MarketGarden, PillarArt, VaultCluster, type IconName } from "./ui/art";
+import { CryptoCoin } from "./ui/crypto-coin";
 import { AgentDemo } from "./ui/agent-demo";
 import { BrandMark } from "./ui/brand-icons";
 import { WaveText } from "./ui/wave-text";
@@ -47,7 +48,7 @@ function Hero() {
       </Link>
 
       <div className="relative mt-10 w-full max-w-6xl">
-        <VaultBot animated className="absolute -left-2 -top-4 hidden w-28 lg:block xl:-left-10 xl:w-32" />
+        <CryptoCoin className="absolute -left-2 top-2 hidden size-24 lg:block xl:-left-8 xl:size-28" />
         <h1 className="display-1 mx-auto max-w-[17em]">
           AI agents can trade your perps.
           <br className="hidden md:block" /> Make them put their money first.
