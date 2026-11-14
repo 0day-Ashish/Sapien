@@ -23,7 +23,7 @@ export const defaultMandate: Mandate = {
   stopLossPct: 2,
   drawdownCapPct: 10,
   blackoutWindows: [],
-  vetoThresholdUsdc: 500,
+  vetoThresholdUsdc: 1_000,
   killFlag: false,
 };
 
