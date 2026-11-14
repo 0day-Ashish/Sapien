@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { PRODUCT_NAME } from "@/lib/brand";
+import { routeMetadata } from "@/lib/site";
 import { SiteNav } from "../ui/site-nav";
 import { BondPanel } from "./bond-panel";
 
-export const metadata: Metadata = { title: `Bonds · ${PRODUCT_NAME}` };
+export const metadata: Metadata = routeMetadata("/builders");
 
 export default function BuildersPage() {
   return (

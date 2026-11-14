@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { routeMetadata } from "@/lib/site";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { Bullets, LegalPage, type LegalSection } from "../legal/legal-page";
 import { OnNear } from "./near-panel";
 
-export const metadata: Metadata = { title: `Risk Disclosure · ${PRODUCT_NAME}` };
+export const metadata: Metadata = routeMetadata("/risk");
 
 const sections: LegalSection[] = [
   {

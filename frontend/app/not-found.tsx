@@ -5,7 +5,7 @@ import { MarketGarden } from "./ui/art";
 import { SiteFooter } from "./ui/site-footer";
 import { SiteNav } from "./ui/site-nav";
 
-export const metadata: Metadata = { title: `Page not found · ${PRODUCT_NAME}` };
+export const metadata: Metadata = { title: `Page not found · ${PRODUCT_NAME}`, robots: { index: false, follow: true } };
 
 const LINKS = [
   { href: "/docs", title: "Docs", body: "How Vaults, Mandates and agents work." },

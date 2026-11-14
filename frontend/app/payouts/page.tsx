@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { PRODUCT_NAME } from "@/lib/brand";
+import { routeMetadata } from "@/lib/site";
 import { SiteNav } from "../ui/site-nav";
 import { CoverageRatio } from "./coverage";
 import { PayoutsList } from "./payouts-list";
 
-export const metadata: Metadata = { title: `Overshoot payouts · ${PRODUCT_NAME}` };
+export const metadata: Metadata = routeMetadata("/payouts");
 
 export default function PayoutsPage() {
   return (

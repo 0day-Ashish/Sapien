@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { routeMetadata } from "@/lib/site";
 import Image from "next/image";
 import Link from "next/link";
 import { PRODUCT_NAME } from "@/lib/brand";
@@ -7,7 +8,7 @@ import { Icon } from "../ui/art";
 import { SiteFooter } from "../ui/site-footer";
 import { SiteNav } from "../ui/site-nav";
 
-export const metadata: Metadata = { title: `Contact · ${PRODUCT_NAME}` };
+export const metadata: Metadata = routeMetadata("/contact");
 
 const TEAM = [
   { handle: "0day-Ashish", name: "Ashish", photo: "/ashish.jpg", area: "Product and frontend", owns: "Every screen, the Mandate chat, Builder and user features.", tone: "bg-violet-soft", ink: "text-violet", badge: "bg-violet" },

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { PRODUCT_NAME } from "@/lib/brand";
+import { routeMetadata } from "@/lib/site";
 import { MandateComposer } from "./mandate-composer";
 
-export const metadata: Metadata = { title: `Write your Mandate · ${PRODUCT_NAME}` };
+export const metadata: Metadata = routeMetadata("/mandate");
 
 // Full-screen app view: no site nav, the dashboard frame fills the window.
 export default function MandatePage() {

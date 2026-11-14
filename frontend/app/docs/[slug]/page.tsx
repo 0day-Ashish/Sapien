@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { PRODUCT_NAME } from "@/lib/brand";
+import { pageMetadata } from "@/lib/site";
 import { DOC_PAGES } from "../content";
 import { DocsShell } from "../docs-shell";
+import { docMarkdownHref } from "../markdown";
 
 const find = (slug: string) => DOC_PAGES.find((p) => p.slug && p.slug === slug);
 
@@ -12,7 +13,8 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps<"/docs/[slug]">): Promise<Metadata> {
   const page = find((await params).slug);
-  return { title: page ? `${page.nav} · ${PRODUCT_NAME} docs` : `Docs · ${PRODUCT_NAME}` };
+  if (!page) return { title: "Docs" };
+  return pageMetadata({ title: `${page.nav} · Docs`, description: page.description, path: `/docs/${page.slug}`, markdown: docMarkdownHref(page.slug) });
 }
 
 export default async function DocPage({ params }: PageProps<"/docs/[slug]">) {

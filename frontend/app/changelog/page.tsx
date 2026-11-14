@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import { routeMetadata } from "@/lib/site";
 import Link from "next/link";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { SiteFooter } from "../ui/site-footer";
 import { SiteNav } from "../ui/site-nav";
 import { ReleaseNav } from "./release-nav";
 
-export const metadata: Metadata = { title: `Changelog · ${PRODUCT_NAME}` };
+export const metadata: Metadata = routeMetadata("/changelog");
 
 type Item = { title?: string; body: string };
 type Release = {

@@ -6,7 +6,10 @@ import { SiteNav } from "../../ui/site-nav";
 import { CoverageRatio } from "../coverage";
 import { PayoutDetail } from "./payout-detail";
 
-export const metadata: Metadata = { title: `Overshoot payout · ${PRODUCT_NAME}` };
+export const metadata: Metadata = {
+  title: `Overshoot payout · ${PRODUCT_NAME}`,
+  description: "One Overshoot settlement: the stop-loss, its fill, who paid, and the evidence with its onchain hash check.",
+};
 
 // The claim id is runtime data (no generateStaticParams), so it's read inside a Suspense boundary and the rest of the
 // page stays in the static shell (cacheComponents).

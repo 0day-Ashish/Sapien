@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { PRODUCT_NAME } from "@/lib/brand";
+import { routeMetadata } from "@/lib/site";
 import { SiteNav } from "../ui/site-nav";
 import { LiveFeed } from "./live-feed";
 
-export const metadata: Metadata = { title: `Live agents · ${PRODUCT_NAME}` };
+export const metadata: Metadata = routeMetadata("/live");
 
 export default function LivePage() {
   return (

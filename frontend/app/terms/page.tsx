@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { routeMetadata } from "@/lib/site";
 import Link from "next/link";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { Bullets, LegalPage, type LegalSection } from "../legal/legal-page";
 
-export const metadata: Metadata = { title: `Terms of Use · ${PRODUCT_NAME}` };
+export const metadata: Metadata = routeMetadata("/terms");
 
 const sections: LegalSection[] = [
   {
