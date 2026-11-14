@@ -1,9 +1,0 @@
-{
-  "chainId": 84532,
-  "MockCctpForwarder": {
-    "address": "0xDE6A33788aA0e0f9EdD93BA169d421f025E7f600",
-    "deployBlock": 58585393,
-    "deployTx": "0x3366f8feefc0063116db36aae784540f25d10b135a68819edc362874efd74ca6",
-    "note": "Testnet stand-in for TokenMessengerV2 + CctpForwarder (#6). Same address as the retired HyperEVM VaultFactory v1 only because both were the deployer's first tx on their chain."
-  }
-}
