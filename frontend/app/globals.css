@@ -219,6 +219,18 @@ body {
     background:
       linear-gradient(var(--color-cream), var(--color-cream)) padding-box,
       linear-gradient(90deg, var(--color-pink), var(--color-gold) 45%, var(--color-violet)) border-box;
+    /* Three soft shadows in the outline's colours, left to right, so the outline glows. Brighter on hover. */
+    box-shadow:
+      -14px 0 22px -10px rgb(212 80 142 / 0.55),
+      0 0 22px -8px rgb(163 105 14 / 0.5),
+      14px 0 22px -10px rgb(106 79 214 / 0.6);
+    transition: box-shadow 0.3s ease;
+  }
+  .btn-gradient:hover:not(:disabled) {
+    box-shadow:
+      -18px 0 30px -8px rgb(212 80 142 / 0.75),
+      0 0 30px -6px rgb(163 105 14 / 0.65),
+      18px 0 30px -8px rgb(106 79 214 / 0.8);
   }
   .btn-round {
     display: inline-flex;
@@ -425,4 +437,14 @@ body {
 :focus-visible {
   outline: 2px solid var(--color-violet);
   outline-offset: 2px;
+}
+
+/* Changelog header: release cards cycle through a stacked deck. The front card drops away, then rejoins at the back. */
+@keyframes release-cycle {
+  0%, 20% { opacity: 1; z-index: 4; transform: translateY(0) scale(1); }
+  25% { opacity: 0; z-index: 4; transform: translateY(28px) scale(1); }
+  26%, 45% { opacity: 0.2; z-index: 1; transform: translateY(-48px) scale(0.88); }
+  50%, 70% { opacity: 0.45; z-index: 2; transform: translateY(-32px) scale(0.92); }
+  75%, 95% { opacity: 0.75; z-index: 3; transform: translateY(-16px) scale(0.96); }
+  100% { opacity: 1; z-index: 4; transform: translateY(0) scale(1); }
 }
