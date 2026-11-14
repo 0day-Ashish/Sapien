@@ -57,7 +57,11 @@ contract ProtectionFundTest is Test {
     }
 
     /// A claim with Overshoot `overshootUsdc` (USDC, 6 decimals): a short's stop at 100, size 1, filled above it.
-    function _claim(address v, bytes32 id, uint256 overshootUsdc, bool infra) internal pure returns (ProtectionFund.Claim memory) {
+    function _claim(address v, bytes32 id, uint256 overshootUsdc, bool infra)
+        internal
+        pure
+        returns (ProtectionFund.Claim memory)
+    {
         return ProtectionFund.Claim({
             vault: v,
             agentId: "momentum",
@@ -71,7 +75,10 @@ contract ProtectionFundTest is Test {
         });
     }
 
-    function _sources(ProtectionFund.Settlement memory s, uint256 reserve, uint256 bond, uint256 fromFund) internal pure {
+    function _sources(ProtectionFund.Settlement memory s, uint256 reserve, uint256 bond, uint256 fromFund)
+        internal
+        pure
+    {
         assertEq(s.fromReserve, reserve, "from Reserve");
         assertEq(s.fromBond, bond, "from Bond");
         assertEq(s.fromFund, fromFund, "from Fund");

@@ -182,7 +182,16 @@ contract ProtectionFund {
             s.fromFund = paid;
             _pay(c.vault, paid);
             emit OvershootSettled(
-                c.positionId, c.vault, c.agentId, s.overshoot, s.fromReserve, s.fromBond, paid, c.infrastructureFailure, c.evidenceHash, c.evidenceRef
+                c.positionId,
+                c.vault,
+                c.agentId,
+                s.overshoot,
+                s.fromReserve,
+                s.fromBond,
+                paid,
+                c.infrastructureFailure,
+                c.evidenceHash,
+                c.evidenceRef
             );
         }
     }
