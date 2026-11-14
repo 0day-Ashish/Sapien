@@ -17,6 +17,12 @@ import { Icon, type IconName } from "../ui/art";
 import { Logo } from "../ui/logo";
 import { WalletSlider } from "../ui/wallet-slider";
 import { TradingChart } from "../ui/trading-chart";
+import { VetoAlerts } from "../ui/veto-banner";
+import { BondPanel } from "../builders/bond-panel";
+import { FundsPanel } from "../funds/funds-panel";
+import { SolanaProviders } from "../funds/solana-providers";
+import { LeaderboardTable } from "../leaderboard/leaderboard-table";
+import { ReplayView } from "../replay/replay-view";
 import { compileMandateAction, finalizeMandateAction } from "./actions";
 
 const EXAMPLE =
@@ -116,6 +122,17 @@ function ago(at: number) {
 
 const SIDEBAR_KEY = "sapien.mandate.sidebarCollapsed";
 
+/** The views of the Mandate app. Each opens in the main panel; the URL keeps it (?view=) so it can be linked. */
+type View = "mandate" | "trading" | "leaderboard" | "replay" | "funds" | "bonds";
+const VIEWS: { id: Exclude<View, "mandate">; label: string; icon: IconName }[] = [
+  { id: "trading", label: "Live trading", icon: "chart" },
+  { id: "leaderboard", label: "Leaderboard", icon: "shield" },
+  { id: "replay", label: "Replay", icon: "replay" },
+  { id: "funds", label: "Deposit & withdraw", icon: "vault" },
+  { id: "bonds", label: "Bonds", icon: "bond" },
+];
+const isView = (v: string | null): v is View => v === "mandate" || VIEWS.some((x) => x.id === v);
+
 /** Opens and closes the sidebar (a panel icon). */
 function SidebarToggle({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
@@ -139,7 +156,16 @@ function SidebarToggle({ collapsed, onToggle }: { collapsed: boolean; onToggle: 
 
 export function MandateComposer() {
   const [chats, setChats] = useState<Chat[]>([]);
-  const [view, setView] = useState<"mandate" | "trading">("mandate");
+  const [view, setViewState] = useState<View>("mandate");
+
+  /** Switches the main panel and records it in the URL, without leaving the page. */
+  function setView(v: View) {
+    setViewState(v);
+    const url = new URL(window.location.href);
+    if (v === "mandate") url.searchParams.delete("view");
+    else url.searchParams.set("view", v);
+    window.history.replaceState(null, "", url);
+  }
   const [collapsed, setCollapsed] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [text, setText] = useState("");
@@ -155,6 +181,8 @@ export function MandateComposer() {
   useEffect(() => {
     const t = setTimeout(() => {
       setChats(loadChats());
+      const fromUrl = new URLSearchParams(window.location.search).get("view");
+      if (isView(fromUrl)) setViewState(fromUrl);
       try {
         setCollapsed(localStorage.getItem(SIDEBAR_KEY) === "1");
       } catch {}
@@ -335,38 +363,23 @@ export function MandateComposer() {
           </button>
 
           <nav aria-label="App" className={`flex flex-col gap-0.5 ${collapsed ? "items-center" : ""}`}>
-            <button
-              type="button"
-              onClick={() => setView("trading")}
-              title="Live trading"
-              aria-current={view === "trading" ? "page" : undefined}
-              className={`flex items-center gap-2 rounded-lg text-[0.8125rem] text-violet-ink transition-all duration-200 hover:bg-white/70 ${
-                collapsed ? "relative size-10 justify-center" : "px-2 py-1.5 text-left"
-              } ${view === "trading" ? "bg-white shadow-sm" : ""}`}
-            >
-              <Icon name="chart" className="size-4 shrink-0 text-violet" />
-              <span className={collapsed ? "sr-only" : "flex-1"}>Live trading</span>
-              <span className={`size-1.5 animate-pulse rounded-full bg-green ${collapsed ? "absolute right-2 top-2" : ""}`} aria-hidden="true" />
-            </button>
-            {(
-              [
-                { href: "/leaderboard", label: "Leaderboard", icon: "shield" },
-                { href: "/replay", label: "Replay", icon: "replay" },
-                { href: "/funds", label: "Deposit & withdraw", icon: "vault" },
-                { href: "/builders", label: "Bonds", icon: "bond" },
-              ] as const
-            ).map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                title={l.label}
+            {VIEWS.map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => setView(v.id)}
+                title={v.label}
+                aria-current={view === v.id ? "page" : undefined}
                 className={`flex items-center gap-2 rounded-lg text-[0.8125rem] text-violet-ink transition-all duration-200 hover:bg-white/70 ${
-                  collapsed ? "size-10 justify-center" : "px-2 py-1.5 hover:translate-x-0.5"
-                }`}
+                  collapsed ? "relative size-10 justify-center" : "px-2 py-1.5 text-left"
+                } ${view === v.id ? "bg-white shadow-sm" : ""}`}
               >
-                <Icon name={l.icon} className="size-4 shrink-0 text-violet" />
-                <span className={collapsed ? "sr-only" : "flex-1"}>{l.label}</span>
-              </Link>
+                <Icon name={v.icon} className="size-4 shrink-0 text-violet" />
+                <span className={collapsed ? "sr-only" : "flex-1"}>{v.label}</span>
+                {v.id === "trading" && (
+                  <span className={`size-1.5 animate-pulse rounded-full bg-green ${collapsed ? "absolute right-2 top-2" : ""}`} aria-hidden="true" />
+                )}
+              </button>
             ))}
           </nav>
 
@@ -439,33 +452,30 @@ export function MandateComposer() {
               </svg>
               <Logo />
             </Link>
-            <div role="tablist" aria-label="View" className="flex items-center gap-1 rounded-full bg-violet-tint p-1 text-xs">
-              {(
-                [
-                  ["mandate", activeId ? "Draft" : "New Mandate"],
-                  ["trading", "Live trading"],
-                ] as const
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={view === id}
-                  onClick={() => setView(id)}
-                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 transition-all ${
-                    view === id ? "bg-white text-violet-ink shadow-sm" : "text-violet/70 hover:text-violet"
-                  }`}
-                >
-                  {id === "trading" && <span className="size-1.5 animate-pulse rounded-full bg-green" />}
-                  {label}
-                </button>
-              ))}
-            </div>
+            <span className="rounded-full bg-violet-tint px-3 py-0.5 text-xs text-violet/70">
+              {view === "mandate" ? (activeId ? "Draft" : "New Mandate") : VIEWS.find((v) => v.id === view)!.label}
+            </span>
           </div>
 
           {view === "trading" ? (
             <div className="mt-6 flex min-h-0 flex-1 flex-col">
               <TradingChart assets={form?.allowedAssets.length ? form.allowedAssets : []} />
+            </div>
+          ) : view !== "mandate" ? (
+            <div className="-mx-5 mt-6 min-h-0 flex-1 overflow-y-auto px-5 md:-mx-10 md:px-10">
+              <div className={`mx-auto flex w-full flex-col gap-6 pb-6 ${view === "funds" || view === "bonds" ? "max-w-2xl" : "max-w-6xl"}`}>
+                {view === "leaderboard" && <LeaderboardTable />}
+                {view === "replay" && <ReplayView />}
+                {view === "funds" && (
+                  <>
+                    <SolanaProviders>
+                      <FundsPanel />
+                    </SolanaProviders>
+                    <VetoAlerts />
+                  </>
+                )}
+                {view === "bonds" && <BondPanel />}
+              </div>
             </div>
           ) : (
           <>

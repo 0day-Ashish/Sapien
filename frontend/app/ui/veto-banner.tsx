@@ -32,7 +32,8 @@ export function VetoBanner() {
   const { address, status } = useConnection();
   const [vault, setVault] = useState<Address | null>(null);
   const [pending, setPending] = useState<PendingVeto[]>([]);
-  const [now, setNow] = useState(() => Date.now());
+  // 0 until mounted: reading the clock during render breaks prerendering (cacheComponents). Polls set it.
+  const [now, setNow] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const seen = useRef(new Set<string>());
