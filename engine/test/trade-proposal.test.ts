@@ -90,6 +90,15 @@ describe("Mandate Check on a Trade Proposal", () => {
     expect(ports.exchange.orders).toEqual([]);
   });
 
+  it("rejects an order below Hyperliquid's 10 USDC minimum before committing anything", async () => {
+    const { ports, engine } = setup();
+    const result = await engine.handle(proposal({ size: 10.05 / 65_000 })); // 10.05 USDC: too close once size is rounded down
+
+    expect(result).toMatchObject({ kind: "rejected", rejection: { code: "below-minimum-order" } });
+    expect(ports.chain.commitments).toEqual([]);
+    expect(ports.exchange.orders).toEqual([]);
+  });
+
   it("rejects malformed proposals", async () => {
     const { ports, engine } = setup();
     for (const bad of [{ size: 0 }, { size: -1 }, { leverage: 0 }, { size: Number.NaN }]) {
