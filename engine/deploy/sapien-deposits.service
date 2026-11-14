@@ -1,0 +1,15 @@
+[Unit]
+Description=Sapien deposit forwarder (Base Sepolia + Solana devnet burns -> Vaults on HyperCore)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/sapien/engine
+ExecStart=/home/ubuntu/sapien/engine/node_modules/.bin/tsx scripts/forward-deposits.ts
+Restart=always
+RestartSec=15
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

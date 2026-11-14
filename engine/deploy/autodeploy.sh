@@ -5,7 +5,7 @@
 # 2. CI gate: the commit's `engine` and `contracts` check runs must have finished green. Still running: retry next
 #    tick. Failed: skip that commit (logged once) and keep the running engine.
 # 3. Move the checkout to it. If engine/ or contracts/deployments/ changed: npm ci (lockfile changed only), restart
-#    sapien-engine, health-check its HTTP. Unhealthy after 90s: roll back to the previous commit and restart.
+#    sapien-engine and sapien-deposits, health-check its HTTP. Unhealthy after 90s: roll back to the previous commit and restart.
 #
 # .env.local, .data/ and .state/ are gitignored, so moving the checkout never touches keys or engine state.
 # Logs: journalctl -u sapien-autodeploy
@@ -22,6 +22,7 @@ trap 'rm -f "$AUTODEPLOY_COPY"' EXIT
 REPO_DIR="${REPO_DIR:-/home/ubuntu/sapien}"
 REPO_SLUG="${REPO_SLUG:-SachPlayZ/Sapien}"
 SERVICE="${SERVICE:-sapien-engine}"
+OTHER_SERVICES=(sapien-deposits) # restarted with the engine; not health-checked
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8787/leaderboard}"
 REQUIRED_CHECKS=(engine contracts)
 SKIP_FILE="$REPO_DIR/.autodeploy-skipped"
@@ -91,7 +92,7 @@ healthy() {
 }
 
 install_deps "$changed"
-sudo systemctl restart "$SERVICE"
+sudo systemctl restart "$SERVICE" "${OTHER_SERVICES[@]}"
 if healthy; then
   echo "Deployed ${target:0:7}: $SERVICE healthy"
   exit 0
@@ -101,7 +102,7 @@ echo "${target:0:7}: $SERVICE unhealthy after restart; rolling back to ${current
 journalctl -u "$SERVICE" -n 20 --no-pager || true
 git reset -q --hard "$current"
 install_deps "$changed"
-sudo systemctl restart "$SERVICE"
+sudo systemctl restart "$SERVICE" "${OTHER_SERVICES[@]}"
 echo "$target" >"$SKIP_FILE"
 if healthy; then echo "Rolled back to ${current:0:7}: healthy"; else echo "Rollback to ${current:0:7} is unhealthy too"; fi
 exit 1
