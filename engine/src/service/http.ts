@@ -4,6 +4,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { HandleResult, VaultStatus } from "../engine.js";
+import { BindingError, type VaultService } from "../near/vaults.js";
 import type { RunnerRecord } from "../runner/runner.js";
 import type { AgentWalletStore } from "./agent-wallets.js";
 import type { LeaderboardRow } from "./leaderboard.js";
@@ -18,6 +19,8 @@ export type HttpOptions = {
   feed?: () => RunnerRecord[];
   /** Every runner record kept on disk, oldest first: replay reads executed decisions from here (#20). */
   history?: () => RunnerRecord[];
+  /** NEAR accounts' Vaults: binding and Mandate publishing (src/near/vaults.ts). Without it the /near routes 404. */
+  nearVaults?: VaultService;
   /** The public leaderboard of Specialist Agents (#18). */
   leaderboard?: () => Promise<LeaderboardRow[]>;
   /** A Vault's protection and Lead Agent state, including trades waiting in their Veto Window. */
@@ -31,7 +34,7 @@ export type HttpOptions = {
 export async function startHttp(o: HttpOptions) {
   const server = createServer((req, res) => {
     cors(res, o.allowOrigin);
-    route(req, res, o).catch((e) => send(res, 500, { error: (e as Error).message }));
+    route(req, res, o).catch((e) => send(res, e instanceof BindingError ? e.status : 500, { error: (e as Error).message }));
   });
   await new Promise<void>((resolve) => server.listen(o.port, o.host ?? "127.0.0.1", resolve));
   const { port } = server.address() as AddressInfo;
@@ -47,6 +50,26 @@ async function route(req: IncomingMessage, res: ServerResponse, o: HttpOptions) 
 
   // The UI calls this right before VaultFactory.createVault(agentWallet).
   if (req.method === "POST" && path === "/agent-wallets") return send(res, 201, { address: o.agentWallets.create() });
+
+  // NEAR accounts (ADR-0007). POST /near/vaults { account } → { account, evmVault, agentWallet } (201 when it was just
+  // created, 200 if it already existed); GET /near/vaults/:account → same, or 404;
+  // POST /near/mandate { account, mandate } → { mandateHash, txHash }, or 409 if the hash isn't the one committed on NEAR.
+  if (o.nearVaults) {
+    if (req.method === "POST" && path === "/near/vaults") {
+      const { account } = (await readJson(req)) as { account?: unknown };
+      const { binding, created } = await o.nearVaults.bind(account);
+      return send(res, created ? 201 : 200, binding);
+    }
+    const vault = path.match(/^\/near\/vaults\/([^/]+)$/);
+    if (req.method === "GET" && vault) {
+      const binding = await o.nearVaults.get(decodeURIComponent(vault[1]!));
+      return binding ? send(res, 200, binding) : send(res, 404, { error: "No Vault for that NEAR account" });
+    }
+    if (req.method === "POST" && path === "/near/mandate") {
+      const body = (await readJson(req)) as { account?: unknown; mandate?: unknown };
+      return send(res, 200, await o.nearVaults.publishMandate(body.account, body.mandate));
+    }
+  }
 
   // Agent's-eye view feed, newest first: GET /feed?vault=0x…&limit=50
   if (req.method === "GET" && path === "/feed" && o.feed) {

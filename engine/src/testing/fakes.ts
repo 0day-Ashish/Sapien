@@ -147,10 +147,13 @@ export class FakeChain implements ChainPort {
   async reportExposure(totalUsdc: number) {
     this.exposures.push(totalUsdc);
   }
+  /** What settleEpoch reports as the Builder share paid out (USDC subunits). Unset: the chain doesn't report one. */
+  builderShare?: bigint;
   async settleEpoch(settlement: EpochSettlement) {
     this.journal.push("chain.settleEpoch");
     if (this.failSettlementFor.has(settlement.vaultId)) throw new Error("FeeRouter.settleEpoch reverted");
     this.epochSettlements.push(settlement);
+    return this.builderShare === undefined ? undefined : { builderSubunits: this.builderShare };
   }
   async meetsBondMinimum(agentId: string) {
     return !this.belowBondMinimum.has(agentId);
