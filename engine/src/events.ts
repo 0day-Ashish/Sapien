@@ -49,8 +49,18 @@ export type DepositLanded = {
   amountUsdc: number;
 };
 
+/** The Allocator's decision for a Vault. With pendingLeadAgentId, the switch waits until the Vault is Flat. */
+export type Allocation = {
+  type: "allocation";
+  vaultId: VaultId;
+  leadAgentId: AgentId | undefined;
+  pendingLeadAgentId?: AgentId;
+  reason: string;
+};
+
 export type EngineEvent =
   | TradeProposal
+  | Allocation
   | Veto
   | KillSwitch
   | PriceTick

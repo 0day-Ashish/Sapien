@@ -5,6 +5,7 @@ import { ExchangeClient, HttpTransport, InfoClient } from "@nktkas/hyperliquid";
 import { type Address, createPublicClient, createWalletClient, formatUnits, http, parseAbi, parseAbiItem, type PublicClient } from "viem";
 import type { PrivateKeyAccount } from "viem/accounts";
 import { hyperEvmTestnet } from "../adapters/hyperevm.js";
+import type { AgentWalletStore } from "../service/agent-wallets.js";
 import type { Burn, DepositPorts } from "./forward.js";
 
 export type LiveDepositConfig = {
@@ -14,6 +15,8 @@ export type LiveDepositConfig = {
   depositAccount: PrivateKeyAccount;
   /** The Execution Engine operator: the only account a Vault accepts `registerAgentWallet` from. */
   engine: PrivateKeyAccount;
+  /** Records which Vault each engine-issued Agent Wallet trades for (#38). */
+  agentWallets?: AgentWalletStore;
 };
 
 const factoryAbi = parseAbi(["function depositTargetOf(address owner) view returns (address)"]);
@@ -46,6 +49,12 @@ export function liveDepositPorts(config: LiveDepositConfig): DepositPorts {
     },
     async registerAgentWallet(vault) {
       const agent = await evm.readContract({ address: vault, abi: vaultAbi, functionName: "agentWallet" });
+      try {
+        config.agentWallets?.bind(vault, agent);
+      } catch (e) {
+        // Not engine-issued (or already bound elsewhere): the deposit is still credited, the Vault just can't trade.
+        console.warn(`Vault ${vault}: Agent Wallet ${agent} not bound: ${(e as Error).message}`);
+      }
       const hash = await wallet.writeContract({ address: vault, abi: vaultAbi, functionName: "registerAgentWallet", args: [agent] });
       const receipt = await evm.waitForTransactionReceipt({ hash });
       if (receipt.status !== "success") throw new Error(`registerAgentWallet reverted: ${hash}`);

@@ -9,7 +9,9 @@
     "smoke:trade": "tsx scripts/smoke-guarded-trade.ts",
     "smoke:chain": "tsx scripts/smoke-chain.ts",
     "deposits:forward": "tsx scripts/forward-deposits.ts",
-    "smoke:withdraw": "tsx scripts/smoke-withdraw.ts"
+    "smoke:withdraw": "tsx scripts/smoke-withdraw.ts",
+    "smoke:agents": "tsx scripts/smoke-agents.ts",
+    "serve": "tsx scripts/serve.ts"
   },
   "devDependencies": {
     "@types/node": "^24",
@@ -18,7 +20,9 @@
     "vitest": "4.1.12"
   },
   "dependencies": {
+    "@google/genai": "2.32.0",
     "@nktkas/hyperliquid": "0.33.3",
+    "@typesafe-ai/sdk": "0.7.0",
     "viem": "2.57.10"
   }
 }
