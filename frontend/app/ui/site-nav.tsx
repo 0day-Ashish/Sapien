@@ -21,7 +21,7 @@ export function SiteNav() {
           <Link href="/" aria-label={`${PRODUCT_NAME} home`}>
             <Logo />
           </Link>
-          <nav aria-label="Main" className="hidden items-center gap-9 text-[0.9375rem] font-medium text-violet xl:flex">
+          <nav aria-label="Main" className="hidden items-center gap-9 text-[0.9375rem] font-normal text-violet xl:flex">
             {links.map((link) => (
               <Link
                 key={link.label}
@@ -35,7 +35,7 @@ export function SiteNav() {
           </nav>
         </div>
         <div className="flex items-center">
-          <div className="mr-6 hidden items-center gap-11 text-[0.9375rem] font-medium text-violet md:flex">
+          <div className="mr-6 hidden items-center gap-11 text-[0.9375rem] font-normal text-violet md:flex">
             <Link href="/#protection" className="hover:text-violet-ink">
               Read the pitch
             </Link>
