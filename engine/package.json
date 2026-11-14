@@ -9,9 +9,9 @@
     "smoke:trade": "tsx scripts/smoke-guarded-trade.ts",
     "smoke:chain": "tsx scripts/smoke-chain.ts",
     "deposits:forward": "tsx scripts/forward-deposits.ts",
-    "smoke:withdraw": "tsx scripts/smoke-withdraw.ts",
     "smoke:agents": "tsx scripts/smoke-agents.ts",
-    "serve": "tsx scripts/serve.ts"
+    "serve": "tsx scripts/serve.ts",
+    "smoke:round-trip": "tsx scripts/smoke-round-trip.ts"
   },
   "devDependencies": {
     "@types/node": "^24",
