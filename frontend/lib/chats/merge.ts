@@ -2,7 +2,15 @@
 // Kept free of server code so the client and the tests can import it.
 
 /** One drafting session. `form` is the Mandate form as the composer holds it. */
-export type StoredChat = { id: string; text: string | null; form: unknown; assumptions: string[]; updatedAt: number };
+export type StoredChat = {
+  id: string;
+  text: string | null;
+  /** The conversation with the Mandate assistant. Optional: chats saved before the assistant could chat have none. */
+  messages?: { role: "user" | "assistant"; text: string }[];
+  form: unknown;
+  assumptions: string[];
+  updatedAt: number;
+};
 
 export const MAX_CHATS = 20;
 /** The largest chat the server accepts, as JSON. A real draft is well under 5 KB. */

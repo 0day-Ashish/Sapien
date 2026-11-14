@@ -11,6 +11,10 @@ import { MAX_CHAT_BYTES, MAX_CHATS, type StoredChat } from "./merge";
 const chatSchema = z.object({
   id: z.string().min(1).max(64),
   text: z.string().max(4000).nullable(),
+  messages: z
+    .array(z.object({ role: z.enum(["user", "assistant"]), text: z.string().max(2000) }))
+    .max(20)
+    .optional(),
   form: z.unknown(),
   assumptions: z.array(z.string().max(500)).max(20),
   updatedAt: z.number().int().nonnegative(),

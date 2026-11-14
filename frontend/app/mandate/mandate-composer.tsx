@@ -28,6 +28,7 @@ import { SolanaProviders } from "../funds/solana-providers";
 import { LeaderboardTable } from "../leaderboard/leaderboard-table";
 import { ReplayView } from "../replay/replay-view";
 import { BondsDemo, FundsDemo } from "./demo-views";
+import type { Turn } from "@/lib/mandate/compile";
 import { compileMandateAction, finalizeMandateAction } from "./actions";
 
 const EXAMPLE =
@@ -92,7 +93,8 @@ const pill =
 
 // Recent chats: each drafting session. They are saved to the server under this browser's history key, and kept in
 // the browser too, so the list shows at once and still works when the server store is off or unreachable.
-type Chat = { id: string; text: string | null; form: Form; assumptions: string[]; updatedAt: number };
+/** A drafting session. `text` is the first thing the user wrote (the title); `messages` is the whole conversation. */
+type Chat = { id: string; text: string | null; messages?: Turn[]; form: Form | null; assumptions: string[]; updatedAt: number };
 const CHATS_KEY = "sapien.mandate.chats";
 const HISTORY_KEY = "sapien.mandate.historyKey";
 /** How long to wait after the last edit before saving a chat to the server. */
@@ -129,9 +131,11 @@ function storeChats(chats: Chat[]) {
 
 const chatTitle = (c: Chat) => (c.text ? c.text : "Filled in by hand");
 const chatSubtitle = (c: Chat) =>
-  [c.form.allowedAssets.join(", "), c.form.leverageCap && `${c.form.leverageCap}×`, c.form.stopLossPct && `SL ${c.form.stopLossPct}%`]
-    .filter(Boolean)
-    .join(" · ");
+  c.form
+    ? [c.form.allowedAssets.join(", "), c.form.leverageCap && `${c.form.leverageCap}×`, c.form.stopLossPct && `SL ${c.form.stopLossPct}%`]
+        .filter(Boolean)
+        .join(" · ")
+    : "Conversation";
 
 function ago(at: number) {
   const m = Math.floor((Date.now() - at) / 60_000);
@@ -193,7 +197,8 @@ export function MandateComposer() {
   const [collapsed, setCollapsed] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [text, setText] = useState("");
-  const [sentText, setSentText] = useState<string | null>(null);
+  /** The conversation with the Mandate assistant, oldest first. */
+  const [messages, setMessages] = useState<Turn[]>([]);
   const [form, setForm] = useState<Form | null>(null);
   const [assumptions, setAssumptions] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -256,10 +261,10 @@ export function MandateComposer() {
   }, []);
 
   /** Creates or updates a chat in Recent, newest first. */
-  function persist(id: string, patch: Partial<Chat> & { form: Form }) {
+  function persist(id: string, patch: Partial<Chat>) {
     setChats((current) => {
       const prev = current.find((c) => c.id === id);
-      const chat: Chat = { id, text: null, assumptions: [], ...prev, ...patch, updatedAt: Date.now() };
+      const chat: Chat = { id, text: null, form: null, assumptions: [], ...prev, ...patch, updatedAt: Date.now() };
       const next = [chat, ...current.filter((c) => c.id !== id)].slice(0, MAX_CHATS);
       storeChats(next);
       saveSoon(chat);
@@ -279,7 +284,7 @@ export function MandateComposer() {
   function openChat(c: Chat) {
     setActiveId(c.id);
     setText("");
-    setSentText(c.text);
+    setMessages(c.messages ?? (c.text ? [{ role: "user", text: c.text }] : []));
     setForm(c.form);
     setAssumptions(c.assumptions);
     setNotice(null);
@@ -323,24 +328,42 @@ export function MandateComposer() {
     });
   }
 
+  /** Sends the user's message. The assistant chats until a specific rule is given, then drafts the Mandate. */
   function compile() {
+    const sent = text.trim();
+    if (!sent || isCompiling) return;
     setNotice(null);
     setConfirmed(null);
-    const sent = text.trim();
-    setSentText(sent);
+    const conversation: Turn[] = [...messages, { role: "user", text: sent }];
+    setMessages(conversation);
+    setText("");
     startCompile(async () => {
-      const result = await compileMandateAction(text);
-      if (result.ok) {
-        const drafted = toForm(result.compiled.mandate);
-        setForm(drafted);
-        setAssumptions(result.compiled.assumptions);
-        setText("");
-        const id = activeId ?? crypto.randomUUID();
-        setActiveId(id);
-        persist(id, { text: sent, form: drafted, assumptions: result.compiled.assumptions });
-      } else {
+      const result = await compileMandateAction(conversation);
+      if (!result.ok) {
+        // Take the message back so it can be sent again.
+        setMessages(messages);
+        setText(sent);
         setNotice(result.message);
+        return;
       }
+      const id = activeId ?? crypto.randomUUID();
+      setActiveId(id);
+      const title = conversation.find((t) => t.role === "user")?.text ?? sent;
+      if (result.kind === "reply") {
+        const next: Turn[] = [...conversation, { role: "assistant", text: result.reply }];
+        setMessages(next);
+        persist(id, { text: title, messages: next, form, assumptions });
+        return;
+      }
+      const drafted = toForm(result.compiled.mandate);
+      const next: Turn[] = [
+        ...conversation,
+        { role: "assistant", text: result.reply || "Here's a draft from what you've told me. Check every field below before you confirm." },
+      ];
+      setMessages(next);
+      setForm(drafted);
+      setAssumptions(result.compiled.assumptions);
+      persist(id, { text: title, messages: next, form: drafted, assumptions: result.compiled.assumptions });
     });
   }
 
@@ -348,7 +371,7 @@ export function MandateComposer() {
     setNotice(null);
     setAssumptions([]);
     setConfirmed(null);
-    setSentText(null);
+    setMessages([]);
     setForm(BLANK_FORM);
     const id = crypto.randomUUID();
     setActiveId(id);
@@ -358,7 +381,7 @@ export function MandateComposer() {
   function startOver() {
     setActiveId(null);
     setText("");
-    setSentText(null);
+    setMessages([]);
     setForm(null);
     setAssumptions([]);
     setNotice(null);
@@ -371,10 +394,12 @@ export function MandateComposer() {
     : isConfirming
       ? { title: "Looking up release dates", detail: "" }
       : isCompiling
-        ? { title: "Drafting your Mandate", detail: "" }
+        ? { title: "Thinking", detail: "" }
         : form
           ? { title: "Check every field", detail: validation?.ok ? "all fields valid" : "some fields need fixing" }
-          : { title: "Waiting for your rules", detail: "" };
+          : messages.length
+            ? { title: "Chatting", detail: "a draft appears once you name a rule" }
+            : { title: "Waiting for your rules", detail: "" };
 
   const summary: { icon: IconName; c: string; label: string; value: string }[] = form
     ? [
@@ -553,7 +578,7 @@ export function MandateComposer() {
           <>
           <div className="-mx-5 mt-6 flex min-h-0 flex-1 flex-col overflow-y-auto px-5 md:-mx-10 md:px-10">
           <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6">
-            {!sentText && !form && (
+            {messages.length === 0 && !form && (
               <div className="flex flex-1 flex-col items-center justify-center gap-4 py-10 text-center">
                 <p className="title-serif text-violet-ink">Tell me how careful to be with your money.</p>
                 <p className="max-w-md text-sm text-violet/70">
@@ -563,14 +588,25 @@ export function MandateComposer() {
               </div>
             )}
 
-            {sentText && (
-              <p className="max-w-[85%] self-end whitespace-pre-wrap rounded-2xl bg-violet-tint px-4 py-2.5 text-sm text-violet-ink">{sentText}</p>
+            {messages.map((m, i) =>
+              m.role === "user" ? (
+                <p key={i} className="max-w-[85%] self-end whitespace-pre-wrap rounded-2xl bg-violet-tint px-4 py-2.5 text-sm text-violet-ink">
+                  {m.text}
+                </p>
+              ) : (
+                <div key={i} className="flex max-w-[90%] items-start gap-2.5 self-start">
+                  <span aria-hidden="true" className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-violet-soft text-violet">
+                    <Icon name="mandate" className="size-4" />
+                  </span>
+                  <p className="whitespace-pre-wrap rounded-2xl border border-violet-line/70 bg-white px-4 py-2.5 text-sm text-violet-ink">{m.text}</p>
+                </div>
+              ),
             )}
 
             {isCompiling && (
               <p className="flex items-center gap-2 text-[0.8125rem] text-violet/80">
                 <Icon name="timer" className="size-4 animate-spin [animation-duration:2s]" />
-                Drafting your Mandate…
+                Thinking…
               </p>
             )}
 
@@ -796,7 +832,11 @@ export function MandateComposer() {
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && text.trim() && !isCompiling) compile();
+                  // Enter sends, Shift+Enter adds a line (and IME composition is left alone).
+                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    compile();
+                  }
                 }}
               />
               <div className="flex flex-wrap items-center justify-between gap-2 text-violet">
@@ -812,13 +852,13 @@ export function MandateComposer() {
                 </span>
                 <button
                   type="button"
-                  aria-label={form ? "Draft again" : "Draft my Mandate"}
-                  title={form ? "Draft again" : "Draft my Mandate (⌘↵)"}
+                  aria-label="Send"
+                  title="Send (Enter)"
                   disabled={isCompiling || !text.trim()}
                   onClick={compile}
                   className="flex h-9 items-center gap-2 rounded-full bg-violet px-4 font-mono text-xs font-bold uppercase text-white transition-all duration-200 hover:scale-105 hover:bg-violet-deep disabled:pointer-events-none disabled:opacity-40"
                 >
-                  {isCompiling ? "Drafting…" : form ? "Draft again" : "Draft"}
+                  {isCompiling ? "Sending…" : "Send"}
                   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="size-3.5">
                     <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>

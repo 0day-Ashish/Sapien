@@ -14,6 +14,8 @@ describe.each(cases)("compileMandate against %s", (_name, key, draft) => {
   it.skipIf(!key)("compiles the brief's example to the expected fields", async () => {
     const result = await compileMandate(BRIEF_EXAMPLE, draft);
     if (!result.ok) throw new Error(`${result.reason}: ${result.message}`);
+    // The brief's example names specific rules, so the assistant must draft rather than chat.
+    if (result.kind !== "draft") throw new Error(`Expected a draft, got a reply: ${result.reply}`);
     const { mandate } = result.compiled;
 
     expect([...mandate.allowedAssets].sort()).toEqual(["BTC", "ETH"]);
