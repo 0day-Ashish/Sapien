@@ -9,6 +9,7 @@ const links = [
   { href: "/#safeguards", label: "Safeguards" },
   { href: "/#builders", label: "Builders" },
   { href: REPO, label: "Docs", external: true },
+  { href: `${REPO}/pulls?q=is%3Apr+is%3Amerged`, label: "Changelog", external: true },
   { href: `${REPO}/issues`, label: "Contact", external: true },
 ];
 
