@@ -1,50 +1,44 @@
 # Design rules
 
-Every page in `frontend/` follows these rules. The tokens and component classes live in `frontend/app/globals.css`; the shared pieces live in `frontend/app/ui/`.
+Every page in `frontend/` follows these rules. Tokens and component classes live in `frontend/app/globals.css`; shared pieces live in `frontend/app/ui/`. The product is **Sapien** (set once in `frontend/lib/brand.ts`).
 
-The look is an editorial one: warm paper, near-black ink, large light serif headlines, small mono labels, pill buttons and softly rounded cards. tines.com was the reference for this *kind* of design. The palette, logo, copy and visuals are our own; do not copy theirs.
+The look follows tines.com's layout and component style: cream page, violet as the single brand colour, big geometric sans headlines, serif supporting lines, mono uppercase pill buttons, outlined cards in a family of soft colours, and colourful illustration. The logo, mascot, illustrations, copy and fonts are our own; never copy Tines' logo, mascot, flower art, wording or customer logos.
 
 ## Fonts
 
 | Use | Font | Class |
 | --- | --- | --- |
-| Headlines | Fraunces, weight 300 to 400 | `display-1`, `display-2`, `display-3`, or `font-display` |
-| Body and controls | Geist | default |
-| Labels, numbers in tables, hashes | Geist Mono | `eyebrow`, `chip`, or `font-mono` |
-
-- One `display-1` per page. Section titles use `display-2`; card titles use `display-3`.
-- Lead paragraphs use `lede`. Body text is 15 to 16px in `text-ink-soft` or `text-ink`.
-- Small labels above a title or a value use `eyebrow` (mono, uppercase, letter-spaced).
+| Headlines | Instrument Sans 500, violet | `display-1` (one per page), `display-2`, `display-3` |
+| Serif headlines and supporting lines | Newsreader | `display-serif`, `title-serif`, `lede` |
+| Body and controls | Instrument Sans | default |
+| Buttons, labels, eyebrows | Geist Mono 700, uppercase | `btn`, `eyebrow`, `label-mono`, `chip` |
 
 ## Colour
 
 | Token | Use |
 | --- | --- |
-| `paper`, `paper-raised`, `paper-sunk` | Page, cards, alternate bands and inset areas |
-| `ink`, `ink-soft`, `ink-faint` | Text: main, secondary, hints |
-| `line`, `line-strong` | Borders |
-| `night`, `night-raised`, `on-night`, `on-night-soft` | Dark bands and the footer |
-| `forest` | Primary accent, links, "passed", success |
-| `amber` | Waiting states, such as an open Veto Window |
-| `clay` | Stop, kill, loss, errors |
-
-One theme only. Accents carry meaning, so do not use them for decoration: forest means good or go, amber means waiting, clay means stop or loss.
-
-## Layout
-
-- Wrap page content in `container-page`. Give each landing section `section` for vertical spacing.
-- Alternate plain sections with `bg-paper-sunk/60` bands; use one `bg-night` band at most per page.
-- App pages (Mandate, Vault, and later ones) use a single column up to `max-w-2xl`, or `max-w-5xl` for dashboards.
+| `cream`, `cream-raised`, `cream-sunk` | Page, cards, inset areas |
+| `violet`, `violet-deep`, `violet-ink` | Brand: headings, links, buttons, marketing body text |
+| `violet-soft`, `violet-tint`, `violet-line` | Panels, hovers, borders |
+| `orange`, `green`, `pink`, `blue`, `gold`, `teal`, each with `-soft` | Outlined cards and illustration. On status: green = passed, gold = waiting, orange = stop or loss |
+| `ink`, `ink-soft`, `ink-faint`, `line` | Text and borders inside app pages |
 
 ## Components
 
-- **Buttons**: `btn` plus `btn-primary` (one per view), `btn-secondary`, or `btn-on-night`. Add `btn-lg` for hero actions. Always pill-shaped.
-- **Cards**: `card`, with `shadow-card` only for the one card a section is about.
-- **Chips**: `chip`, plus `chip-forest`, `chip-amber` or `chip-clay` for status.
-- **Logo, nav, footer**: `Logo`, `SiteNav`, `SiteFooter` from `app/ui/`. The product name is set once in `frontend/lib/brand.ts`.
+- **Nav**: `SiteNav`, a floating frosted bar with fully rounded ends, about 62px high, inset from the edges.
+- **Buttons**: `btn` + `btn-primary` (filled violet), `btn-secondary` (1px violet outline) or `btn-gradient` (multi-colour outline). One size everywhere, taken from the reference: 13px bold mono, min height 2.75em, padding 0 1.4em, min width 6.5em.
+- **Cards**: `card` (white) or `card-outline` with a colour class such as `text-green border-green`, for outlined cards whose text takes the same colour.
+- **Chips**: `chip`, plus `chip-forest`, `chip-amber`, `chip-clay` or `chip-solid`.
+- **Art**: `MarketGarden` (candlesticks and coins), `VaultBot` (the mascot), `VaultRow`, `PillarArt` and `Icon`, all in `app/ui/art.tsx`.
+- **Brand logos**: `BrandMark` in `app/ui/brand-icons.tsx`. Only for projects we actually build on, taken from their own sites or Simple Icons, tinted violet.
+
+## Layout
+
+- `container-page` (max 90rem) for wide sections, `container-narrow` (max 75rem) for text-led ones, `section` for vertical rhythm.
+- Hero: centred, announcement pill, mascot beside a two-line headline, serif line, logo strip, two buttons, then a product panel.
 
 ## Words
 
-- Use the terms in `GLOSSARY.md`, capitalised as they are there (Vault, Mandate, Bond, Overshoot).
+- Use `GLOSSARY.md` terms, capitalised as there (Vault, Mandate, Bond, Overshoot).
 - Say "stop-loss protected". Never say "guaranteed".
-- Mark any mock data on a marketing page as an example.
+- Mark mock data on marketing pages as an illustration.

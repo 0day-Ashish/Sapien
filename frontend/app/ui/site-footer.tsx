@@ -1,51 +1,95 @@
 import Link from "next/link";
 import { PRODUCT_NAME } from "@/lib/brand";
-import { Logo } from "./logo";
 
-const columns = [
+const REPO = "https://github.com/0day-Ashish/hackmatrix-26";
+
+type FooterLink = { href: string; label: string; strong?: boolean; external?: boolean };
+
+const columns: { title: string; groups: FooterLink[][] }[] = [
   {
     title: "Product",
-    links: [
-      { href: "/#how-it-works", label: "How it works" },
-      { href: "/#protection", label: "Protection" },
-      { href: "/#control", label: "Control" },
+    groups: [
+      [
+        { href: "/mandate", label: "Write a Mandate", strong: true },
+        { href: "/#how-it-works", label: "How it works" },
+        { href: "/#protection", label: "Protection" },
+        { href: "/#control", label: "Control" },
+      ],
     ],
   },
   {
-    title: "App",
-    links: [
-      { href: "/mandate", label: "Write your Mandate" },
-      { href: "/#builders", label: "For Builders" },
+    title: "Protocol",
+    groups: [
+      [
+        { href: "/#safeguards", label: "Safeguards", strong: true },
+        { href: "/#safeguards", label: "Veto Window" },
+        { href: "/#safeguards", label: "Kill Switch" },
+        { href: "/#safeguards", label: "Replay" },
+      ],
+    ],
+  },
+  {
+    title: "Builders",
+    groups: [
+      [
+        { href: "/#builders", label: "Bring an agent", strong: true },
+        { href: "/#builders", label: "Bonds" },
+        { href: "/#safeguards", label: "Leaderboard" },
+      ],
+    ],
+  },
+  {
+    title: "Open source",
+    groups: [
+      [
+        { href: REPO, label: "GitHub", strong: true, external: true },
+        { href: `${REPO}/tree/main/docs/adr`, label: "Design decisions", external: true },
+        { href: `${REPO}/blob/main/GLOSSARY.md`, label: "Glossary", external: true },
+      ],
+    ],
+  },
+  {
+    title: "Risk",
+    groups: [
+      [
+        { href: "/#protection", label: "Stop-loss protection", strong: true },
+        { href: "/#protection", label: "Protection Fund" },
+        { href: "/#protection", label: "Protocol Reserve" },
+      ],
     ],
   },
 ];
 
 export function SiteFooter() {
   return (
-    <footer className="bg-night text-on-night">
-      <div className="container-page grid gap-12 py-16 md:grid-cols-[1.4fr_1fr_1fr]">
-        <div className="flex flex-col gap-4">
-          <Logo />
-          <p className="max-w-sm text-[0.9375rem] text-on-night-soft">
-            Bonded AI agents trade your Hyperliquid Vault under a Mandate you sign. Stop-loss protected.
-          </p>
-        </div>
+    <footer className="container-page pb-10 pt-24 text-violet">
+      <div className="grid grid-cols-2 gap-x-8 gap-y-12 md:grid-cols-3 lg:grid-cols-5">
         {columns.map((column) => (
-          <div key={column.title} className="flex flex-col gap-3">
-            <p className="eyebrow !text-on-night-soft">{column.title}</p>
-            {column.links.map((link) => (
-              <Link key={link.href} href={link.href} className="text-[0.9375rem] hover:underline">
-                {link.label}
-              </Link>
+          <div key={column.title} className="flex flex-col gap-6">
+            <p className="eyebrow !text-xs">{column.title}</p>
+            {column.groups.map((group, i) => (
+              <ul key={i} className="flex flex-col gap-2 text-[0.9375rem]">
+                {group.map((link) => (
+                  <li key={link.label}>
+                    <Link
+                      href={link.href}
+                      {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                      className={`hover:text-violet-ink ${link.strong ? "font-semibold" : ""}`}
+                    >
+                      {link.label}
+                      {link.external && <span aria-hidden="true"> ↗</span>}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             ))}
           </div>
         ))}
       </div>
-      <div className="border-t border-white/10">
-        <div className="container-page flex flex-col gap-2 py-6 text-[0.8125rem] text-on-night-soft md:flex-row md:justify-between">
-          <p>{PRODUCT_NAME} runs on testnets only. Nothing here is investment advice.</p>
-          <p>Stop-loss protection covers Overshoot up to stated limits. It is not a guarantee against loss.</p>
-        </div>
+      <div className="mt-20 flex flex-col items-start gap-4 text-[0.9375rem] md:flex-row md:items-center md:justify-between">
+        <p className="font-semibold">© 2026 {PRODUCT_NAME}</p>
+        <p className="eyebrow rounded-full bg-violet-tint px-4 py-2 !text-[0.6875rem]">Testnet only · Not investment advice</p>
+        <p className="font-semibold">Stop-loss protected, never guaranteed</p>
       </div>
     </footer>
   );

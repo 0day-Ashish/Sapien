@@ -10,7 +10,7 @@ export default function MandatePage() {
   return (
     <>
       <SiteNav />
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-5 py-16">
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-5 py-16 text-ink">
         <div className="flex flex-col gap-4">
           <p className="eyebrow">Mandate</p>
           <h1 className="display-2">Write your Mandate</h1>

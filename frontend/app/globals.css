@@ -2,51 +2,70 @@
 
 /* Design tokens. The rules for using them are in docs/design.md. */
 
-/* The product has one theme (paper). `dark:` classes apply only under an explicit .dark ancestor. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   /* Surfaces */
-  --color-paper: #faf6ef;
-  --color-paper-raised: #fffdf9;
-  --color-paper-sunk: #f2ece1;
-  --color-night: #14201b;
-  --color-night-raised: #1d2c26;
+  --color-cream: #fbf8f3;
+  --color-cream-raised: #ffffff;
+  --color-cream-sunk: #f4efe7;
 
-  /* Text and lines */
-  --color-ink: #1c1a17;
-  --color-ink-soft: #57534b;
-  --color-ink-faint: #8a8478;
-  --color-line: #e4dccd;
-  --color-line-strong: #cfc5b2;
-  --color-on-night: #f3efe6;
-  --color-on-night-soft: #a9b5ad;
+  /* Violet is the brand colour: headings, links, buttons and body text on marketing pages */
+  --color-violet: #6a4fd6;
+  --color-violet-deep: #4b35a8;
+  --color-violet-ink: #3a2a86;
+  --color-violet-line: #cbbff4;
+  --color-violet-soft: #ece7fb;
+  --color-violet-tint: #f5f2fd;
 
-  /* Accents: forest = primary and "passed"; amber = waiting (Veto Window); clay = stop, kill, loss */
-  --color-forest: #1e6b52;
-  --color-forest-deep: #164f3d;
-  --color-forest-soft: #dcebdf;
-  --color-amber: #b87514;
-  --color-amber-soft: #f8e9cc;
-  --color-clay: #b8452e;
-  --color-clay-soft: #f6ddd4;
+  /* Supporting colours, each paired with a soft tint for cards and panels */
+  --color-orange: #c8561c;
+  --color-orange-soft: #ffe3d0;
+  --color-green: #17805a;
+  --color-green-soft: #e0f0e9;
+  --color-pink: #d4508e;
+  --color-pink-soft: #fde4ef;
+  --color-blue: #3d6fc4;
+  --color-blue-soft: #e3ecfa;
+  --color-gold: #a3690e;
+  --color-gold-soft: #fbeccd;
+  --color-teal: #0e7f7a;
+  --color-teal-soft: #dcf1ef;
 
-  /* Kept so earlier pages keep working */
-  --color-background: var(--color-paper);
+  /* App surfaces and text (Mandate composer and later app pages) */
+  --color-ink: #2a2245;
+  --color-ink-soft: #5d5778;
+  --color-ink-faint: #8f89a6;
+  --color-line: #e6e0f1;
+  --color-line-strong: #cfc6e6;
+
+  /* Older token names, kept so earlier pages keep working */
+  --color-paper: var(--color-cream);
+  --color-paper-raised: var(--color-cream-raised);
+  --color-paper-sunk: var(--color-cream-sunk);
+  --color-forest: var(--color-green);
+  --color-forest-soft: var(--color-green-soft);
+  --color-amber: var(--color-gold);
+  --color-amber-soft: var(--color-gold-soft);
+  --color-clay: var(--color-orange);
+  --color-clay-soft: var(--color-orange-soft);
+  --color-background: var(--color-cream);
   --color-foreground: var(--color-ink);
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+  --font-display: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
 
-  --radius-card: 1.25rem;
-  --radius-control: 0.75rem;
+  --radius-card: 0.875rem;
+  --radius-panel: 2rem;
+  --radius-control: 0.625rem;
 
-  --shadow-card: 0 1px 0 rgb(28 26 23 / 0.04), 0 12px 32px -16px rgb(28 26 23 / 0.18);
+  --shadow-card: 0 1px 0 rgb(58 42 134 / 0.04), 0 24px 48px -28px rgb(58 42 134 / 0.35);
 }
 
 body {
-  background: var(--color-paper);
+  background: var(--color-cream);
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: 1rem;
@@ -54,48 +73,78 @@ body {
 }
 
 @layer components {
-  /* Type */
+  /* Type. Sans headlines in violet, serif for supporting lines, mono for labels and buttons. */
   .display-1 {
-    font-family: var(--font-display);
-    font-weight: 300;
-    font-size: clamp(2.75rem, 6.4vw, 5.25rem);
-    line-height: 1.02;
-    letter-spacing: -0.025em;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: clamp(2.5rem, 5.1vw, 4.375rem);
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+    color: var(--color-violet);
     text-wrap: balance;
   }
   .display-2 {
-    font-family: var(--font-display);
-    font-weight: 300;
-    font-size: clamp(2.125rem, 4.2vw, 3.5rem);
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: clamp(2.125rem, 3.9vw, 3.375rem);
+    line-height: 1.06;
+    letter-spacing: -0.03em;
+    color: var(--color-violet);
+    text-wrap: balance;
+  }
+  .display-serif {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: clamp(2.125rem, 3.6vw, 3.25rem);
     line-height: 1.08;
     letter-spacing: -0.02em;
+    color: var(--color-violet);
     text-wrap: balance;
   }
   .display-3 {
-    font-family: var(--font-display);
-    font-weight: 400;
-    font-size: clamp(1.5rem, 2.2vw, 1.875rem);
-    line-height: 1.2;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: clamp(1.625rem, 2.4vw, 2.25rem);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+  .title-serif {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: 1.5rem;
+    line-height: 1.12;
     letter-spacing: -0.01em;
   }
   .lede {
-    font-size: clamp(1.0625rem, 1.4vw, 1.25rem);
+    font-family: var(--font-serif);
+    font-size: clamp(1.1875rem, 1.7vw, 1.5rem);
+    line-height: 1.35;
+    color: var(--color-violet);
+  }
+  .body-violet {
+    font-size: 1.0625rem;
     line-height: 1.5;
-    color: var(--color-ink-soft);
+    color: var(--color-violet);
   }
   .eyebrow {
     font-family: var(--font-mono);
-    font-size: 0.75rem;
-    font-weight: 500;
+    font-size: 0.8125rem;
+    font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--color-ink-soft);
+    color: var(--color-violet);
+  }
+  .label-mono {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
   }
 
   /* Layout */
   .container-page {
     width: 100%;
-    max-width: 76rem;
+    max-width: 90rem;
     margin-inline: auto;
     padding-inline: 1.25rem;
   }
@@ -104,21 +153,40 @@ body {
       padding-inline: 2.5rem;
     }
   }
+  .container-narrow {
+    width: 100%;
+    max-width: 75rem;
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+  @media (min-width: 768px) {
+    .container-narrow {
+      padding-inline: 2.5rem;
+    }
+  }
   .section {
-    padding-block: clamp(4rem, 9vw, 7.5rem);
+    padding-block: clamp(4.5rem, 8vw, 7.5rem);
   }
 
-  /* Controls */
+  /* Buttons: pill, mono, uppercase */
+  /* Matches the reference button: 13px bold mono, min height 2.75em, padding 1.4em, 1px border. */
   .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    height: 2.75rem;
-    padding-inline: 1.25rem;
-    border-radius: 999px;
-    font-size: 0.9375rem;
-    font-weight: 500;
+    gap: 0.5em;
+    min-width: 6.5em;
+    min-height: 2.75em;
+    padding: 0 1.4em;
+    border: 1px solid transparent;
+    border-radius: 999rem;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    /* The reference's mono face is wider than Geist Mono; this spacing evens out the word width. */
+    letter-spacing: 0.08em;
+    line-height: 1;
+    text-transform: uppercase;
     white-space: nowrap;
     transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
   }
@@ -126,71 +194,106 @@ body {
     opacity: 0.4;
     cursor: not-allowed;
   }
+  /* Kept for older markup: every button is one size, as in the reference. */
   .btn-lg {
-    height: 3.25rem;
-    padding-inline: 1.625rem;
-    font-size: 1rem;
   }
   .btn-primary {
-    background: var(--color-ink);
-    color: var(--color-paper);
+    background: var(--color-violet);
+    color: #ffffff;
   }
   .btn-primary:hover:not(:disabled) {
-    background: var(--color-forest-deep);
+    background: var(--color-violet-deep);
   }
   .btn-secondary {
-    border: 1px solid var(--color-line-strong);
-    color: var(--color-ink);
+    border-color: var(--color-violet);
+    color: var(--color-violet);
   }
   .btn-secondary:hover:not(:disabled) {
-    border-color: var(--color-ink);
+    background: var(--color-violet-tint);
   }
-  .btn-on-night {
-    background: var(--color-on-night);
-    color: var(--color-night);
+  /* Outline drawn with a multi-colour gradient */
+  .btn-gradient {
+    border: 2px solid transparent;
+    min-height: calc(2.75em + 2px);
+    color: var(--color-violet-ink);
+    background:
+      linear-gradient(var(--color-cream), var(--color-cream)) padding-box,
+      linear-gradient(90deg, var(--color-pink), var(--color-gold) 45%, var(--color-violet)) border-box;
   }
-  .btn-on-night:hover:not(:disabled) {
-    background: #ffffff;
+  .btn-round {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 999px;
+    background: var(--color-violet-soft);
+    color: var(--color-violet);
   }
 
   /* Surfaces */
   .card {
-    background: var(--color-paper-raised);
+    background: var(--color-cream-raised);
     border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+  }
+  .card-outline {
+    border: 1px solid currentColor;
     border-radius: var(--radius-card);
   }
   .chip {
     display: inline-flex;
     align-items: center;
     gap: 0.375rem;
-    height: 1.625rem;
+    height: 1.5rem;
     padding-inline: 0.625rem;
     border-radius: 999px;
     font-family: var(--font-mono);
     font-size: 0.6875rem;
-    font-weight: 500;
-    letter-spacing: 0.04em;
+    font-weight: 700;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     white-space: nowrap;
     flex-shrink: 0;
-    background: var(--color-paper-sunk);
-    color: var(--color-ink-soft);
+    background: var(--color-violet-soft);
+    color: var(--color-violet);
   }
   .chip-forest {
-    background: var(--color-forest-soft);
-    color: var(--color-forest-deep);
+    background: var(--color-green-soft);
+    color: var(--color-green);
   }
   .chip-amber {
-    background: var(--color-amber-soft);
-    color: #7a4c0a;
+    background: var(--color-gold-soft);
+    color: var(--color-gold);
   }
   .chip-clay {
-    background: var(--color-clay-soft);
-    color: #8a2f1e;
+    background: var(--color-orange-soft);
+    color: var(--color-orange);
+  }
+  .chip-solid {
+    background: var(--color-orange);
+    color: #ffffff;
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.animate-marquee {
+  animation: marquee 40s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
   }
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-forest);
+  outline: 2px solid var(--color-violet);
   outline-offset: 2px;
 }
