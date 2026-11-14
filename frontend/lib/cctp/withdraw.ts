@@ -21,13 +21,20 @@ export function bridgeOutArgs(amount: bigint, recipient: Address, quotes: FeeQuo
 
 export type WithdrawStage = "burned" | "attested" | "minted" | "delayed";
 
-type IrisMessage = { status?: string; forwardState?: string; destinationMintTxHash?: string | null; delayReason?: string | null };
+type IrisMessage = {
+  status?: string;
+  forwardState?: string;
+  destinationMintTxHash?: string | null;
+  forwardTxHash?: string | null;
+  delayReason?: string | null;
+};
 
 /** Where a burn stands, from Circle's messages API. `null` until Circle has seen the burn. */
 export function withdrawStage(messages: IrisMessage[] | undefined): { stage: WithdrawStage; mintTx?: string; reason?: string } | null {
   const m = messages?.[0];
   if (!m) return null;
-  if (m.destinationMintTxHash) return { stage: "minted", mintTx: m.destinationMintTxHash };
+  const mintTx = m.destinationMintTxHash ?? m.forwardTxHash;
+  if (mintTx) return { stage: "minted", mintTx };
   if (m.delayReason) return { stage: "delayed", reason: m.delayReason };
   if (m.status === "complete") return { stage: "attested" };
   return { stage: "burned" };

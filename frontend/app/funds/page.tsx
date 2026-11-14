@@ -4,6 +4,7 @@ import { ConnectWallet } from "../connect-wallet";
 import { SiteNav } from "../ui/site-nav";
 import { VetoAlerts } from "../ui/veto-banner";
 import { FundsPanel } from "./funds-panel";
+import { SolanaProviders } from "./solana-providers";
 
 export const metadata: Metadata = { title: `Deposit and withdraw · ${PRODUCT_NAME}` };
 
@@ -16,12 +17,14 @@ export default function FundsPage() {
           <p className="eyebrow">Vault funds</p>
           <h1 className="display-2">Deposit and withdraw</h1>
           <p className="lede">
-            Deposit USDC from Base Sepolia into your Vault, and withdraw it back once the Vault is Flat. Every step is
+            Deposit USDC from Base Sepolia or Solana devnet into your Vault, and withdraw it back once the Vault is Flat. Every step is
             shown until the money arrives.
           </p>
         </div>
         <ConnectWallet />
-        <FundsPanel />
+<SolanaProviders>
+          <FundsPanel />
+        </SolanaProviders>
         <VetoAlerts />
       </main>
     </>
