@@ -58,20 +58,24 @@ const save = () => {
   writeFileSync(stateFile, JSON.stringify(state, (_, v) => (typeof v === "bigint" ? `${v}n` : v), 2));
 };
 
+const SCAN_WINDOW = 2_000n;
+
 async function pass() {
   const head = await source.getBlockNumber();
-  const from = BigInt(state.nextBlock);
-  if (from > head) return;
-  for (const burn of await readBurns(source, messenger, from, head)) {
-    if (state.done[burn.id]) continue;
-    console.log(`burn ${burn.id}: ${burn.depositor} ${Number(burn.amount) / 1e6} USDC (maxFee ${Number(burn.maxFee) / 1e6})`);
-    const result = await forwardDeposit(burn, depositAccountAddress, ports);
-    console.log(result.status === "forwarded" ? { ...result, sent: String(result.sent) } : result);
-    state.done[burn.id] = result.status === "forwarded" ? { vault: result.vault, sent: String(result.sent), event: result.event } : result;
+  // Window by window, saving the position after each, so a long catch-up survives an RPC error or a restart.
+  for (let from = BigInt(state.nextBlock); from <= head; from = BigInt(state.nextBlock)) {
+    const to = from + SCAN_WINDOW - 1n < head ? from + SCAN_WINDOW - 1n : head;
+    for (const burn of await readBurns(source, messenger, from, to)) {
+      if (state.done[burn.id]) continue;
+      console.log(`burn ${burn.id}: ${burn.depositor} ${Number(burn.amount) / 1e6} USDC (maxFee ${Number(burn.maxFee) / 1e6})`);
+      const result = await forwardDeposit(burn, depositAccountAddress, ports);
+      console.log(result.status === "forwarded" ? { ...result, sent: String(result.sent) } : result);
+      state.done[burn.id] = result.status === "forwarded" ? { vault: result.vault, sent: String(result.sent), event: result.event } : result;
+      save();
+    }
+    state.nextBlock = String(to + 1n);
     save();
   }
-  state.nextBlock = String(head + 1n);
-  save();
 }
 
 async function solanaPass() {
