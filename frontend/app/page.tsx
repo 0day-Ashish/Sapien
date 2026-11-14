@@ -76,10 +76,10 @@ function Hero() {
 
       <div className="mt-12 flex flex-wrap justify-center gap-3">
         <Link href="/mandate" className="btn btn-primary">
-          Write your Mandate
+          Set your rules
         </Link>
         <Link href="/#how-it-works" className="btn btn-secondary">
-          See Demo
+          Watch it trade
         </Link>
       </div>
     </section>
@@ -113,7 +113,6 @@ function ProductDemo() {
         <AgentDemo />
       </div>
       <MarketGarden seed={23} width={720} height={200} count={110} shape="mound" className="pointer-events-none relative z-0 -mt-16 w-[70%] max-w-4xl md:-mt-20 md:w-[52%]" />
-      <p className="container-page relative z-10 -mt-2 text-xs text-violet/60">Illustration of the agent&apos;s-eye view. Not live data.</p>
     </section>
   );
 }
@@ -199,7 +198,7 @@ function Pillars() {
         ))}
       </div>
       <Link href="/#protection" className="btn btn-gradient mt-14">
-        Explore the protocol
+        See how you&apos;re protected
       </Link>
     </section>
   );
@@ -281,12 +280,13 @@ function QuoteCard({ tone, quote, who, role, large = false }: { tone: string; qu
   return (
     <figure className={`flex min-h-[27rem] flex-col justify-between rounded-[1.25rem] p-6 ${tone}`}>
       <div>
-        <span className="flex size-12 items-center justify-center rounded-lg bg-cream font-serif text-[1.75rem] leading-none">
-          &ldquo;
+        <span className="flex size-12 items-center justify-center rounded-lg bg-cream font-serif text-[3rem] leading-none">
+          {/* The glyph sits high in its line box, so nudge it down to the optical centre. */}
+          <span className="translate-y-[0.24em]">&ldquo;</span>
         </span>
         <blockquote
-          className={`mt-7 font-serif font-normal tracking-[-0.015em] ${
-            large ? "max-w-[24em] text-[clamp(2rem,3.1vw,2.75rem)] leading-[1.12]" : "max-w-[16em] text-[clamp(1.625rem,2.3vw,2.0625rem)] leading-[1.15]"
+          className={`mt-7 font-serif text-[clamp(1.625rem,2.3vw,2.0625rem)] font-normal leading-[1.15] tracking-[-0.015em] ${
+            large ? "max-w-[24em]" : "max-w-[16em]"
           }`}
         >
           {quote}
@@ -326,13 +326,13 @@ function Safeguards() {
         You set the rules and keep the controls. Agents compete inside them, and every decision stays on the record.
       </p>
       <Link href="/mandate" className="btn btn-secondary mt-8">
-        Write your Mandate
+        Start with a Mandate
       </Link>
 
       <div id="builders" className="mt-16 grid w-full scroll-mt-28 gap-2 text-left sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {SAFEGUARDS.map((s) => (
           <Link key={s.title} href={s.href} className={`card-outline group flex min-h-[18.5rem] flex-col p-6 transition-colors hover:bg-white ${s.tone}`}>
-            <Icon name={s.icon} />
+            <Icon name={s.icon} className="size-9" />
             <h3 className="display-3 mt-8 !text-[2rem]">{s.title}</h3>
             <p className="mt-2 text-[0.9375rem] font-medium leading-snug">{s.body}</p>
             <span className="label-mono mt-auto pt-8 !text-xs uppercase tracking-[0.1em]">
@@ -364,10 +364,10 @@ function StartToday() {
       </p>
       <div className="mt-8 flex flex-wrap justify-center gap-3">
         <Link href="/mandate" className="btn btn-primary">
-          Write your Mandate
+          Sign your Mandate
         </Link>
         <Link href="/#protection" className="btn btn-secondary">
-          How protection works
+          See the protection first
         </Link>
       </div>
     </section>

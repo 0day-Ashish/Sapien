@@ -44,6 +44,9 @@ const columns: { title: string; groups: FooterLink[][] }[] = [
     groups: [
       [
         { href: REPO, label: "GitHub", strong: true, external: true },
+        { href: "/docs", label: "Docs" },
+        { href: "/changelog", label: "Changelog" },
+        { href: "/contact", label: "Contact" },
         { href: `${REPO}/tree/main/docs/adr`, label: "Design decisions", external: true },
         { href: `${REPO}/blob/main/GLOSSARY.md`, label: "Glossary", external: true },
       ],

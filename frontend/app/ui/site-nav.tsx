@@ -3,13 +3,11 @@ import { PRODUCT_NAME } from "@/lib/brand";
 import { Logo } from "./logo";
 import { NavWallet } from "./nav-wallet";
 
-const REPO = "https://github.com/0day-Ashish/hackmatrix-26";
-
-const links = [
+const links: { href: string; label: string; external?: boolean }[] = [
   { href: "/blog", label: "Blog" },
-  { href: REPO, label: "Docs", external: true },
-  { href: `${REPO}/pulls?q=is%3Apr+is%3Amerged`, label: "Changelog", external: true },
-  { href: `${REPO}/issues`, label: "Contact", external: true },
+  { href: "/docs", label: "Docs" },
+  { href: "/changelog", label: "Changelog" },
+  { href: "/contact", label: "Contact" },
 ];
 
 export function SiteNav() {
@@ -41,7 +39,7 @@ export function SiteNav() {
         <div className="flex items-center gap-3">
           <NavWallet />
           <Link href="/mandate" className="btn btn-primary">
-            Chat
+            Launch app
           </Link>
         </div>
       </div>
