@@ -272,12 +272,15 @@ export function VaultBot({ className = "", animated = false }: { className?: str
           </g>
           <path d="M62.5 80q7.5 6.5 15 0" fill="none" stroke="#3a2a86" strokeWidth="2.5" strokeLinecap="round" />
         </g>
-        {/* Orbiting coin */}
+        {/* Orbiting token: a Bitcoin coin that circles the bot and counter-spins so its logo stays upright */}
         {animated && (
           <g className="bot-orbit">
-            <g transform="translate(70 74)">
-              <ellipse cx="62" cy="0" rx="9" ry="4" fill="#fbeccd" stroke="#a3690e" strokeWidth="2" />
-              <ellipse cx="62" cy="-3" rx="9" ry="4" fill="#fbeccd" stroke="#a3690e" strokeWidth="2" />
+            <g className="bot-orbit-counter">
+              <circle cx="132" cy="75.5" r="11" fill="#a3690e" />
+              <circle cx="132" cy="74" r="11" fill="#fbeccd" stroke="#a3690e" strokeWidth="2" />
+              <svg x="123" y="65" width="18" height="18" viewBox={TOKEN_ICONS[0]!.viewBox}>
+                <path d={TOKEN_ICONS[0]!.d} fill="#a3690e" />
+              </svg>
             </g>
           </g>
         )}
