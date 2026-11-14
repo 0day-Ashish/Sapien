@@ -112,8 +112,8 @@ function ProductDemo() {
 
         <AgentDemo />
       </div>
-      <MarketGarden seed={23} width={720} height={200} count={110} shape="mound" className="pointer-events-none relative -mt-16 w-[70%] max-w-4xl md:-mt-20 md:w-[52%]" />
-      <p className="container-page -mt-2 text-xs text-violet/60">Illustration of the agent&apos;s-eye view. Not live data.</p>
+      <MarketGarden seed={23} width={720} height={200} count={110} shape="mound" className="pointer-events-none relative z-0 -mt-16 w-[70%] max-w-4xl md:-mt-20 md:w-[52%]" />
+      <p className="container-page relative z-10 -mt-2 text-xs text-violet/60">Illustration of the agent&apos;s-eye view. Not live data.</p>
     </section>
   );
 }
