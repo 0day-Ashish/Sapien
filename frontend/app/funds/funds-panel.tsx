@@ -199,7 +199,8 @@ function DepositCard({ core, refresh }: { core: HyperCoreAccount | null; refresh
       s[3] = { ...s[3], state: "active", detail: "waiting for the engine to forward it" };
       show();
       for (;;) {
-        const now = await refresh();
+        // A failed poll (RPC or info API blip) isn't a failed deposit: try again next round.
+        const now = await refresh().catch(() => undefined);
         if (now && now.account.perpWithdrawable > before) {
           s[3] = { ...s[3], state: "done", detail: `+${formatUsdc(now.account.perpWithdrawable - before)}` };
           break;
