@@ -20,7 +20,7 @@ fi
 trap 'rm -f "$AUTODEPLOY_COPY"' EXIT
 
 REPO_DIR="${REPO_DIR:-/home/ubuntu/sapien}"
-REPO_SLUG="${REPO_SLUG:-0day-Ashish/hackmatrix-26}"
+REPO_SLUG="${REPO_SLUG:-SachPlayZ/Sapien}"
 SERVICE="${SERVICE:-sapien-engine}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8787/leaderboard}"
 REQUIRED_CHECKS=(engine contracts)
@@ -37,11 +37,15 @@ target=$(git rev-parse origin/main)
 [ -f "$SKIP_FILE" ] && [ "$(cat "$SKIP_FILE")" = "$target" ] && exit 0
 
 # --- CI gate --------------------------------------------------------------------------------------------------------
-runs=$(curl -fsS -H "Accept: application/vnd.github+json" \
+runs=$(curl -fsSL -H "Accept: application/vnd.github+json" \
   "https://api.github.com/repos/$REPO_SLUG/commits/$target/check-runs?per_page=100") || {
   echo "GitHub API unreachable; retrying next tick"
   exit 0
 }
+if ! jq -e '.check_runs | type == "array"' >/dev/null <<<"$runs"; then
+  echo "Unexpected GitHub API response ($(jq -r '.message // "no message"' <<<"$runs" 2>/dev/null)); retrying next tick"
+  exit 0
+fi
 for check in "${REQUIRED_CHECKS[@]}"; do
   # Latest run of that job for this commit (a re-run supersedes the earlier one).
   run=$(jq -c --arg n "$check" '[.check_runs[] | select(.name == $n)] | sort_by(.started_at) | last // empty' <<<"$runs")
