@@ -9,6 +9,7 @@
 //   AGENT_REGISTRY (optional, #12: real Bond Minimum checks; Lead Agents are reported to it)
 //   PROTECTION_FUND (optional, #15: Overshoot claims and the Coverage Ratio go to it; its Epochs are the engine's)
 //   FEE_ROUTER (optional, #17: Epoch settlement of fees and premiums)
+//   NEAR_ENGINE_PRIVATE_KEY (optional: NEAR Kill Switch, Decision Commitments and agent payouts), RUNNER_NEAR_ACCOUNT (the runner's Vault's NEAR account)
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { getAddress, type Address, type Hex } from "viem";
@@ -18,6 +19,7 @@ import { HyperliquidExchange } from "../src/adapters/hyperliquid.js";
 import {
   AgentWalletStore,
   createEngine,
+  createNearLink,
   createRunner,
   FundingArbAgent,
   fallbackRationaleWriter,
@@ -31,6 +33,7 @@ import {
   type RunnerRecord,
   startHttp,
 } from "../src/index.js";
+import { liveNear } from "../src/near/live.js";
 
 const root = new URL("..", import.meta.url).pathname;
 if (existsSync(`${root}.env.local`)) process.loadEnvFile(`${root}.env.local`);
@@ -56,7 +59,19 @@ const rationaleWriters = [
   ...(process.env.GEMINI_API_KEY ? [{ name: "Gemini", write: geminiRationaleWriter() }] : []),
   ...(process.env.GROQ_API_KEY ? [{ name: "Groq", write: groqRationaleWriter() }] : []),
 ];
-const engine = createEngine({ exchange, chain });
+
+// NEAR (ADR-0007): the Vault's NEAR account owns its Kill Switch, and Decision Commitments and Builder payouts are
+// mirrored to the Sapien Contract. Off without NEAR_ENGINE_PRIVATE_KEY.
+const agentWallets = new AgentWalletStore(`${root}.data/agent-wallets.json`);
+const nearOn = !!process.env.NEAR_ENGINE_PRIVATE_KEY;
+const live = nearOn ? liveNear(root, agentWallets, operator) : undefined;
+const nearLink = live
+  ? createNearLink({
+      near: live.near,
+      accountOf: (v) => live.vaults.byVault(v)?.account ?? (v.toLowerCase() === vaultId.toLowerCase() ? process.env.RUNNER_NEAR_ACCOUNT : undefined),
+    })
+  : undefined;
+const engine = createEngine({ exchange, chain: nearLink ? nearLink.wrap(chain) : chain });
 
 // Placeholder Bonds and track records until the AgentRegistry (#12) supplies real ones.
 const roster: AgentProfile[] = [
@@ -89,6 +104,7 @@ const runner = createRunner({
     },
   },
   vaults: [{ vaultId, asset }],
+  ...(nearLink ? { isKilled: nearLink.isKilled } : {}),
   roster,
   agents: [new MomentumAgent(), new FundingArbAgent(), new MeanReversionAgent()],
   onVetoWindow: (vault, p) =>
@@ -119,7 +135,8 @@ async function recentFills() {
 const http = await startHttp({
   port: Number(process.env.ENGINE_PORT ?? 8787),
   host: process.env.ENGINE_HOST ?? "127.0.0.1",
-  agentWallets: new AgentWalletStore(`${root}.data/agent-wallets.json`),
+  agentWallets,
+  ...(live ? { nearVaults: live.service } : {}),
   feed: () => recent,
   leaderboard: async () =>
     leaderboard({
