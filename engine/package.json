@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "smoke:trade": "tsx scripts/smoke-guarded-trade.ts",
     "smoke:chain": "tsx scripts/smoke-chain.ts",
-    "deposits:forward": "tsx scripts/forward-deposits.ts"
+    "deposits:forward": "tsx scripts/forward-deposits.ts",
+    "smoke:withdraw": "tsx scripts/smoke-withdraw.ts"
   },
   "devDependencies": {
     "@types/node": "^24",
