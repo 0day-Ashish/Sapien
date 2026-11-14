@@ -256,7 +256,8 @@ function AgentCard(props: {
   const { registry, owner, agentId, onAgentId, onChange } = props;
   const [lookup, setLookup] = useState(agentId);
   const [agent, setAgent] = useState<AgentBond | null | undefined>(undefined);
-  const [now, setNow] = useState(() => BigInt(Math.floor(Date.now() / 1000)));
+  // 0 until the first read: reading the clock during render breaks prerendering (cacheComponents).
+  const [now, setNow] = useState(BigInt(0));
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [tx, setTx] = useState<string | null>(null);
