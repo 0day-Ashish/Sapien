@@ -325,8 +325,19 @@ export class HyperEvmChain implements ChainPort {
   /** Finds the MandateVersionSigned log: binary-search the block by the version's signedAt, then read a narrow range. */
   private async signedJson(vault: Address, version: bigint, signedAt: bigint): Promise<Hex> {
     const latest = await this.publicClient.getBlockNumber();
-    let lo = 0n;
+    // Step back from the latest block until one predates the signature: the testnet RPC no longer serves its oldest
+    // blocks ("invalid block height"), so a search from block 0 fails.
     let hi = latest;
+    let lo = latest;
+    for (let step = 1_000n; ; step *= 2n) {
+      const candidate = latest > step ? latest - step : 0n;
+      const block = await this.publicClient.getBlock({ blockNumber: candidate });
+      if (block.timestamp < signedAt || candidate === 0n) {
+        lo = candidate;
+        break;
+      }
+      hi = candidate;
+    }
     while (lo < hi) {
       const mid = (lo + hi) / 2n;
       const block = await this.publicClient.getBlock({ blockNumber: mid });
