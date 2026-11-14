@@ -182,9 +182,9 @@ function Pillars() {
         {PILLARS.map((pillar) => (
           <article
             key={pillar.title}
-            className={`card-outline flex flex-col rounded-[0.875rem] pt-6 lg:row-span-5 lg:grid lg:grid-rows-subgrid ${pillar.tone}`}
+            className={`card-outline group flex flex-col rounded-[0.875rem] pt-6 transition-all duration-300 hover:-translate-y-1.5 hover:bg-white hover:shadow-[0_24px_48px_-28px_currentColor] lg:row-span-5 lg:grid lg:grid-rows-subgrid ${pillar.tone}`}
           >
-            <PillarArt kind={pillar.art} className="ml-6 size-[7.5rem]" />
+            <PillarArt kind={pillar.art} className="ml-6 size-[7.5rem] origin-bottom-left transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-110" />
             <span aria-hidden="true" className="min-h-16 lg:min-h-36" />
             <h3 className="px-6 pb-9 font-sans text-[2.25rem] font-normal leading-none tracking-[-0.02em]">{pillar.title}</h3>
             {pillar.rows.map((row) => (
@@ -245,7 +245,7 @@ function ProtectionPanel() {
             ))}
           </div>
         </div>
-        <MarketGarden seed={41} width={1300} height={300} count={340} shape="mound" className="pointer-events-none absolute -bottom-8 left-0 w-full" />
+        <MarketGarden seed={41} width={1100} height={260} count={520} shape="heap" className="pointer-events-none absolute -bottom-10 -left-4 w-[92%] md:w-[85%]" />
       </div>
     </section>
   );

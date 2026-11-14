@@ -23,13 +23,15 @@ function random(seed: number) {
   };
 }
 
+type Shape = "mound" | "band" | "spray" | "heap";
+
 type Piece =
   | { kind: "candle"; x: number; y: number; w: number; h: number; wick: number; c: number; rot: number }
   | { kind: "coin"; x: number; y: number; r: number; c: number; stack: number }
   | { kind: "ring"; x: number; y: number; r: number; c: number }
   | { kind: "spark"; x: number; y: number; r: number; c: number };
 
-function cluster(seed: number, width: number, height: number, count: number, shape: "mound" | "band" | "spray"): Piece[] {
+function cluster(seed: number, width: number, height: number, count: number, shape: Shape): Piece[] {
   const rand = random(seed);
   const pieces: Piece[] = [];
   for (let i = 0; i < count; i++) {
@@ -40,6 +42,11 @@ function cluster(seed: number, width: number, height: number, count: number, sha
       // Taller in the middle, like a heap.
       const centre = 1 - Math.abs(x / width - 0.5) * 2;
       y = height - rand() * height * (0.25 + 0.75 * centre);
+    } else if (shape === "heap") {
+      // A broad, fairly level heap: a gently rolling top edge, packed tighter towards the bottom.
+      const roll = 0.18 + 0.1 * Math.sin((x / width) * Math.PI * 3.2) + 0.06 * Math.sin((x / width) * Math.PI * 7.5);
+      const edge = (1 - Math.pow(x / width, 6)) * (1 - roll);
+      y = height - Math.pow(rand(), 0.7) * height * edge;
     } else if (shape === "spray") {
       y = rand() * height;
       x = width - Math.pow(rand(), 1.6) * width;
@@ -126,7 +133,7 @@ export function MarketGarden({
   width?: number;
   height?: number;
   count?: number;
-  shape?: "mound" | "band" | "spray";
+  shape?: Shape;
   className?: string;
   animated?: boolean;
 }) {
@@ -143,7 +150,9 @@ export function MarketGarden({
             className={animated ? MOTION[piece.kind] : undefined}
             style={animated ? { animationDelay: `${delay}s`, animationDuration: `${duration}s` } : undefined}
           >
-            <PieceSvg piece={piece} />
+            <g className="garden-hover">
+              <PieceSvg piece={piece} />
+            </g>
           </g>
         );
       })}
