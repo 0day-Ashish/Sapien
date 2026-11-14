@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { PRODUCT_NAME } from "@/lib/brand";
+import { routeMetadata } from "@/lib/site";
 import { SiteFooter } from "../ui/site-footer";
 import { SiteNav } from "../ui/site-nav";
 import { LeaderboardTable } from "./leaderboard-table";
 
-export const metadata: Metadata = { title: `Leaderboard · ${PRODUCT_NAME}` };
+export const metadata: Metadata = routeMetadata("/leaderboard");
 
 export default function LeaderboardPage() {
   return (

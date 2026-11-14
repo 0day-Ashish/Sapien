@@ -119,7 +119,7 @@ function AgentCard(props: { registry: Address; agentId: string; onAgentId: (id: 
           onAgentId(lookup.trim());
         }}
       >
-        <input className={inputClass} value={lookup} placeholder="Agent id" onChange={(e) => setLookup(e.target.value)} />
+        <input className={inputClass} value={lookup} aria-label="Agent id" placeholder="Agent id" onChange={(e) => setLookup(e.target.value)} />
         <button className="btn btn-secondary" disabled={!lookup.trim()}>
           Look up
         </button>

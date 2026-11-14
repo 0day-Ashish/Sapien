@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { PRODUCT_NAME } from "@/lib/brand";
+import { routeMetadata } from "@/lib/site";
 import { ConnectWallet } from "../connect-wallet";
 import { SiteNav } from "../ui/site-nav";
 import { VetoAlerts } from "../ui/veto-banner";
 import { FundsPanel } from "./funds-panel";
 
-export const metadata: Metadata = { title: `Deposit and withdraw · ${PRODUCT_NAME}` };
+export const metadata: Metadata = routeMetadata("/funds");
 
 export default function FundsPage() {
   return (

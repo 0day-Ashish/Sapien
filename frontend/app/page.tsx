@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { Icon, MarketGarden, PillarArt, SafeguardSeal, VaultCluster, type IconName } from "./ui/art";
@@ -8,6 +9,9 @@ import { WaveText } from "./ui/wave-text";
 import { LogoMark } from "./ui/logo";
 import { SiteFooter } from "./ui/site-footer";
 import { SiteNav } from "./ui/site-nav";
+import { routeMetadata } from "@/lib/site";
+
+export const metadata: Metadata = routeMetadata("/");
 
 export default function Home() {
   return (

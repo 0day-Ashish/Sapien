@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { PRODUCT_NAME } from "@/lib/brand";
+import { routeMetadata } from "@/lib/site";
 import { SiteFooter } from "../ui/site-footer";
 import { SiteNav } from "../ui/site-nav";
 import { ReplayView } from "./replay-view";
 
-export const metadata: Metadata = { title: `Replay · ${PRODUCT_NAME}` };
+export const metadata: Metadata = routeMetadata("/replay");
 
 export default function ReplayPage() {
   return (
