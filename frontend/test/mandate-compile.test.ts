@@ -21,8 +21,53 @@ describe("compileMandate", () => {
     );
     expect(result).toEqual({
       ok: true,
+      kind: "draft",
       compiled: { mandate: validMandate, assumptions: ["Leverage cap of 2 chosen for a conservative profile."] },
     });
+  });
+
+  it("chats instead of drafting while no specific rule has been given", async () => {
+    const result = await compileMandate(
+      "hi, what is this?",
+      returns({ action: "reply", reply: "Hi! I help you set the rules your trading agents follow. Which assets should they trade?", mandate: validMandate, assumptions: [] }),
+    );
+    expect(result).toEqual({ ok: true, kind: "reply", reply: "Hi! I help you set the rules your trading agents follow. Which assets should they trade?" });
+  });
+
+  it("drafts once a rule is given, keeping the model's one-line intro", async () => {
+    const result = await compileMandate(
+      "BTC only, conservative",
+      returns({ action: "draft", reply: "Here's a draft from what you told me.", mandate: validMandate, assumptions: [] }),
+    );
+    expect(result).toEqual({ ok: true, kind: "draft", reply: "Here's a draft from what you told me.", compiled: { mandate: validMandate, assumptions: [] } });
+  });
+
+  it("sends the whole conversation, so rules from earlier messages count", async () => {
+    let seen: unknown;
+    const spy: DraftMandate = async (input) => {
+      seen = input;
+      return { refused: false, output: { action: "draft", reply: "", mandate: validMandate, assumptions: [] } };
+    };
+    const conversation = [
+      { role: "user" as const, text: "I'm pretty cautious" },
+      { role: "assistant" as const, text: "Got it. Which assets?" },
+      { role: "user" as const, text: "  BTC and ETH  " },
+    ];
+    expect(await compileMandate(conversation, spy)).toMatchObject({ ok: true, kind: "draft" });
+    expect(seen).toEqual([...conversation.slice(0, 2), { role: "user", text: "BTC and ETH" }]);
+  });
+
+  it("treats an empty conversational answer as a failure, not a draft", async () => {
+    const result = await compileMandate("hello", returns({ action: "reply", reply: "  ", mandate: validMandate, assumptions: [] }));
+    expect(result).toMatchObject({ ok: false, reason: "invalid" });
+  });
+
+  it("refuses a conversation that doesn't end with the user's message", async () => {
+    const counting: DraftMandate = async () => {
+      throw new Error("should not be called");
+    };
+    const result = await compileMandate([{ role: "assistant", text: "Hi" }], counting);
+    expect(result).toMatchObject({ ok: false, reason: "empty" });
   });
 
   it.each([
