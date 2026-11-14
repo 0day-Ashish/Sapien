@@ -25,7 +25,7 @@ Rust 1.95 is pinned in `rust-toolchain.toml`.
 | `log_decision(account, agent_id, hash) -> id` | engine | Decision Commitment |
 | `register_agent(agent_id, account)` | owner | a Specialist Agent's payout account |
 | `pay_agent(agent_id, amount, memo?)` | engine | pays an agent's fee share |
-| views: `vault_of(account)`, `withdrawal(id)`, `decision(id)`, `agents()`, `config()` | anyone | |
+| views: `vault_of(account)`, `deposit(id)`, `withdrawal(id)`, `decision(id)`, `agents()`, `config()` (next ids: deposits, withdrawals, decisions) | anyone | read deposits/withdrawals in order by id |
 
 Amounts are USDC subunits as strings (`U128`). The engine signs with a function-call key limited to this contract.
 

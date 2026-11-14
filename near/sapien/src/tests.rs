@@ -50,6 +50,9 @@ fn deposit_from_usdc_credits_vault_and_emits() {
     let r = c.ft_on_transfer(acc("alice.testnet"), U128(2_000_000), "".into());
     assert!(matches!(r, PromiseOrValue::Value(U128(0))));
     assert_eq!(c.vault_of(acc("alice.testnet")).unwrap().deposited, U128(2_000_000));
+    let d = c.deposit(0).unwrap();
+    assert_eq!((d.account, d.evm_vault.as_str(), d.amount), (acc("alice.testnet"), VAULT, U128(2_000_000)));
+    assert_eq!(c.config()["deposits"], 1);
     let log = &get_logs()[0];
     assert!(log.contains("\"deposit\"") && log.contains(VAULT) && log.contains("2000000"), "{log}");
 }

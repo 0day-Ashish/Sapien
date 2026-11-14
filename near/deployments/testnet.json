@@ -5,7 +5,12 @@
   "engine": "engine.sapien-vault.testnet",
   "engineFunctionCallKey": {
     "publicKey": "ed25519:FxgeWhqSj49W4PKXeBeGk27HFrFnWpHXBE4VbpBNudyL",
-    "methods": ["register_vault", "pay_withdraw", "log_decision", "pay_agent"],
+    "methods": [
+      "register_vault",
+      "pay_withdraw",
+      "log_decision",
+      "pay_agent"
+    ],
     "allowance": "0.5 NEAR"
   },
   "deployTx": {
@@ -21,5 +26,16 @@
     "logDecision": "ApBdqUhjX1SNVDgeyMvpZP9ppK4uBCJnmG5TGmrDKvAH",
     "requestWithdraw": "5tJSh74o4PDxcKBJonUMSofT19t8852GWvZcsBy4TuJU",
     "payWithdraw": "GWYLfojFEjXB2hQKVmw58nHyB77jN6sSUrMHSybP2A4x"
+  },
+  "migrateTx": "HN6Y9651unfYBNToFFxdhGcpmFCPbnFHgjiB3jQdDcKc",
+  "agents": {
+    "momentum": "momentum.agents.sapien-vault.testnet",
+    "funding-arb": "funding-arb.agents.sapien-vault.testnet",
+    "mean-reversion": "mean-reversion.agents.sapien-vault.testnet"
+  },
+  "registerAgentTx": {
+    "momentum": "Gu9PTYcFt8m7sVLXJNSixsNgTjS21ofaZjpYq5mmRUfg",
+    "funding-arb": "CCZKH5MiTz8iXSmDH2Jknpxg7X6pucMrefSqaWEKURXd",
+    "mean-reversion": "5gc897YzvHLkphAf75Pb9WFvApvrWydeMV1uwFVoroG4"
   }
 }

@@ -27,6 +27,7 @@ enum StorageKey {
     Withdrawals,
     Decisions,
     Agents,
+    Deposits,
 }
 
 #[near(serializers = [borsh, json])]
@@ -72,6 +73,31 @@ pub struct DecisionCommitment {
     pub block_timestamp_ms: u64,
 }
 
+#[near(serializers = [borsh, json])]
+#[derive(Clone, Debug, PartialEq)]
+pub struct Deposit {
+    pub account: AccountId,
+    pub evm_vault: String,
+    /// USDC subunits.
+    pub amount: U128,
+    pub block_timestamp_ms: u64,
+}
+
+/// State layout before deposits were stored (deployed 14 Nov), read once by `migrate`.
+#[near(serializers = [borsh])]
+pub struct SapienV1 {
+    owner: AccountId,
+    engine: AccountId,
+    usdc: AccountId,
+    vaults: LookupMap<AccountId, VaultRecord>,
+    withdrawals: LookupMap<u64, Withdrawal>,
+    decisions: LookupMap<u64, DecisionCommitment>,
+    agents: IterableMap<String, AccountId>,
+    next_deposit: u64,
+    next_withdrawal: u64,
+    next_decision: u64,
+}
+
 #[near(contract_state)]
 #[derive(PanicOnDefault)]
 pub struct Sapien {
@@ -85,6 +111,8 @@ pub struct Sapien {
     next_deposit: u64,
     next_withdrawal: u64,
     next_decision: u64,
+    /// Every deposit by id, so the engine can read them in order (`config().deposits` is the next id).
+    deposits: LookupMap<u64, Deposit>,
 }
 
 fn emit(event: &str, data: near_sdk::serde_json::Value) {
@@ -110,6 +138,27 @@ impl Sapien {
             next_deposit: 0,
             next_withdrawal: 0,
             next_decision: 0,
+            deposits: LookupMap::new(StorageKey::Deposits),
+        }
+    }
+
+    /// Upgrades V1 state (deposits not stored). Deposits made before it stay readable as events only.
+    #[private]
+    #[init(ignore_state)]
+    pub fn migrate() -> Self {
+        let old: SapienV1 = env::state_read().unwrap_or_else(|| env::panic_str("no V1 state"));
+        Self {
+            owner: old.owner,
+            engine: old.engine,
+            usdc: old.usdc,
+            vaults: old.vaults,
+            withdrawals: old.withdrawals,
+            decisions: old.decisions,
+            agents: old.agents,
+            next_deposit: old.next_deposit,
+            next_withdrawal: old.next_withdrawal,
+            next_decision: old.next_decision,
+            deposits: LookupMap::new(StorageKey::Deposits),
         }
     }
 
@@ -226,6 +275,8 @@ impl Sapien {
         let evm_vault = v.evm_vault.clone();
         let id = self.next_deposit;
         self.next_deposit += 1;
+        let block_timestamp_ms = env::block_timestamp_ms();
+        self.deposits.insert(id, Deposit { account: sender_id.clone(), evm_vault: evm_vault.clone(), amount, block_timestamp_ms });
         emit("deposit", json!({ "id": id, "account": sender_id, "evm_vault": evm_vault, "amount": amount }));
         PromiseOrValue::Value(U128(0))
     }
@@ -264,6 +315,10 @@ impl Sapien {
 
     pub fn vault_of(&self, account: AccountId) -> Option<VaultRecord> {
         self.vaults.get(&account).cloned()
+    }
+
+    pub fn deposit(&self, id: u64) -> Option<Deposit> {
+        self.deposits.get(&id).cloned()
     }
 
     pub fn withdrawal(&self, id: u64) -> Option<Withdrawal> {
