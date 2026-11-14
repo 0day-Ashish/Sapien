@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // The Mandate fields a user confirms before signing. Terms follow GLOSSARY.md.
-// The same schema validates Claude's draft and the user's edits, so nothing that
+// The same schema validates the LLM's draft and the user's edits, so nothing that
 // fails it can reach the signature step. The kill flag is not drafted here: it is
 // set by the Kill Switch, never by the compiler.
 
@@ -60,7 +60,7 @@ export const mandateDraftSchema = z.strictObject({
 export type BlackoutWindow = z.infer<typeof blackoutWindowSchema>;
 export type MandateDraft = z.infer<typeof mandateDraftSchema>;
 
-/** What the compiler returns: the draft plus what Claude assumed for anything the user left unsaid. */
+/** What the compiler returns: the draft plus what the LLM assumed for anything the user left unsaid. */
 export const compiledMandateSchema = z.strictObject({
   mandate: mandateDraftSchema,
   assumptions: z.array(z.string().max(300)).max(10),

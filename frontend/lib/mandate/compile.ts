@@ -1,5 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { MAX_MANDATE_TEXT_LENGTH } from "./limits";
 import {
@@ -11,8 +9,10 @@ import {
   type CompiledMandate,
 } from "./schema";
 
-// Spec #1 names claude-sonnet-5-5; the team chose Opus 5.5 for the compiler instead.
-export const MANDATE_COMPILER_MODEL = "claude-opus-5-5";
+// Gemini drafts; Groq takes over if Gemini fails. Plain fetch to both APIs, so no SDK dependency.
+// Override the models with GEMINI_MODEL / GROQ_MODEL.
+export const GEMINI_COMPILER_MODEL = "gemini-3.5-flash-lite";
+export const GROQ_COMPILER_MODEL = "openai/gpt-oss-120b";
 
 export type CompileResult =
   | { ok: true; compiled: CompiledMandate }
@@ -64,22 +64,87 @@ const wireSchema = z.object({
   assumptions: z.array(z.string()),
 });
 
-let client: Anthropic | undefined;
+const wireJsonSchema = z.toJSONSchema(wireSchema);
+const TIMEOUT_MS = 30_000;
 
-export const draftWithClaude: DraftMandate = async (text) => {
-  client ??= new Anthropic();
-  const response = await client.beta.messages.parse({
-    model: MANDATE_COMPILER_MODEL,
-    max_tokens: 8000,
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: text }],
-    output_config: { effort: "low", format: betaZodOutputFormat(wireSchema) },
-  });
-  if (response.stop_reason === "refusal") return { refused: true, output: null };
-  return { refused: false, output: response.parsed_output };
-};
+/** Gemini with JSON output constrained to the wire schema. Safety blocks count as refusals. */
+export function geminiDraft(opts: { apiKey?: string; model?: string; fetch?: typeof fetch } = {}): DraftMandate {
+  return async (text) => {
+    const apiKey = opts.apiKey ?? process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("GEMINI_API_KEY not set");
+    const model = opts.model ?? process.env.GEMINI_MODEL ?? GEMINI_COMPILER_MODEL;
+    const res = await (opts.fetch ?? fetch)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: [{ role: "user", parts: [{ text }] }],
+        generationConfig: { responseMimeType: "application/json", responseJsonSchema: wireJsonSchema, temperature: 0 },
+      }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error(`Gemini: HTTP ${res.status}`);
+    const body = (await res.json()) as {
+      promptFeedback?: { blockReason?: string };
+      candidates?: { finishReason?: string; content?: { parts?: { text?: string }[] } }[];
+    };
+    const candidate = body.candidates?.[0];
+    if (body.promptFeedback?.blockReason || ["SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST"].includes(candidate?.finishReason ?? "")) {
+      return { refused: true, output: null };
+    }
+    const json = candidate?.content?.parts?.map((p) => p.text ?? "").join("");
+    if (!json) throw new Error("Empty draft from Gemini");
+    return { refused: false, output: JSON.parse(json) };
+  };
+}
+
+/** Groq (OpenAI-compatible) with a JSON-schema response format. */
+export function groqDraft(opts: { apiKey?: string; model?: string; fetch?: typeof fetch } = {}): DraftMandate {
+  return async (text) => {
+    const apiKey = opts.apiKey ?? process.env.GROQ_API_KEY;
+    if (!apiKey) throw new Error("GROQ_API_KEY not set");
+    const res = await (opts.fetch ?? fetch)("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: opts.model ?? process.env.GROQ_MODEL ?? GROQ_COMPILER_MODEL,
+        temperature: 0,
+        reasoning_effort: "low",
+        response_format: { type: "json_schema", json_schema: { name: "mandate_draft", schema: wireJsonSchema } },
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: text },
+        ],
+      }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error(`Groq: HTTP ${res.status}`);
+    const body = (await res.json()) as { choices?: { finish_reason?: string; message?: { content?: string; refusal?: string } }[] };
+    const choice = body.choices?.[0];
+    if (choice?.message?.refusal || choice?.finish_reason === "content_filter") return { refused: true, output: null };
+    const json = choice?.message?.content;
+    if (!json) throw new Error("Empty draft from Groq");
+    return { refused: false, output: JSON.parse(json) };
+  };
+}
+
+/** Tries each drafter in order; the first that answers (draft or refusal) wins. Throws if all fail. */
+export function fallbackDraft(drafts: DraftMandate[]): DraftMandate {
+  return async (text) => {
+    let last: unknown = new Error("No Mandate compiler configured");
+    for (const draft of drafts) {
+      try {
+        return await draft(text);
+      } catch (e) {
+        console.warn("Mandate compiler: falling back", e);
+        last = e;
+      }
+    }
+    throw last;
+  };
+}
+
+export const draftWithLlm: DraftMandate = fallbackDraft([geminiDraft(), groqDraft()]);
 
 /**
  * Compiles plain-English risk rules into a Mandate draft. The LLM only drafts: the result
@@ -87,7 +152,7 @@ export const draftWithClaude: DraftMandate = async (text) => {
  */
 export async function compileMandate(
   text: string,
-  draft: DraftMandate = draftWithClaude,
+  draft: DraftMandate = draftWithLlm,
 ): Promise<CompileResult> {
   const trimmed = text.trim();
   if (!trimmed) {
