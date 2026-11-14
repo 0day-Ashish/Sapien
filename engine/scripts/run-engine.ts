@@ -77,6 +77,8 @@ const runner = createRunner({
   vaults: [{ vaultId, asset }],
   roster,
   agents: [new MomentumAgent(), new FundingArbAgent(), new MeanReversionAgent()],
+  onVetoWindow: (vault, p) =>
+    console.log(`Veto Window open on ${vault}: ${p.agentId} ${p.side} ${p.size} ${p.asset} (${p.notional.toFixed(0)} USDC) until ${new Date(p.expiresAt).toISOString()}`),
   select: process.env.TYPESAFE_API_KEY ? jevLeadSelector() : async () => { throw new Error("TYPESAFE_API_KEY not set"); },
   ...(process.env.GEMINI_API_KEY ? { write: geminiRationaleWriter() } : {}),
   log,
@@ -88,6 +90,11 @@ const http = await startHttp({
   agentWallets: new AgentWalletStore(`${root}.data/agent-wallets.json`),
   feed: () => recent,
   vaultStatus: (id) => engine.vaultStatus(id),
+  veto: async (vault, proposalId) => {
+    const result = await engine.handle({ type: "veto", vaultId: vault, proposalId });
+    if (result.kind === "vetoed") log({ at: Date.now(), vaultId: vault, asset, result, note: "Vetoed by the user" });
+    return result;
+  },
   ...(process.env.ENGINE_ALLOW_ORIGIN ? { allowOrigin: process.env.ENGINE_ALLOW_ORIGIN } : {}),
 });
 console.log(`Engine running: Vault ${vaultId} on ${asset}, every ${intervalMs / 1000}s. HTTP ${http.url}`);
