@@ -56,14 +56,14 @@ function Hero() {
 
       <div className="mt-12 w-full">
         <div className="relative overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_10%,#000_90%,transparent)]">
-          <ul className="animate-marquee flex w-max items-center gap-20" aria-label="Built on">
+          <ul className="animate-marquee flex w-max items-center gap-16" aria-label="Built on">
             {[...BUILT_ON, ...BUILT_ON, ...BUILT_ON, ...BUILT_ON].map((name, i) => (
               <li
                 key={i}
                 aria-hidden={i >= BUILT_ON.length}
-                className="flex items-center gap-2.5 whitespace-nowrap text-[1.875rem] font-semibold tracking-[-0.03em] text-violet"
+                className="flex items-center gap-2 whitespace-nowrap text-[1.375rem] font-semibold tracking-[-0.025em] text-violet"
               >
-                <BrandMark name={name} className="h-[1.6rem] w-auto" />
+                <BrandMark name={name} className="h-[1.2rem] w-auto" />
                 {name}
               </li>
             ))}

@@ -76,10 +76,10 @@ body {
   /* Type. Sans headlines in violet, serif for supporting lines, mono for labels and buttons. */
   .display-1 {
     font-family: var(--font-sans);
-    font-weight: 500;
+    font-weight: 400;
     font-size: clamp(2.5rem, 5.1vw, 4.375rem);
-    line-height: 1.04;
-    letter-spacing: -0.035em;
+    line-height: 1.06;
+    letter-spacing: -0.025em;
     color: var(--color-violet);
     text-wrap: balance;
   }
