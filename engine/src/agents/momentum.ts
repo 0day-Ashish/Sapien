@@ -1,9 +1,10 @@
 import { efficiencyRatio, REGIME_LOOKBACK } from "./regime.js";
 import { type AgentProposal, explainProposal, round, type SpecialistAgent } from "./specialist.js";
-import type { MarketSnapshot, RationaleWriter, Regime, VaultContext } from "./types.js";
+import { leverageWithin, type MarketSnapshot, type RationaleWriter, type Regime, type VaultContext } from "./types.js";
 
 const BREAKOUT_BARS = 20;
 const EXIT_BARS = 10;
+/** The leverage this agent aims for. A Mandate with a lower cap gets the cap. */
 const LEVERAGE = 2;
 /** Share of Vault value used as margin per entry. */
 const MARGIN_FRACTION = 0.25;
@@ -50,7 +51,8 @@ export class MomentumAgent implements SpecialistAgent {
     const level = up ? high : low;
     const breakoutPct = Math.abs(last.c / level - 1);
     const confidence = round(Math.min(0.95, 0.5 + 0.45 * Math.min(1, er) * Math.min(1, breakoutPct / 0.02)), 2);
-    const size = (v.accountValue * MARGIN_FRACTION * LEVERAGE) / last.c;
+    const leverage = leverageWithin(LEVERAGE, v.leverageCap);
+    const size = (v.accountValue * MARGIN_FRACTION * leverage) / last.c;
     const facts = {
       asset: m.asset,
       close: last.c,
@@ -66,7 +68,7 @@ export class MomentumAgent implements SpecialistAgent {
       proposalId: id("open"),
       side: up ? "long" : "short",
       size,
-      leverage: LEVERAGE,
+      leverage,
       intent: "open",
       confidence,
       rationale: template(facts),

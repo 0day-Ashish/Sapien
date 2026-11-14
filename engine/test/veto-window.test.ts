@@ -79,7 +79,8 @@ describe("Veto Window", () => {
     const result = await engine.handle(end);
 
     expect(result).toMatchObject({ kind: "executed", proposalId: "p-1" });
-    expect(ports.journal).toEqual(["chain.commitDecision", "exchange.setLeverage", "exchange.placeOrderWithStopLoss"]);
+    // Committed first, then the Vault is marked not-Flat onchain, and only then is the order sent.
+    expect(ports.journal).toEqual(["chain.commitDecision", "chain.reportNotFlat", "exchange.setLeverage", "exchange.placeOrderWithStopLoss"]);
     expect(ports.exchange.orders[0]!.limitPrice).toBeCloseTo(65_300 * 1.01);
     expect(engine.vaultStatus("vault-1").pendingVetoes).toBeUndefined();
   });

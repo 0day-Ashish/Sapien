@@ -105,7 +105,13 @@ export interface ChainPort {
   currentMandate(vaultId: VaultId): Promise<Mandate>;
   /** Resolves once the commitment is included onchain; rejects if it fails. */
   commitDecision(commitment: DecisionCommitment): Promise<{ txHash: string }>;
-  reportFlat(vaultId: VaultId): Promise<void>;
+  /** Whether the Vault contract currently holds the Vault to be Flat. */
+  isFlat(vaultId: VaultId): Promise<boolean>;
+  /**
+   * Tells the Vault contract whether the Vault is Flat. Not-Flat locks withdrawal and makes a looser Mandate Version
+   * wait; Flat unlocks both.
+   */
+  reportFlat(vaultId: VaultId, isFlat: boolean): Promise<void>;
   submitOvershootClaim(claim: OvershootClaim): Promise<void>;
   /** Total open stop-loss exposure (USDC), the Coverage Ratio's denominator. */
   reportExposure(totalUsdc: number): Promise<void>;

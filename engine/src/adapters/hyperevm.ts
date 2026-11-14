@@ -207,10 +207,15 @@ export class HyperEvmChain implements ChainPort {
     return { txHash: hash };
   }
 
-  async reportFlat(vaultId: VaultId) {
+  async isFlat(vaultId: VaultId) {
+    return this.publicClient.readContract({ address: vaultId as Address, abi: vaultAbi, functionName: "isFlat" });
+  }
+
+  async reportFlat(vaultId: VaultId, isFlat: boolean) {
     const vault = vaultId as Address;
-    const hash = await this.wallet.writeContract({ address: vault, abi: vaultAbi, functionName: "reportFlat", args: [true] });
+    const hash = await this.wallet.writeContract({ address: vault, abi: vaultAbi, functionName: "reportFlat", args: [isFlat] });
     await this.publicClient.waitForTransactionReceipt({ hash });
+    if (!isFlat) return;
     // A looser Mandate Version waiting for Flat can take effect now.
     const pending = await this.publicClient.readContract({ address: this.config.mandateRegistry, abi: registryAbi, functionName: "pendingVersion", args: [vault] });
     if (pending !== 0n) {

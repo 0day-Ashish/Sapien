@@ -11,7 +11,7 @@
 //   FEE_ROUTER (optional, #17: Epoch settlement of fees and premiums)
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import type { Address, Hex } from "viem";
+import { getAddress, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { HyperEvmChain } from "../src/adapters/hyperevm.js";
 import { HyperliquidExchange } from "../src/adapters/hyperliquid.js";
@@ -40,7 +40,10 @@ const env = (k: string, fallback?: string) => {
   return v;
 };
 
-const vaultId = env("RUNNER_VAULT", "SMOKE_VAULT");
+// Checksum form, whatever case the env var is in: the UI sends checksummed addresses, and Vault ids are compared as strings.
+const vaultId = getAddress(env("RUNNER_VAULT", "SMOKE_VAULT"));
+/** Maps an address in any case to the id the engine uses for this Vault. */
+const canonical = (id: string) => (id.toLowerCase() === vaultId.toLowerCase() ? vaultId : id);
 const asset = process.env.RUNNER_ASSET ?? "ETH";
 const agent = privateKeyToAccount(env("RUNNER_AGENT_PRIVATE_KEY", "SMOKE_AGENT_PRIVATE_KEY") as Hex);
 const operator = privateKeyToAccount(env("ENGINE_OPERATOR_PRIVATE_KEY", "SMOKE_OWNER_PRIVATE_KEY") as Hex);
@@ -91,6 +94,13 @@ const runner = createRunner({
   onVetoWindow: (vault, p) =>
     console.log(`Veto Window open on ${vault}: ${p.agentId} ${p.side} ${p.size} ${p.asset} (${p.notional.toFixed(0)} USDC) until ${new Date(p.expiresAt).toISOString()}`),
   select: process.env.TYPESAFE_API_KEY ? jevLeadSelector() : async () => { throw new Error("TYPESAFE_API_KEY not set"); },
+  // Agents size within the Mandate's leverage cap, and the Allocator skips agents below their Bond Minimum.
+  leverageCap: async (v) => (await chain.currentMandate(v)).leverageCap,
+  belowBondMinimum: async (ids) => {
+    const below = new Set<string>();
+    for (const id of ids) if (!(await chain.meetsBondMinimum(id))) below.add(id);
+    return below;
+  },
   write: fallbackRationaleWriter(
     rationaleWriters.map((w) => w.write),
     (i, e) => console.log(`Rationale: ${rationaleWriters[i]!.name} failed (${String(e).slice(0, 120)}), trying ${rationaleWriters[i + 1]!.name}`),
@@ -120,13 +130,15 @@ const http = await startHttp({
     }),
   // Replay can open any past decision, not only the last 500: read the whole log on request.
   history: () => readHistory(),
-  vaultStatus: (id) => engine.vaultStatus(id),
-  kill: async (vault) => {
+  vaultStatus: (id) => engine.vaultStatus(canonical(id)),
+  kill: async (id) => {
+    const vault = canonical(id);
     const result = await engine.handle({ type: "kill-switch", vaultId: vault });
     log({ at: Date.now(), vaultId: vault, asset, result, note: result.kind === "killed" ? "Kill Switch" : `Kill Switch refused: ${result.kind === "kill-refused" ? result.reason : result.kind}` });
     return result;
   },
-  veto: async (vault, proposalId) => {
+  veto: async (id, proposalId) => {
+    const vault = canonical(id);
     const result = await engine.handle({ type: "veto", vaultId: vault, proposalId });
     if (result.kind === "vetoed") log({ at: Date.now(), vaultId: vault, asset, result, note: "Vetoed by the user" });
     return result;

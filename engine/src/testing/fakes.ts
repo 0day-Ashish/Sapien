@@ -93,7 +93,14 @@ export class FakeExchange implements ExchangePort {
 export class FakeChain implements ChainPort {
   mandates = new Map<string, Mandate>();
   commitments: DecisionCommitment[] = [];
+  /** Vaults reported Flat, in order. */
   flatReports: string[] = [];
+  /** Vaults reported not-Flat, in order. */
+  notFlatReports: string[] = [];
+  /** What each Vault contract holds. A new Vault is Flat, as onchain. */
+  flatByVault = new Map<string, boolean>();
+  /** When set, reporting not-Flat rejects with this message. */
+  failNotFlatWith?: string;
   claims: OvershootClaim[] = [];
   epochSettlements: EpochSettlement[] = [];
   /** Vaults whose settleEpoch rejects. */
@@ -116,8 +123,14 @@ export class FakeChain implements ChainPort {
     this.commitments.push(commitment);
     return { txHash: `0x${this.commitments.length.toString(16).padStart(64, "0")}` };
   }
-  async reportFlat(vaultId: string) {
-    this.flatReports.push(vaultId);
+  async isFlat(vaultId: string) {
+    return this.flatByVault.get(vaultId) ?? true;
+  }
+  async reportFlat(vaultId: string, isFlat: boolean) {
+    if (!isFlat && this.failNotFlatWith) throw new Error(this.failNotFlatWith);
+    this.journal.push(isFlat ? "chain.reportFlat" : "chain.reportNotFlat");
+    (isFlat ? this.flatReports : this.notFlatReports).push(vaultId);
+    this.flatByVault.set(vaultId, isFlat);
   }
   async submitOvershootClaim(claim: OvershootClaim) {
     this.claims.push(claim);
