@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "smoke:trade": "tsx scripts/smoke-guarded-trade.ts",
     "smoke:chain": "tsx scripts/smoke-chain.ts",
-    "smoke:agents": "tsx scripts/smoke-agents.ts"
+    "smoke:agents": "tsx scripts/smoke-agents.ts",
+    "serve": "tsx scripts/serve.ts"
   },
   "devDependencies": {
     "@types/node": "^24",
