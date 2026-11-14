@@ -282,15 +282,28 @@ export function VaultCluster({ className = "", animated = true }: { className?: 
     { x: 820, y: 300, s: 0.7, c: PALETTE[6]!, knob: "" },
     { x: 1010, y: 290, s: 1.45, c: PALETTE[3]!, knob: "spark" },
   ];
-  const pipes = [
-    "M150 480C160 600 380 610 520 500",
-    "M350 400C360 520 470 560 520 500",
-    "M520 500C600 650 820 640 740 560",
-    "M560 300C580 360 600 380 620 420",
-    "M740 560C800 640 980 620 1000 400",
-    "M820 360C860 420 880 430 920 420",
-    "M150 480C230 690 620 700 740 560",
+  // Each pipe joins the stands under two doors, sagging deeper the further apart they are.
+  const links: [number, number][] = [
+    [0, 1],
+    [1, 4],
+    [0, 5],
+    [4, 5],
+    [2, 4],
+    [2, 3],
+    [5, 7],
+    [6, 7],
   ];
+  const stand = (k: number) => {
+    const d = doors[k]!;
+    return { x: d.x, y: d.y + 94 * d.s };
+  };
+  const pipes = links.map(([from, to]) => {
+    const a = stand(from);
+    const b = stand(to);
+    const sag = 70 + Math.abs(b.x - a.x) * 0.35;
+    const low = Math.max(a.y, b.y) + sag;
+    return `M${a.x} ${a.y}C${a.x} ${low} ${b.x} ${low} ${b.x} ${b.y}`;
+  });
   return (
     <svg viewBox="60 20 940 680" aria-hidden="true" className={className} overflow="visible">
       {pipes.map((d, i) => (

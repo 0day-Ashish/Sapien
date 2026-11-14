@@ -268,7 +268,7 @@ function ProductDemo() {
 
 function LetThemTrade() {
   return (
-    <section id="how-it-works" className="scroll-mt-20 pb-16 pt-24 lg:pb-24 lg:pt-28">
+    <section id="how-it-works" className="scroll-mt-20 pb-4 pt-12 lg:pb-6 lg:pt-14">
       <div className="mx-auto grid w-full max-w-[73.625rem] items-center gap-14 px-5 lg:grid-cols-[minmax(0,36rem)_1fr] xl:px-0">
         <div className="flex flex-col">
           <p className="font-mono text-[0.8125rem] font-bold uppercase tracking-[0.1em] text-violet">Let them trade it</p>
