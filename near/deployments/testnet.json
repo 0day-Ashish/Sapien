@@ -37,5 +37,17 @@
     "momentum": "Gu9PTYcFt8m7sVLXJNSixsNgTjS21ofaZjpYq5mmRUfg",
     "funding-arb": "CCZKH5MiTz8iXSmDH2Jknpxg7X6pucMrefSqaWEKURXd",
     "mean-reversion": "5gc897YzvHLkphAf75Pb9WFvApvrWydeMV1uwFVoroG4"
+  },
+  "e2e": {
+    "account": "e2e.sapien-vault.testnet",
+    "evmVault": "0xdfcb1ed76D49387498BdFcBDa1910826Cf5407c6",
+    "agentWallet": "0xF8982e1101e59c2110a6bdCb01d9520BdC8a3Ec8",
+    "note": "14 Nov: POST /near/vaults created + bound the Vault; 2 USDC deposit forwarded to HyperCore testnet (1 USDC activation fee, Vault value 1.0); Mandate committed on NEAR and published on HyperEVM (tampered Mandate -> 409); 0.5 USDC withdrawal paid; Kill Switch set.",
+    "faucet": "C6iNtV7XiFu6MebKbD6A9mEhTaBfv1CndP5RLZattJdH",
+    "deposit": "21AJMaVyHm1jzcQsHYgH2hioyD8MKJppZfnb3K6dtfCM",
+    "commitMandate": "8CTJKhMBxHwarULzuZazQLeCaRZDTF7kuEBP6XjmKcfT",
+    "publishMandateHyperEvm": "0xeaafc346fc9c29a0273a885258e3fb2e098db023097e68c7b47c594ae792c95c",
+    "requestWithdraw": "CbRseSnczPuhdQKwewL57xdvaDgcPPfrfJ2WutRi9Jh3",
+    "killSwitch": "6UQM2WXUxSm82tzkCXd5DNDnfCJ6AH3eQHcJuA1BVVAN"
   }
 }
