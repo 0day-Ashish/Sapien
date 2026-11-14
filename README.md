@@ -13,9 +13,9 @@ Plain-English rules, bonded agents and stop-loss protection, in one Vault.
 [Docs](https://sapien-omega.vercel.app/docs) ·
 [Changelog](https://sapien-omega.vercel.app/changelog) ·
 [Leaderboard](https://sapien-omega.vercel.app/leaderboard) ·
-[Spec](https://github.com/0day-Ashish/hackmatrix-26/issues/1)
+[Spec](https://github.com/SachPlayZ/Sapien/issues/1)
 
-[![CI](https://github.com/0day-Ashish/hackmatrix-26/actions/workflows/ci.yml/badge.svg)](https://github.com/0day-Ashish/hackmatrix-26/actions/workflows/ci.yml)
+[![CI](https://github.com/SachPlayZ/Sapien/actions/workflows/ci.yml/badge.svg)](https://github.com/SachPlayZ/Sapien/actions/workflows/ci.yml)
 ![Network](https://img.shields.io/badge/network-testnet%20only-6a4fd6)
 ![Built on](https://img.shields.io/badge/built%20on-Hyperliquid-17805a)
 
@@ -184,7 +184,7 @@ Details, rollback and operations are in [`docs/deploy.md`](docs/deploy.md). Only
 
 | | |
 | --- | --- |
-| [Spec (issue #1)](https://github.com/0day-Ashish/hackmatrix-26/issues/1) | The source of truth for what Sapien does. |
+| [Spec (issue #1)](https://github.com/SachPlayZ/Sapien/issues/1) | The source of truth for what Sapien does. |
 | [`GLOSSARY.md`](GLOSSARY.md) | The exact meaning of every term: Vault, Mandate, Bond, Overshoot and the rest. |
 | [`docs/adr/`](docs/adr) | Design decisions and the reasons behind them. |
 | [`docs/design.md`](docs/design.md) | The design system: colours, type and how to use them. |
