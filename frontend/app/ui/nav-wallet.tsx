@@ -1,6 +1,6 @@
 "use client";
 
-import { useConnect, useConnection, useDisconnect } from "wagmi";
+import { useNearWallet } from "../near-wallet";
 
 function WalletIcon({ className }: { className?: string }) {
   return (
@@ -12,29 +12,27 @@ function WalletIcon({ className }: { className?: string }) {
   );
 }
 
-/** The nav's wallet control: an icon that connects, and once connected shows the short address and disconnects. */
+/** The nav's wallet control: an icon that connects, and once connected shows the NEAR account id and disconnects. */
 export function NavWallet() {
-  const { address, status } = useConnection();
-  const { mutate: connect, connectors, isPending } = useConnect();
-  const { mutate: disconnect } = useDisconnect();
+  const { accountId, status, connect, disconnect } = useNearWallet();
 
-  const connected = status === "connected" && address;
-  const label = connected ? `Disconnect ${address}` : "Connect wallet";
+  const connected = status === "connected" && accountId;
+  const label = connected ? `Disconnect ${accountId}` : "Connect wallet";
 
   return (
     <button
       type="button"
       aria-label={label}
       title={label}
-      disabled={isPending}
-      onClick={() => (connected ? disconnect() : connectors[0] && connect({ connector: connectors[0] }))}
+      disabled={status === "connecting"}
+      onClick={() => void (connected ? disconnect() : connect())}
       className="flex h-11 items-center gap-2 rounded-full px-3 text-violet transition-colors hover:bg-violet-tint hover:text-violet-ink disabled:opacity-50"
     >
       <span className="relative">
         <WalletIcon className="size-6" />
         {connected && <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-green" />}
       </span>
-      {connected && <span className="hidden font-mono text-xs md:inline">{`${address.slice(0, 6)}…${address.slice(-4)}`}</span>}
+      {connected && <span className="hidden max-w-40 truncate font-mono text-xs md:inline">{accountId}</span>}
     </button>
   );
 }

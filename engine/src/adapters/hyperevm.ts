@@ -12,6 +12,7 @@ import {
   http,
   keccak256,
   pad,
+  parseEventLogs,
   parseAbi,
   parseAbiItem,
   type PublicClient,
@@ -51,6 +52,7 @@ export type HyperEvmChainConfig = {
 const feeRouterAbi = parseAbi([
   "function settleEpoch(address vault, uint64 epoch, uint256 value, int256 netFlows, string agentId, uint32 premiumRatePpm, uint256 notional)",
   "function distribute(address vault) returns (uint256)",
+  "event FeesDistributed(address indexed vault, address indexed builder, uint256 toBuilder, uint256 toTreasury, uint256 toFund)",
 ]);
 
 const protectionFundAbi = parseAbi([
@@ -275,7 +277,7 @@ export class HyperEvmChain implements ChainPort {
    * FeeRouter, which asks the Vault to move them to HyperEVM; once that lands, pays them out. Charges whose USDC
    * hasn't landed are paid by a later call (distribute runs first too).
    */
-  async settleEpoch(s: EpochSettlement): Promise<void> {
+  async settleEpoch(s: EpochSettlement): Promise<{ builderSubunits: bigint }> {
     const vault = s.vaultId as Address;
     if (this.config.protectionFund) await this.write(this.config.protectionFund, "reportEpochValue", [vault, toUsdc(s.valueUsdc)]);
     const router = this.config.feeRouter;
@@ -291,14 +293,17 @@ export class HyperEvmChain implements ChainPort {
       toUsdc(s.tradedNotionalUsdc),
     ]);
     await new Promise((r) => setTimeout(r, this.config.feeLandingDelayMs ?? 10_000));
-    await this.writeFeeRouter(router, "distribute", [vault]);
+    const { receipt } = await this.writeFeeRouter(router, "distribute", [vault]);
+    // What reached the Lead Agent's Builder in this distribution (0 if the Vault's fee USDC hasn't landed yet).
+    const builderSubunits = parseEventLogs({ abi: feeRouterAbi, eventName: "FeesDistributed", logs: receipt.logs }).reduce((n, l) => n + l.args.toBuilder, 0n);
+    return { builderSubunits };
   }
 
   private async writeFeeRouter(address: Address, functionName: "settleEpoch" | "distribute", args: readonly unknown[]) {
     const hash = await this.wallet.writeContract({ address, abi: feeRouterAbi, functionName, args } as never);
     const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
     if (receipt.status !== "success") throw new Error(`FeeRouter.${functionName} reverted: ${hash}`);
-    return hash;
+    return { hash, receipt };
   }
 
   async meetsBondMinimum(agentId: AgentId) {

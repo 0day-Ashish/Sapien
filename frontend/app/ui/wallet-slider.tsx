@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import { useConnect, useConnection, useDisconnect } from "wagmi";
+import { useNearWallet } from "../near-wallet";
 
 const KNOB = 40; // px
 const PAD = 4; // px between knob and track edge
@@ -22,10 +22,9 @@ function WalletIcon({ className }: { className?: string }) {
  * drag it back to the left end to disconnect. Enter or Space on the knob does the same.
  */
 export function WalletSlider() {
-  const { address, status } = useConnection();
-  const { mutate: connect, connectors, isPending } = useConnect();
-  const { mutate: disconnect } = useDisconnect();
-  const connected = status === "connected" && Boolean(address);
+  const { accountId, status, connect, disconnect } = useNearWallet();
+  const isPending = status === "connecting";
+  const connected = status === "connected" && Boolean(accountId);
 
   const track = useRef<HTMLDivElement>(null);
   const drag = useRef<{ startX: number; startPos: number } | null>(null);
@@ -49,8 +48,8 @@ export function WalletSlider() {
   }, []);
 
   function act() {
-    if (connected) disconnect();
-    else if (connectors[0]) connect({ connector: connectors[0] });
+    if (connected) void disconnect();
+    else void connect();
   }
 
   function onPointerDown(e: PointerEvent<HTMLButtonElement>) {
@@ -87,8 +86,8 @@ export function WalletSlider() {
     }
   }
 
-  const short = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "";
-  const hint = isPending ? "Connecting…" : connected ? short : "Slide to connect wallet";
+  const short = accountId ?? "";
+  const hint = isPending ? "Connecting…" : connected ? short : "Slide to connect Meteor";
 
   return (
     <div className="relative flex flex-col gap-1.5">

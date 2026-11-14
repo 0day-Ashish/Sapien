@@ -1,14 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Address } from "viem";
-import { useConnection } from "wagmi";
-import { readContract } from "wagmi/actions";
 import { VETO_WORKER_SOURCE, describeVeto, fetchPendingVetoes, newVetoes, secondsLeft, sendVeto, vetoStatusUrl, type PendingVeto, type VetoPoll } from "@/lib/engine/veto";
-import { VAULT_FACTORY, factoryAbi } from "@/lib/vault/funds";
-import { hyperEvmTestnet, wagmiConfig } from "@/lib/wagmi";
+import { useNearVault } from "../use-near-vault";
 
-const ZERO = "0x0000000000000000000000000000000000000000";
 const POLL_MS = 1_000;
 
 type Outcome = { proposalId: string; text: string; tone: "chip-forest" | "chip-clay" };
@@ -29,26 +24,14 @@ function notify(p: PendingVeto) {
 
 /** Site-wide countdown banner for trades waiting in their Veto Window, with one-click veto. */
 export function VetoBanner() {
-  const { address, status } = useConnection();
-  const [vault, setVault] = useState<Address | null>(null);
+  // The connected NEAR account's Vault on HyperEVM.
+  const { evmVault: vault } = useNearVault();
   const [pending, setPending] = useState<PendingVeto[]>([]);
   // 0 until mounted: reading the clock during render breaks prerendering (cacheComponents). Polls set it.
   const [now, setNow] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const seen = useRef(new Set<string>());
-
-  // The connected owner's Vault.
-  useEffect(() => {
-    if (status !== "connected" || !address) return;
-    let live = true;
-    readContract(wagmiConfig, { chainId: hyperEvmTestnet.id, address: VAULT_FACTORY, abi: factoryAbi, functionName: "depositTargetOf", args: [address] })
-      .then((v) => live && setVault(v === ZERO ? null : v))
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
-  }, [address, status]);
 
   // Poll the engine for waiting trades; alert once per new window. In a Web Worker, so a background tab still alerts.
   useEffect(() => {

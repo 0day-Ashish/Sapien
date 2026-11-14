@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { isHex, keccak256, toHex, type Hex } from "viem";
-import { readContract } from "wagmi/actions";
 import { PROTECTION_FUND, formatE8, parseEvidence, payoutSources, protectionFundAbi, type Settlement } from "@/lib/settlement/payouts";
 import { formatUsdc } from "@/lib/vault/funds";
-import { hyperEvmTestnet, wagmiConfig } from "@/lib/wagmi";
+import { hyperClient } from "@/lib/hyperevm";
 
 const BAR: Record<string, string> = { reserve: "bg-blue", bond: "bg-orange", fund: "bg-green", unpaid: "bg-line" };
 
@@ -16,7 +15,7 @@ export function PayoutDetail({ id }: { id: string }) {
 
   useEffect(() => {
     if (!PROTECTION_FUND || !isHex(id) || id.length !== 66) return;
-    readContract(wagmiConfig, { chainId: hyperEvmTestnet.id, address: PROTECTION_FUND, abi: protectionFundAbi, functionName: "settlement", args: [id as Hex] })
+    hyperClient.readContract({ address: PROTECTION_FUND, abi: protectionFundAbi, functionName: "settlement", args: [id as Hex] })
       .then(setS, (e) => setError((e as Error).message));
   }, [id]);
 

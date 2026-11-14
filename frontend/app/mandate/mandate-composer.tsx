@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { useConnection } from "wagmi";
+import { useNearWallet } from "../near-wallet";
 import { SignMandate } from "../funds/vault-mandate";
 import { MAX_CHATS, TOMBSTONES_KEY, mergeChats, storedMessages, unsynced } from "@/lib/chats/merge";
 import { MAX_MANDATE_TEXT_LENGTH } from "@/lib/mandate/limits";
@@ -24,10 +24,9 @@ import { TradingChart } from "../ui/trading-chart";
 import { VetoAlerts } from "../ui/veto-banner";
 import { BondPanel } from "../builders/bond-panel";
 import { FundsPanel } from "../funds/funds-panel";
-import { SolanaProviders } from "../funds/solana-providers";
 import { LeaderboardTable } from "../leaderboard/leaderboard-table";
 import { ReplayView } from "../replay/replay-view";
-import { BondsDemo, FundsDemo } from "./demo-views";
+import { FundsDemo } from "./demo-views";
 import type { Turn } from "@/lib/mandate/compile";
 import { compileMandateAction, finalizeMandateAction } from "./actions";
 
@@ -200,7 +199,7 @@ function SidebarToggle({ collapsed, onToggle }: { collapsed: boolean; onToggle: 
 export function MandateComposer() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [view, setViewState] = useState<View>("mandate");
-  const { status: walletStatus } = useConnection();
+  const { status: walletStatus } = useNearWallet();
   const walletConnected = walletStatus === "connected";
 
   /** Switches the main panel and records it in the URL, without leaving the page. */
@@ -466,7 +465,7 @@ export function MandateComposer() {
   }
 
   const status_ = confirmed
-    ? { title: "Mandate confirmed", detail: "ready to sign" }
+    ? { title: "Mandate confirmed", detail: "ready to commit" }
     : isConfirming
       ? { title: "Looking up release dates", detail: "" }
       : isCompiling
@@ -669,13 +668,11 @@ export function MandateComposer() {
                 {view === "funds" && !walletConnected && <FundsDemo />}
                 {view === "funds" && walletConnected && (
                   <>
-                    <SolanaProviders>
-                      <FundsPanel />
-                    </SolanaProviders>
+                    <FundsPanel />
                     <VetoAlerts />
                   </>
                 )}
-                {view === "bonds" && (walletConnected ? <BondPanel /> : <BondsDemo />)}
+                {view === "bonds" && <BondPanel />}
               </div>
             </div>
           ) : (
@@ -686,8 +683,8 @@ export function MandateComposer() {
               <div className="flex flex-1 flex-col items-center justify-center gap-4 py-10 text-center">
                 <p className="title-serif text-violet-ink">Tell me how careful to be with your money.</p>
                 <p className="max-w-md text-sm text-violet/70">
-                  Describe your risk rules in plain English. You confirm or edit every field before you sign, and agents
-                  trade only inside what you sign.
+                  Describe your risk rules in plain English. You confirm or edit every field before you commit it, and agents
+                  trade only inside what you commit.
                 </p>
               </div>
             )}
@@ -740,7 +737,7 @@ export function MandateComposer() {
                 )}
 
                 <p className="text-sm text-violet-ink">
-                  This is a draft. Check every field: only what you confirm here is signed.
+                  This is a draft. Check every field: only what you confirm here is committed.
                 </p>
 
                 <Field label="Allowed assets" error={errors.allowedAssets}>
@@ -881,7 +878,7 @@ export function MandateComposer() {
 
                 {confirmed && (
                   <div className="flex flex-col gap-3 rounded-xl border border-violet-line bg-violet-tint p-4 text-sm text-violet-ink">
-                    <p className="font-medium">This is exactly what you will sign:</p>
+                    <p className="font-medium">This is exactly what you will commit on NEAR:</p>
                     {confirmed.mandate.blackoutWindows.length > 0 && (
                       <div>
                         <p>No new positions open during these {confirmed.mandate.blackoutWindows.length} windows (your local time):</p>
@@ -893,8 +890,8 @@ export function MandateComposer() {
                           ))}
                         </ul>
                         <p className="mt-2 text-violet/70">
-                          Release dates are listed through {formatDay(confirmed.coveredUntil)}. To stay covered after that, sign a new
-                          Mandate Version.
+                          Release dates are listed through {formatDay(confirmed.coveredUntil)}. To stay covered after that, commit a new
+                          Mandate.
                         </p>
                       </div>
                     )}

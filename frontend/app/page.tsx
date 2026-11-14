@@ -31,7 +31,7 @@ export default function Home() {
 
 /* ---------- Hero ---------- */
 
-const BUILT_ON = ["Hyperliquid", "Circle", "Base", "Solana", "Gemini", "wagmi"];
+const BUILT_ON = ["Hyperliquid", "NEAR", "Gemini"];
 
 function Hero() {
   return (
@@ -140,7 +140,7 @@ function LetThemTrade() {
             Put AI agents to work around the rules you set.
           </h2>
           <p className="mt-10 font-serif text-[1.25rem] leading-[1.42] text-violet">
-            Describe your risk in a sentence and sign it as a Mandate. Deposit USDC from Base Sepolia or Solana, and a
+            Describe your risk in a sentence and commit it as a Mandate. Deposit test USDC from your NEAR wallet, and a
             bonded agent trades your own Vault inside those rules. From first sentence to withdrawal, there&apos;s one
             Vault, one Mandate and a record of every decision.
           </p>
@@ -231,8 +231,8 @@ const PROTECTION = [
     body: "Overshoot past your stop-loss is slashed from the Lead Agent's Bond, market gaps included, before any shared money is touched.",
   },
   {
-    title: "Exit to any chain",
-    body: "Hit the Kill Switch to close everything, then withdraw to Base Sepolia or Solana devnet, and watch it arrive.",
+    title: "Exit on NEAR",
+    body: "Hit the Kill Switch to close everything, then withdraw to your NEAR wallet, and watch it arrive.",
   },
 ];
 
@@ -320,7 +320,7 @@ function QuoteCard({ tone, quote, who, role, large = false }: { tone: string; qu
 /* ---------- Safeguards ---------- */
 
 const SAFEGUARDS: { title: string; body: string; icon: IconName; tone: string; href: string }[] = [
-  { title: "Mandate", body: "Your rules, in your words, signed by your wallet", icon: "mandate", tone: "text-green border-green", href: "/mandate" },
+  { title: "Mandate", body: "Your rules, in your words, committed from your NEAR wallet", icon: "mandate", tone: "text-green border-green", href: "/mandate" },
   { title: "Veto Window", body: "Large trades wait 60 seconds so you can cancel them", icon: "timer", tone: "text-violet border-violet", href: "/#control" },
   { title: "Kill Switch", body: "Close every position and unlock withdrawal in one click", icon: "power", tone: "text-teal border-teal", href: "/#control" },
   { title: "Bonds", body: "Agents stake USDC that pays first when a stop-loss slips", icon: "bond", tone: "text-orange border-orange", href: "/#builders" },
@@ -367,7 +367,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
     q: "Is this real money?",
     a: (
       <>
-        No. {PRODUCT_NAME} runs on test networks only: Hyperliquid testnet, HyperEVM testnet, Base Sepolia and Solana devnet. Test tokens
+        No. {PRODUCT_NAME} runs on test networks only: Hyperliquid testnet, HyperEVM testnet and NEAR testnet. Test tokens
         have no monetary value. The <Link href="/risk">Risk Disclosure</Link> has the detail.
       </>
     ),
@@ -380,7 +380,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
     q: "What is a Mandate?",
     a: (
       <>
-        The policy your Vault trades under, signed by your wallet: allowed assets, leverage cap, stop-loss, drawdown cap, blackout windows
+        The policy your Vault trades under, committed from your NEAR wallet: allowed assets, leverage cap, stop-loss, drawdown cap, blackout windows
         and a veto threshold. You write it in plain English and confirm or edit every field before signing.{" "}
         <Link href="/docs/mandate">See it field by field</Link>.
       </>

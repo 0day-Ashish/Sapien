@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Hex } from "viem";
-import { readContract } from "wagmi/actions";
 import {
   DECISION_LOG,
   decisionLogAbi,
@@ -16,7 +15,7 @@ import {
 } from "@/lib/engine/replay";
 import { ENGINE_URL } from "@/lib/engine/veto";
 import { demoReplayItems, type DemoReplayItem } from "@/lib/demo/sidebar-demo";
-import { hyperEvmTestnet, wagmiConfig } from "@/lib/wagmi";
+import { hyperClient } from "@/lib/hyperevm";
 import { DemoBanner } from "../ui/demo-banner";
 
 const STEPS = ["Inputs", "Rationale", "Trade Proposal", "Mandate Check", "Decision Commitment", "Order", "Fill", "Outcome"] as const;
@@ -30,7 +29,7 @@ const time = (ms: number) => new Date(ms).toLocaleString(undefined, { dateStyle:
 const usd = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 
 const isCommitted = (hash: Hex) =>
-  readContract(wagmiConfig, { chainId: hyperEvmTestnet.id, address: DECISION_LOG, abi: decisionLogAbi, functionName: "isCommitted", args: [hash] });
+  hyperClient.readContract({ address: DECISION_LOG, abi: decisionLogAbi, functionName: "isCommitted", args: [hash] });
 
 export function ReplayView() {
   const [items, setItems] = useState<ReplayItem[] | null>(null);

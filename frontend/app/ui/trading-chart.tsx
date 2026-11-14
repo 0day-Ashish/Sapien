@@ -16,8 +16,6 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { zeroAddress, type Address } from "viem";
-import { useConnection, useReadContract } from "wagmi";
 import {
   CHART_INTERVALS,
   HL_WS_URL,
@@ -31,8 +29,7 @@ import {
   type Position,
   type StopOrder,
 } from "@/lib/trading/hyperliquid";
-import { VAULT_FACTORY, factoryAbi } from "@/lib/vault/funds";
-import { hyperEvmTestnet } from "@/lib/wagmi";
+import { useNearVault } from "../use-near-vault";
 
 const NO_COINS: string[] = [];
 
@@ -61,17 +58,8 @@ const price = (n: number) => usd(n, n >= 1000 ? 1 : n >= 10 ? 2 : 4);
  * WebSocket; the Vault's trading state is polled. Read-only.
  */
 export function TradingChart({ assets }: { assets: string[] }) {
-  // The connected owner's Vault, which is its own HyperCore account.
-  const { address } = useConnection();
-  const { data: vaultAddress } = useReadContract({
-    chainId: hyperEvmTestnet.id, // the factory is on HyperEVM, whatever chain the wallet is on (deposits leave it on Base Sepolia)
-    address: VAULT_FACTORY,
-    abi: factoryAbi,
-    functionName: "depositTargetOf",
-    args: address ? [address] : undefined,
-    query: { enabled: Boolean(address) },
-  });
-  const vault = vaultAddress && vaultAddress !== zeroAddress ? (vaultAddress as Address) : null;
+  // The connected NEAR account's Vault, which is its own HyperCore account.
+  const { evmVault: vault, account } = useNearVault();
   // Coins the Vault holds a position in come first, so a live position shows even if the open draft doesn't list it.
   const [openCoins, setOpenCoins] = useState<{ vault: string; coins: string[] } | null>(null);
   const [coin, setCoin] = useState<string | null>(null);
@@ -352,7 +340,7 @@ export function TradingChart({ assets }: { assets: string[] }) {
           <Legend color="bg-orange" label="Stop-loss" />
         </span>
         <span>
-          {!address
+          {!account
             ? "Connect your wallet to see your Vault's trades on the chart."
             : !vault
               ? "No Vault yet. Create one and its trades will appear here."

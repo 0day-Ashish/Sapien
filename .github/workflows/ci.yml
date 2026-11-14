@@ -19,6 +19,16 @@ jobs:
       - run: forge build
       - run: forge test -vvv
 
+  near:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: near
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup show
+      - run: cargo test
+
   engine:
     runs-on: ubuntu-latest
     defaults:

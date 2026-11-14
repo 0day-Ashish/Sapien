@@ -118,7 +118,7 @@ export interface ChainPort {
   /** Total open stop-loss exposure (USDC), the Coverage Ratio's denominator. */
   reportExposure(totalUsdc: number): Promise<void>;
   /** Settles one Vault's Epoch: fees above the High-Water Mark, premiums, and its Epoch-start value for the Fund cap. */
-  settleEpoch(settlement: EpochSettlement): Promise<void>;
+  settleEpoch(settlement: EpochSettlement): Promise<void | { builderSubunits: bigint }>;
   meetsBondMinimum(agentId: AgentId): Promise<boolean>;
 }
 

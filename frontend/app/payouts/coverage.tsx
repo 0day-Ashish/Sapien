@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { readContract } from "wagmi/actions";
 import { PROTECTION_FUND, formatCoverage, protectionFundAbi } from "@/lib/settlement/payouts";
 import { formatUsdc } from "@/lib/vault/funds";
-import { hyperEvmTestnet, wagmiConfig } from "@/lib/wagmi";
+import { hyperClient } from "@/lib/hyperevm";
 
 type Fund = { coverage: bigint; fund: bigint; reserve: bigint; exposure: bigint };
 
@@ -13,13 +12,13 @@ export function CoverageRatio() {
   const [fund, setFund] = useState<Fund | null>(null);
   useEffect(() => {
     if (!PROTECTION_FUND) return;
-    const read = { chainId: hyperEvmTestnet.id, address: PROTECTION_FUND, abi: protectionFundAbi } as const;
+    const read = { address: PROTECTION_FUND, abi: protectionFundAbi } as const;
     const tick = () =>
       void Promise.all([
-        readContract(wagmiConfig, { ...read, functionName: "coverageRatioBps" }),
-        readContract(wagmiConfig, { ...read, functionName: "fundBalance" }),
-        readContract(wagmiConfig, { ...read, functionName: "reserveBalance" }),
-        readContract(wagmiConfig, { ...read, functionName: "openExposure" }),
+        hyperClient.readContract({ ...read, functionName: "coverageRatioBps" }),
+        hyperClient.readContract({ ...read, functionName: "fundBalance" }),
+        hyperClient.readContract({ ...read, functionName: "reserveBalance" }),
+        hyperClient.readContract({ ...read, functionName: "openExposure" }),
       ])
         .then(([coverage, f, reserve, exposure]) => setFund({ coverage, fund: f, reserve, exposure }))
         .catch(() => {});

@@ -11,8 +11,7 @@
     "deposits:forward": "tsx scripts/forward-deposits.ts",
     "smoke:agents": "tsx scripts/smoke-agents.ts",
     "serve": "tsx scripts/serve.ts",
-    "smoke:round-trip": "tsx scripts/smoke-round-trip.ts",
-    "smoke:solana": "tsx scripts/smoke-solana.ts",
+    "smoke:near": "tsx scripts/smoke-near.ts",
     "engine": "tsx scripts/run-engine.ts",
     "smoke:kill": "tsx scripts/smoke-kill.ts"
   },
@@ -25,8 +24,8 @@
   "dependencies": {
     "@google/genai": "2.32.0",
     "@nktkas/hyperliquid": "0.33.3",
-    "@solana/web3.js": "1.99.0",
     "@typesafe-ai/sdk": "0.7.0",
+    "near-api-js": "7.5.3",
     "viem": "2.57.10"
   }
 }

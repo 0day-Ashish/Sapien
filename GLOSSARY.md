@@ -24,6 +24,15 @@ Verifying a proposed trade against the Vault's current Mandate Version, both whe
 **Deposit Account**:
 The single protocol-owned HyperCore account that receives every cross-chain deposit and forwards it to the right Vault.
 
+**Sapien Contract**:
+The NEAR contract (`sapien-vault.testnet`) that a user's NEAR account owns its Vault through. It takes deposits, withdrawal requests, the Mandate hash and the Kill Switch, and it records Decision Commitments and Specialist Agent payouts (ADR-0007).
+
+**Function-Call Key**:
+A NEAR access key limited to named methods on one contract. The Execution Engine signs with one, so it can only register Vaults, pay withdrawals, log Decision Commitments and pay agents.
+
+**NEAR Intents**:
+NEAR's cross-chain settlement layer. On mainnet, a 1Click deposit address moves NEAR USDC to the Deposit Account on HyperCore. On testnet, Sapien shows the live quote only.
+
 ## Agents
 
 **Specialist Agent**:

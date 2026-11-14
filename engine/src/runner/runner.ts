@@ -41,6 +41,8 @@ export type RunnerConfig = {
   leverageCap?: (vaultId: string) => Promise<number | undefined>;
   /** Which of these agents are below their Bond Minimum, so the Allocator doesn't hand them a Vault. */
   belowBondMinimum?: (agentIds: string[]) => Promise<Set<string>>;
+  /** Whether the Vault's owner has set the Kill Switch elsewhere (NEAR). True sends the engine's `kill-switch` event: positions closed, trading frozen. */
+  isKilled?: (vaultId: string) => Promise<boolean>;
   log: (r: RunnerRecord) => void;
   /** Called once when a trade enters its Veto Window, e.g. to alert the user. */
   onVetoWindow?: (vaultId: string, pending: PendingVeto) => void | Promise<void>;
@@ -80,8 +82,20 @@ export function createRunner(c: RunnerConfig) {
 
   const sleep = (ms: number) => (ms > 0 ? new Promise((r) => setTimeout(r, ms)) : Promise.resolve());
 
+  /** Vaults whose Kill Switch closes went through; a refused one is tried again next tick. */
+  const killHandled = new Set<string>();
+
   async function tickVault(v: RunnerVault): Promise<RunnerRecord> {
     const rec: RunnerRecord = { at: now(), vaultId: v.vaultId, asset: v.asset };
+    if (c.isKilled) {
+      if (await c.isKilled(v.vaultId).catch(() => false)) {
+        if (killHandled.has(v.vaultId)) return { ...rec, note: "Kill Switch is set: trading frozen" };
+        const result = await c.engine.handle({ type: "kill-switch", vaultId: v.vaultId });
+        if (result.kind === "killed") killHandled.add(v.vaultId);
+        return { ...rec, result, note: result.kind === "killed" ? "Kill Switch (set on NEAR)" : `Kill Switch refused: ${result.kind === "kill-refused" ? result.reason : result.kind}` };
+      }
+      killHandled.delete(v.vaultId);
+    }
     const snap = await c.market.snapshot(v.asset);
     const reading = classifyRegime(snap);
     Object.assign(rec, { regime: reading.regime, metrics: reading.metrics, markPrice: snap.markPrice });
