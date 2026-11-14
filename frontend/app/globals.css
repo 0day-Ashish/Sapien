@@ -363,9 +363,18 @@ body {
 @keyframes bot-orbit {
   to { transform: rotate(360deg); }
 }
+/* Keeps the orbiting token upright: spins back around its own centre as the orbit turns. */
+.bot-orbit-counter {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bot-orbit-counter 6s linear infinite;
+}
+@keyframes bot-orbit-counter {
+  to { transform: rotate(-360deg); }
+}
 @media (prefers-reduced-motion: reduce) {
   .bot-hover, .bot-tilt, .bot-antenna, .bot-leg-left, .bot-leg-right, .bot-handle,
-  .bot-dial, .bot-blink, .bot-shadow, .bot-orbit {
+  .bot-dial, .bot-blink, .bot-shadow, .bot-orbit, .bot-orbit-counter {
     animation: none;
   }
 }
@@ -449,6 +458,21 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .garden-hover {
     transition: none;
+  }
+}
+
+/* Slow ripple for WaveText: each letter floats up and down, staggered. Transform only. */
+.wave-letter {
+  will-change: transform;
+  animation: wave-letter 2.8s ease-in-out infinite;
+}
+@keyframes wave-letter {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -0.06em, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wave-letter {
+    animation: none;
   }
 }
 

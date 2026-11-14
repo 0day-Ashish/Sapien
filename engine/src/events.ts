@@ -42,6 +42,8 @@ export type FillUpdate = {
   vaultId: VaultId;
   cloid?: string;
   orderId: string;
+  /** The fill's asset. Needed to match a fill the engine didn't place (liquidation, manual close) to a stop. */
+  asset?: string;
   price: number;
   size: number;
   at: number;

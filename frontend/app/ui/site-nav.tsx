@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { Logo } from "./logo";
+import { NavWallet } from "./nav-wallet";
 
 const REPO = "https://github.com/0day-Ashish/hackmatrix-26";
 
 const links = [
-  { href: "/#builders", label: "Builders" },
+  { href: "/blog", label: "Blog" },
   { href: REPO, label: "Docs", external: true },
   { href: `${REPO}/pulls?q=is%3Apr+is%3Amerged`, label: "Changelog", external: true },
   { href: `${REPO}/issues`, label: "Contact", external: true },
@@ -37,32 +38,10 @@ export function SiteNav() {
             ))}
           </nav>
         </div>
-        <div className="flex items-center">
-          <div className="mr-6 hidden items-center gap-11 text-[0.9375rem] font-normal text-violet md:flex">
-            <Link href="/#protection" className="hover:text-violet-ink">
-              Read the pitch
-            </Link>
-            <Link href="/mandate" className="hover:text-violet-ink">
-              Write a Mandate
-            </Link>
-          </div>
+        <div className="flex items-center gap-3">
+          <NavWallet />
           <Link href="/mandate" className="btn btn-primary">
-            Launch app
-          </Link>
-          <Link
-            href="/mandate"
-            aria-label="Connect wallet"
-            className="ml-2 hidden size-[2.375rem] items-center justify-center rounded-full bg-violet-soft text-violet transition-colors hover:bg-violet-line/60 sm:flex"
-          >
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="size-4">
-              <path
-                d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A1.5 1.5 0 0 1 19 6.5V8M4 7.5v9A2.5 2.5 0 0 0 6.5 19h12a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 18.5 8H6.5A2.5 2.5 0 0 1 4 7.5Z"
-                stroke="currentColor"
-                strokeWidth="1.9"
-                strokeLinejoin="round"
-              />
-              <circle cx="16" cy="13.5" r="1.3" fill="currentColor" />
-            </svg>
+            Write a Mandate
           </Link>
         </div>
       </div>

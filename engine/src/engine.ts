@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { AgentId, Allocation, EngineEvent, FillUpdate, KillSwitch, PriceTick, TradeProposal, VaultId, Veto, VetoWindowEnd } from "./events.js";
-import type { Cloid, Mandate, PlacedOrder, Ports } from "./ports.js";
+import type { Cloid, Mandate, OvershootClaim, PlacedOrder, Ports } from "./ports.js";
+import { isInfrastructureFailure, overshootUsdc, type StopRecord, stopExposureUsdc } from "./overshoot.js";
 
 export type RejectionCode =
   | "invalid-proposal"
@@ -174,6 +175,10 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
   const drawdown = new Map<VaultId, { month: string; highWaterMark: number; kill?: AutomaticKill }>();
   /** Per Vault: the Allocator's latest decision. No entry means no allocation yet, and any agent may propose. */
   const leads = new Map<VaultId, { agentId: AgentId | undefined; reason: string; pendingAgentId?: AgentId }>();
+  /** Open stop-losses the engine placed, by cloid: the evidence for Overshoot claims (#15). */
+  const stops = new Map<Cloid, StopRecord>();
+  /** Cloids of every order the engine placed: a fill outside this set (liquidation, manual close) wasn't the engine's. */
+  const ownOrders = new Set<string>();
   /** Per asset: since when the oracle has been out of range, and the kill once it has been for over 30s. */
   const oracle = new Map<string, { deviatingSince?: number; kill?: AutomaticKill }>();
 
@@ -225,8 +230,51 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
     });
   }
 
+  /**
+   * Overshoot: the Vault's stop-loss filled past its trigger (a market gap), or a fill the engine didn't place closed
+   * it past the trigger while the stop wasn't resting (Infrastructure Failure). Returns the claim, if any.
+   */
+  async function overshootClaim(f: FillUpdate): Promise<OvershootClaim | undefined> {
+    let stop = f.cloid ? stops.get(f.cloid as Cloid) : undefined;
+    if (!stop && f.asset && !(f.cloid && ownOrders.has(f.cloid))) {
+      stop = [...stops.values()].find((s) => s.vaultId === f.vaultId && s.asset === f.asset);
+    }
+    if (!stop || stop.vaultId !== f.vaultId) return undefined;
+    const overshoot = overshootUsdc(stop.side, stop.triggerPrice, f.price, f.size);
+    if (overshoot <= 0) return undefined;
+    const stopState = await exchange.orderStatus(stop.vaultId, stop.cloid);
+    const infrastructureFailure = f.cloid === stop.cloid ? false : isInfrastructureFailure(stop, stopState, f.at);
+    if (f.cloid !== stop.cloid && !infrastructureFailure) return undefined; // the stop rested; another close isn't Overshoot
+    stops.delete(stop.cloid);
+    const evidence = {
+      stop: { cloid: stop.cloid, asset: stop.asset, side: stop.side, triggerPrice: stop.triggerPrice, placedAt: stop.placedAt, stateOnHyperCore: stopState },
+      fill: { orderId: f.orderId, cloid: f.cloid ?? null, price: f.price, size: f.size, at: f.at },
+      overshootUsdc: overshoot,
+    };
+    return {
+      vaultId: f.vaultId,
+      agentId: stop.agentId,
+      positionId: stop.cloid,
+      triggerPrice: stop.triggerPrice,
+      fillPrice: f.price,
+      size: f.size,
+      infrastructureFailure,
+      evidenceRef: JSON.stringify(evidence),
+      vaultValueUsdc: await exchange.accountValue(f.vaultId),
+    };
+  }
+
   async function onFill(f: FillUpdate) {
+    const claim = await overshootClaim(f);
+    if (claim) {
+      await chain.submitOvershootClaim(claim);
+      await chain.reportExposure(stopExposureUsdc(stops.values()));
+    }
     if (!(await exchange.positions(f.vaultId)).every((p) => p.size === 0)) return;
+    // Flat: none of this Vault's stops protect anything any more.
+    let dropped = false;
+    for (const [cloid, s] of stops) if (s.vaultId === f.vaultId) dropped = stops.delete(cloid) || dropped;
+    if (dropped) await chain.reportExposure(stopExposureUsdc(stops.values()));
     // Looser Mandate Versions take effect once the Vault is Flat; the chain side needs to hear it.
     await chain.reportFlat(f.vaultId);
     // A deferred Lead Agent switch completes now.
@@ -363,10 +411,12 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
     const { entryCloid, stopLoss } = decision.order;
     try {
       if (!stopLoss) {
+        ownOrders.add(entryCloid);
         const order = await exchange.placeReduceOnly({ vaultId: p.vaultId, asset: p.asset, side: p.side, size: p.size, limitPrice, cloid: entryCloid });
         return { kind: "executed", proposalId: p.proposalId, decision, decisionHash, commitmentTx, order };
       }
       await exchange.setLeverage(p.vaultId, p.asset, p.leverage);
+      ownOrders.add(entryCloid).add(stopLoss.cloid);
       const order = await exchange.placeOrderWithStopLoss({
         vaultId: p.vaultId,
         asset: p.asset,
@@ -376,6 +426,17 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
         entryCloid,
         stopLoss,
       });
+      stops.set(stopLoss.cloid, {
+        vaultId: p.vaultId,
+        agentId: p.agentId,
+        asset: p.asset,
+        side: p.side,
+        size: p.size,
+        triggerPrice: stopLoss.triggerPrice,
+        cloid: stopLoss.cloid,
+        placedAt: order.placedAt,
+      });
+      await chain.reportExposure(stopExposureUsdc(stops.values())).catch(() => {}); // Coverage Ratio only; never blocks a trade
       return {
         kind: "executed",
         proposalId: p.proposalId,
@@ -411,7 +472,7 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
         case "kill-switch":
           return onKillSwitch(event);
         default:
-          // Overshoot (#15), epochs (#17).
+          // Epochs (#17).
           return { kind: "ignored" };
       }
     },
