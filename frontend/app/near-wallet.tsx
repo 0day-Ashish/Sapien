@@ -1,6 +1,6 @@
 "use client";
 
-import { NearConnector } from "@hot-labs/near-connect";
+import type { NearConnector } from "@hot-labs/near-connect";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { NEAR_NETWORK } from "@/lib/near/config";
 import type { TxRequest } from "@/lib/near/tx";
@@ -34,8 +34,6 @@ export function NearWalletProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const c = new NearConnector({ network: NEAR_NETWORK, footerBranding: null });
-    connector.current = c;
     const onIn = (e: { accounts: { accountId: string }[] }) => {
       setAccountId(e.accounts[0]?.accountId ?? null);
       setStatus(e.accounts[0] ? "connected" : "disconnected");
@@ -44,16 +42,26 @@ export function NearWalletProvider({ children }: { children: ReactNode }) {
       setAccountId(null);
       setStatus("disconnected");
     };
-    c.on("wallet:signIn", onIn);
-    c.on("wallet:signOut", onOut);
-    // Restore an earlier session.
-    void c.whenManifestLoaded
-      .then(() => c.getConnectedWallet())
-      .then(({ accounts }) => onIn({ accounts }))
-      .catch(() => {});
+    // Imported here, not at module level: the library touches browser globals, which breaks server rendering.
+    let c: NearConnector | null = null;
+    let cancelled = false;
+    void import("@hot-labs/near-connect").then(({ NearConnector }) => {
+      if (cancelled) return;
+      const conn = new NearConnector({ network: NEAR_NETWORK, footerBranding: null });
+      c = conn;
+      connector.current = conn;
+      conn.on("wallet:signIn", onIn);
+      conn.on("wallet:signOut", onOut);
+      // Restore an earlier session.
+      void conn.whenManifestLoaded
+        .then(() => conn.getConnectedWallet())
+        .then(({ accounts }) => onIn({ accounts }))
+        .catch(() => {});
+    });
     return () => {
-      c.off("wallet:signIn", onIn);
-      c.off("wallet:signOut", onOut);
+      cancelled = true;
+      c?.off("wallet:signIn", onIn);
+      c?.off("wallet:signOut", onOut);
       connector.current = null;
     };
   }, []);
