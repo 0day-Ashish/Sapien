@@ -298,7 +298,7 @@ function QuoteCard({ tone, quote, who, role, large = false }: { tone: string; qu
           {role}
         </span>
         <span className="inline-flex shrink-0 items-center gap-2 text-violet-ink">
-          <LogoMark className="size-7" />
+          <LogoMark className="h-6 w-auto" accent="currentColor" />
           <span className="text-[1.5rem] font-medium leading-none tracking-[-0.045em] lowercase">{PRODUCT_NAME}</span>
         </span>
       </figcaption>
