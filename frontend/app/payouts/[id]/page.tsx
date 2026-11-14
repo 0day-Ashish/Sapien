@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { SiteNav } from "../../ui/site-nav";
 import { CoverageRatio } from "../coverage";
@@ -7,8 +8,14 @@ import { PayoutDetail } from "./payout-detail";
 
 export const metadata: Metadata = { title: `Overshoot payout · ${PRODUCT_NAME}` };
 
-export default async function PayoutPage({ params }: { params: Promise<{ id: string }> }) {
+// The claim id is runtime data (no generateStaticParams), so it's read inside a Suspense boundary and the rest of the
+// page stays in the static shell (cacheComponents).
+async function Detail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  return <PayoutDetail id={id} />;
+}
+
+export default function PayoutPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <>
       <SiteNav />
@@ -19,7 +26,9 @@ export default async function PayoutPage({ params }: { params: Promise<{ id: str
           </Link>
           <h1 className="display-2">Overshoot payout</h1>
         </div>
-        <PayoutDetail id={id} />
+        <Suspense fallback={<p className="text-ink-soft">Loading payout…</p>}>
+          <Detail params={params} />
+        </Suspense>
         <CoverageRatio />
       </main>
     </>
