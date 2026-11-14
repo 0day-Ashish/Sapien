@@ -32,6 +32,7 @@ import {
   type StopOrder,
 } from "@/lib/trading/hyperliquid";
 import { VAULT_FACTORY, factoryAbi } from "@/lib/vault/funds";
+import { hyperEvmTestnet } from "@/lib/wagmi";
 
 const NO_COINS: string[] = [];
 
@@ -63,6 +64,7 @@ export function TradingChart({ assets }: { assets: string[] }) {
   // The connected owner's Vault, which is its own HyperCore account.
   const { address } = useConnection();
   const { data: vaultAddress } = useReadContract({
+    chainId: hyperEvmTestnet.id, // the factory is on HyperEVM, whatever chain the wallet is on (deposits leave it on Base Sepolia)
     address: VAULT_FACTORY,
     abi: factoryAbi,
     functionName: "depositTargetOf",
