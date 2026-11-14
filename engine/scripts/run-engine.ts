@@ -90,6 +90,11 @@ const http = await startHttp({
   agentWallets: new AgentWalletStore(`${root}.data/agent-wallets.json`),
   feed: () => recent,
   vaultStatus: (id) => engine.vaultStatus(id),
+  kill: async (vault) => {
+    const result = await engine.handle({ type: "kill-switch", vaultId: vault });
+    log({ at: Date.now(), vaultId: vault, asset, result, note: result.kind === "killed" ? "Kill Switch" : `Kill Switch refused: ${result.kind === "kill-refused" ? result.reason : result.kind}` });
+    return result;
+  },
   veto: async (vault, proposalId) => {
     const result = await engine.handle({ type: "veto", vaultId: vault, proposalId });
     if (result.kind === "vetoed") log({ at: Date.now(), vaultId: vault, asset, result, note: "Vetoed by the user" });
