@@ -390,33 +390,6 @@ body {
   }
 }
 
-/* Safeguards seal: the text ring and badges turn slowly, the vault handle rocks. */
-.seal-turn,
-.seal-orbit {
-  transform-box: view-box;
-  transform-origin: 100px 100px;
-}
-.seal-turn {
-  animation: bot-spin 40s linear infinite;
-}
-.seal-orbit {
-  animation: bot-spin 28s linear infinite reverse;
-}
-.seal-handle {
-  transform-box: fill-box;
-  transform-origin: 50% 50%;
-  animation: seal-handle 4s ease-in-out infinite;
-}
-@keyframes seal-handle {
-  0%, 100% { transform: rotate(-25deg); }
-  50% { transform: rotate(25deg); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .seal-turn, .seal-orbit, .seal-handle {
-    animation: none;
-  }
-}
-
 @keyframes marquee {
   from {
     transform: translateX(0);
