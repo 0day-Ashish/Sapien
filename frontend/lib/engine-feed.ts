@@ -35,6 +35,10 @@ export type FeedItem = {
   };
   result?:
     | { kind: "ignored" | "handled" }
+    // The other kinds the engine logs. The feed needs to tell them apart from a quiet tick, not their details.
+    | { kind: "veto-window"; proposalId: string; expiresAt: number }
+    | { kind: "vetoed"; proposalId: string }
+    | { kind: "killed" | "kill-refused" | "epoch-settled" }
     | { kind: "rejected"; proposalId: string; rejection: { code: string; message: string } }
     | {
         kind: "executed";

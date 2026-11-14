@@ -37,6 +37,10 @@ export type RunnerConfig = {
   agents: SpecialistAgent[];
   select: LeadSelector;
   write?: RationaleWriter;
+  /** The Vault's Mandate leverage cap, so agents size within it. Without it, agents use their own target. */
+  leverageCap?: (vaultId: string) => Promise<number | undefined>;
+  /** Which of these agents are below their Bond Minimum, so the Allocator doesn't hand them a Vault. */
+  belowBondMinimum?: (agentIds: string[]) => Promise<Set<string>>;
   log: (r: RunnerRecord) => void;
   /** Called once when a trade enters its Veto Window, e.g. to alert the user. */
   onVetoWindow?: (vaultId: string, pending: PendingVeto) => void | Promise<void>;
@@ -47,24 +51,30 @@ export type RunnerConfig = {
 
 export function createRunner(c: RunnerConfig) {
   const now = c.now ?? Date.now;
+  /** Trades already executed, as `vaultId proposalId`: an agent proposes the same trade every tick of its candle. */
   const executed = new Set<string>();
-  /** Veto Windows whose end is already scheduled, by proposalId. */
+  /** Trades the user vetoed, likewise: skipped quietly after the first record. */
+  const vetoed = new Set<string>();
+  /** Veto Windows whose end is already scheduled, likewise. */
   const windows = new Set<string>();
+  const key = (vaultId: string, proposalId: string) => `${vaultId} ${proposalId}`;
 
   /** At the window's end the engine checks again and sends or drops; the outcome is logged like any tick. */
   function scheduleWindowEnd(v: RunnerVault, proposal: TradeProposal, expiresAt: number) {
-    windows.add(proposal.proposalId);
+    const id = key(v.vaultId, proposal.proposalId);
+    windows.add(id);
     setTimeout(async () => {
       const rec: RunnerRecord = { at: now(), vaultId: v.vaultId, asset: v.asset, proposal, note: "Veto Window ended" };
       try {
         rec.result = await c.engine.handle({ type: "veto-window-end", vaultId: v.vaultId, proposalId: proposal.proposalId });
-        if (rec.result.kind === "executed") executed.add(proposal.proposalId);
+        if (rec.result.kind === "executed") executed.add(id);
       } catch (e) {
         rec.error = (e as Error).message;
       } finally {
-        windows.delete(proposal.proposalId);
+        windows.delete(id);
       }
-      c.log(rec);
+      // "ignored" means the window was already closed by a veto or the Kill Switch, which logged it themselves.
+      if (rec.result?.kind !== "ignored") c.log(rec);
     }, Math.max(0, expiresAt - now()));
   }
 
@@ -76,11 +86,25 @@ export function createRunner(c: RunnerConfig) {
     const reading = classifyRegime(snap);
     Object.assign(rec, { regime: reading.regime, metrics: reading.metrics, markPrice: snap.markPrice });
 
+    // Keep the Vault contract's Flat flag true to the exchange: a stop-loss can empty the Vault between ticks.
+    // A failure here (an RPC error, say) must not stop the tick; the next one tries again.
+    await c.engine.handle({ type: "positions-sync", vaultId: v.vaultId }).catch((e) => {
+      rec.note = `Flat flag not synced: ${(e as Error).message}`;
+    });
+
     const positions = await c.exchange.positions(v.vaultId);
     const position = positions.find((p) => p.asset === v.asset)?.size ?? 0;
     const current = c.engine.vaultStatus(v.vaultId).leadAgent;
+    const below = await c.belowBondMinimum?.(c.roster.map((a) => a.agentId)).catch(() => undefined);
     const alloc = await allocateWithJev(
-      { regime: reading.regime, agents: c.roster, current: current?.agentId, vaultIsFlat: positions.every((p) => p.size === 0), market: { asset: v.asset, ...reading.metrics } },
+      {
+        regime: reading.regime,
+        agents: c.roster,
+        current: current?.agentId,
+        vaultIsFlat: positions.every((p) => p.size === 0),
+        ...(below ? { belowBondMinimum: below } : {}),
+        market: { asset: v.asset, ...reading.metrics },
+      },
       c.select,
     );
     rec.allocation = {
@@ -98,24 +122,40 @@ export function createRunner(c: RunnerConfig) {
     const agent = c.agents.find((a) => a.agentId === leadId);
     if (!agent) return { ...rec, note: leadId ? `Lead Agent ${leadId} isn't running here` : "No Lead Agent for this Regime" };
 
-    const decided = agent.decide(snap, { vaultId: v.vaultId, accountValue: await c.exchange.accountValue(v.vaultId), position });
+    const leverageCap = await c.leverageCap?.(v.vaultId).catch(() => undefined);
+    const decided = agent.decide(snap, {
+      vaultId: v.vaultId,
+      accountValue: await c.exchange.accountValue(v.vaultId),
+      position,
+      ...(leverageCap !== undefined ? { leverageCap } : {}),
+    });
     if (!decided) return rec;
-    if (executed.has(decided.proposalId)) return { ...rec, note: `${decided.proposalId} already executed` };
+    const id = key(v.vaultId, decided.proposalId);
+    if (executed.has(id)) return { ...rec, note: `${decided.proposalId} already executed` };
+    if (vetoed.has(id)) return { ...rec, note: `${decided.proposalId} was vetoed` };
 
     const explained: AgentProposal = c.write ? await agent.explain(decided, c.write) : decided;
     const { facts: _facts, ...proposal } = explained;
     rec.proposal = proposal;
     rec.result = await c.engine.handle(proposal);
 
-    if (rec.result.kind === "veto-window" && !windows.has(proposal.proposalId)) {
+    if (rec.result.kind === "veto-window" && !windows.has(id)) {
       scheduleWindowEnd(v, proposal, rec.result.expiresAt);
       await Promise.resolve(c.onVetoWindow?.(v.vaultId, rec.result.pending)).catch(() => {});
     }
+    // The veto itself came in over HTTP and was logged there; from now on this trade is skipped without a record.
+    if (rec.result.kind === "vetoed") vetoed.add(id);
     if (rec.result.kind === "executed") {
-      executed.add(proposal.proposalId);
+      executed.add(id);
       if (proposal.intent !== "open") {
         await sleep(c.fillDelayMs ?? 3_000);
-        await c.engine.handle({ type: "fill", vaultId: v.vaultId, orderId: rec.result.order.entryCloid, cloid: rec.result.order.entryCloid, price: snap.markPrice, size: proposal.size, at: now() });
+        // The order is already placed and recorded as executed. If the follow-up (Flat report, exposure) fails, keep
+        // the record and say so; the next tick's positions-sync reports Flat.
+        try {
+          await c.engine.handle({ type: "fill", vaultId: v.vaultId, orderId: rec.result.order.entryCloid, cloid: rec.result.order.entryCloid, price: snap.markPrice, size: proposal.size, at: now() });
+        } catch (e) {
+          rec.note = `Executed, but the follow-up after the fill failed: ${(e as Error).message}`;
+        }
       }
     }
     return rec;

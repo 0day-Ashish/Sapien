@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useConnection } from "wagmi";
 import { SignMandate } from "../funds/vault-mandate";
-import { MAX_CHATS, mergeChats, unsynced } from "@/lib/chats/merge";
+import { MAX_CHATS, TOMBSTONES_KEY, mergeChats, storedMessages, unsynced } from "@/lib/chats/merge";
 import { MAX_MANDATE_TEXT_LENGTH } from "@/lib/mandate/limits";
 import { deleteChatAction, loadChatsAction, saveChatAction } from "./chat-actions";
 import {
@@ -129,6 +129,23 @@ function storeChats(chats: Chat[]) {
   } catch {}
 }
 
+/** Ids deleted here whose removal the server hasn't confirmed. Kept across reloads so they can't come back. */
+function loadTombstones(): string[] {
+  try {
+    const raw = localStorage.getItem(TOMBSTONES_KEY);
+    const ids: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string").slice(-200) : [];
+  } catch {
+    return [];
+  }
+}
+
+function storeTombstones(ids: Iterable<string>) {
+  try {
+    localStorage.setItem(TOMBSTONES_KEY, JSON.stringify([...ids].slice(-200)));
+  } catch {}
+}
+
 const chatTitle = (c: Chat) => (c.text ? c.text : "Filled in by hand");
 const chatSubtitle = (c: Chat) =>
   c.form
@@ -209,6 +226,25 @@ export function MandateComposer() {
 
   const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const deletedIds = useRef(new Set<string>());
+  // A reply or a confirmation can arrive after the user has moved on. `chatToken` changes when the chat on screen
+  // changes; `formToken` also changes on every form edit. A result is applied to the screen only if its token still
+  // matches the one read when the request was sent.
+  const chatToken = useRef(0);
+  const formToken = useRef(0);
+  const leaveChat = () => {
+    chatToken.current++;
+    formToken.current++;
+  };
+
+  /** Removes a chat on the server. The id stays a tombstone until the server confirms, and is retried on load. */
+  function deleteOnServer(key: string, id: string) {
+    void deleteChatAction(key, id)
+      .then((res) => {
+        // "off" means there is no server store, so there is nothing left to remove.
+        if (res.ok || res.reason === "off") storeTombstones(loadTombstones().filter((t) => t !== id));
+      })
+      .catch(() => {});
+  }
 
   /** Saves a chat to the server shortly after its last edit. Failures are ignored: the browser copy remains. */
   function saveSoon(chat: Chat) {
@@ -229,6 +265,11 @@ export function MandateComposer() {
     const key = historyKey();
     if (!key) return;
     let cancelled = false;
+    // Deletions the server never confirmed (it was unreachable, or the tab closed first): keep them out, and retry.
+    for (const id of loadTombstones()) {
+      deletedIds.current.add(id);
+      deleteOnServer(key, id);
+    }
     loadChatsAction(key)
       .then((res) => {
         if (cancelled || !res.ok) return;
@@ -282,6 +323,7 @@ export function MandateComposer() {
   }
 
   function openChat(c: Chat) {
+    leaveChat();
     setActiveId(c.id);
     setText("");
     setMessages(c.messages ?? (c.text ? [{ role: "user", text: c.text }] : []));
@@ -301,10 +343,11 @@ export function MandateComposer() {
     if (id === activeId) startOver();
     // Remember the deletion so a server copy still in flight can't bring the chat back, then remove it there too.
     deletedIds.current.add(id);
+    storeTombstones(new Set([...loadTombstones(), id]));
     clearTimeout(saveTimers.current.get(id));
     saveTimers.current.delete(id);
     const key = historyKey();
-    if (key) void deleteChatAction(key, id).catch(() => {});
+    if (key) deleteOnServer(key, id);
   }
 
   const validation = form ? validateMandateDraft(fromForm(form)) : null;
@@ -315,14 +358,24 @@ export function MandateComposer() {
     const next = { ...form, ...patch };
     setForm(next);
     if (activeId) persist(activeId, { form: next });
+    formToken.current++;
     setConfirmed(null);
     setConfirmError(null);
   }
 
   function confirm(draft: MandateDraft) {
     setConfirmError(null);
+    const token = formToken.current;
     startConfirm(async () => {
-      const result = await finalizeMandateAction(draft);
+      let result: Awaited<ReturnType<typeof finalizeMandateAction>>;
+      try {
+        result = await finalizeMandateAction(draft);
+      } catch {
+        result = { ok: false, message: "Couldn't reach the server to confirm. Check your connection and try again." };
+      }
+      // The form was edited, or another chat opened, while the release dates were looked up: this result is for a
+      // Mandate that is no longer on screen, so it must not be offered for signing.
+      if (formToken.current !== token) return;
       if (result.ok) setConfirmed({ mandate: result.mandate, coveredUntil: result.coveredUntil });
       else setConfirmError(result.message);
     });
@@ -337,37 +390,53 @@ export function MandateComposer() {
     const conversation: Turn[] = [...messages, { role: "user", text: sent }];
     setMessages(conversation);
     setText("");
+    formToken.current++;
+    const token = chatToken.current;
+    const id = activeId ?? crypto.randomUUID();
     startCompile(async () => {
-      const result = await compileMandateAction(conversation);
+      let result: Awaited<ReturnType<typeof compileMandateAction>>;
+      try {
+        // The form goes along, so a new draft keeps what the user edited by hand.
+        result = await compileMandateAction(conversation, form ? fromForm(form) : undefined);
+      } catch {
+        result = { ok: false, reason: "unavailable", message: "Couldn't reach the assistant. Check your connection and try again." };
+      }
+      // While waiting, the user may have opened another chat, started a new one, or deleted this one.
+      const onScreen = chatToken.current === token;
       if (!result.ok) {
+        if (!onScreen) return;
         // Take the message back so it can be sent again.
         setMessages(messages);
         setText(sent);
         setNotice(result.message);
         return;
       }
-      const id = activeId ?? crypto.randomUUID();
-      setActiveId(id);
+      if (deletedIds.current.has(id)) return;
       const title = conversation.find((t) => t.role === "user")?.text ?? sent;
+      const reply = result.kind === "reply" ? result.reply : result.reply || "Here's a draft from what you've told me. Check every field below before you confirm.";
+      const next = storedMessages<Turn>([...conversation, { role: "assistant", text: reply }]);
       if (result.kind === "reply") {
-        const next: Turn[] = [...conversation, { role: "assistant", text: result.reply }];
-        setMessages(next);
-        persist(id, { text: title, messages: next, form, assumptions });
+        // No form in the patch: the chat keeps whatever form it has now, including edits made while waiting.
+        persist(id, { text: title, messages: next });
+        if (onScreen) {
+          setActiveId(id);
+          setMessages(next);
+        }
         return;
       }
       const drafted = toForm(result.compiled.mandate);
-      const next: Turn[] = [
-        ...conversation,
-        { role: "assistant", text: result.reply || "Here's a draft from what you've told me. Check every field below before you confirm." },
-      ];
+      persist(id, { text: title, messages: next, form: drafted, assumptions: result.compiled.assumptions });
+      if (!onScreen) return;
+      setActiveId(id);
       setMessages(next);
       setForm(drafted);
       setAssumptions(result.compiled.assumptions);
-      persist(id, { text: title, messages: next, form: drafted, assumptions: result.compiled.assumptions });
+      formToken.current++;
     });
   }
 
   function fillByHand() {
+    leaveChat();
     setNotice(null);
     setAssumptions([]);
     setConfirmed(null);
@@ -379,6 +448,7 @@ export function MandateComposer() {
   }
 
   function startOver() {
+    leaveChat();
     setActiveId(null);
     setText("");
     setMessages([]);

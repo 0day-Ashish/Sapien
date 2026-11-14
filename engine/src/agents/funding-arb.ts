@@ -23,7 +23,9 @@ export class FundingArbAgent implements SpecialistAgent {
     const f = m.fundingRateHourly;
     const base = { type: "trade-proposal" as const, vaultId: v.vaultId, agentId: this.agentId, asset: m.asset };
     const stamp = m.candles4h.at(-1)?.t ?? 0;
-    const id = (intent: string) => `${this.agentId}:${m.asset}:${stamp}:${intent}:${f}`;
+    // One id per candle, intent and side. The live funding rate must not be part of it: it changes every tick, and the
+    // runner and the engine recognise a trade they have already executed, or the user has vetoed, by this id.
+    const id = (intent: string, side: "long" | "short") => `${this.agentId}:${m.asset}:${stamp}:${intent}:${side}`;
 
     // Exits: a short collects while f > 0, a long while f < 0.
     if (v.position !== 0) {
@@ -31,7 +33,7 @@ export class FundingArbAgent implements SpecialistAgent {
       if (collecting >= EXIT) return undefined; // still paid to hold
       const side = v.position > 0 ? ("long" as const) : ("short" as const);
       const facts = { asset: m.asset, fundingPctPerHour: pct(f), signal: collecting < 0 ? "funding-flipped" : "funding-faded", side };
-      return { ...base, proposalId: id("close"), side, size: Math.abs(v.position), leverage: 1, intent: "close", confidence: 0.85, rationale: template(facts), facts };
+      return { ...base, proposalId: id("close", side), side, size: Math.abs(v.position), leverage: 1, intent: "close", confidence: 0.85, rationale: template(facts), facts };
     }
 
     if (Math.abs(f) < ENTRY) return undefined;
@@ -54,7 +56,7 @@ export class FundingArbAgent implements SpecialistAgent {
     };
     return {
       ...base,
-      proposalId: id("open"),
+      proposalId: id("open", side),
       side,
       size: (v.accountValue * MARGIN_FRACTION) / m.markPrice,
       leverage: 1,

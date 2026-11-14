@@ -62,12 +62,17 @@ export function leaderboard({ roster, history, leads, fills }: LeaderboardInput)
 
   // Which agent placed each order, by the cloids the engine chose.
   const cloidAgent = new Map<string, string>();
+  // An agent proposes the same trade every tick of its candle, so a rejected proposal is logged many times. Count it once.
+  const countedRejections = new Set<string>();
   for (const rec of history) {
     const p = rec.proposal;
     if (!p || !rec.result) continue;
     const r = row(p.agentId);
     r.lastActiveAt = Math.max(r.lastActiveAt ?? 0, rec.at);
     if (rec.result.kind === "rejected") {
+      const once = `${rec.vaultId} ${p.proposalId}`;
+      if (countedRejections.has(once)) continue;
+      countedRejections.add(once);
       r.proposals += 1;
       r.rejected += 1;
     } else if (rec.result.kind === "executed") {

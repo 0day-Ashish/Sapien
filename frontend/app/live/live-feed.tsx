@@ -51,6 +51,16 @@ function describe(d: FeedItem): { title: string; tone: string } {
   if (p && d.result?.kind === "rejected") {
     return { title: `${agentName(p.agentId)} ${p.side} ${p.asset} rejected: ${d.result.rejection.code}`, tone: "text-orange" };
   }
+  if (p && d.result?.kind === "veto-window") {
+    return { title: `${agentName(p.agentId)}: ${p.leverage}× ${p.side} ${p.asset} waiting in its Veto Window`, tone: "text-gold" };
+  }
+  if (d.result?.kind === "vetoed") {
+    return { title: p ? `${agentName(p.agentId)} ${p.side} ${p.asset} vetoed` : `Trade on ${d.asset} vetoed by you`, tone: "text-pink" };
+  }
+  // The Kill Switch and Epoch settlement log a note that says what happened.
+  if (d.result?.kind === "killed" || d.result?.kind === "kill-refused" || d.result?.kind === "epoch-settled") {
+    return { title: d.note ?? d.result.kind, tone: d.result.kind === "kill-refused" ? "text-orange" : "text-violet" };
+  }
   return { title: `${agentName(d.allocation?.leadAgentId)} holding on ${d.asset}`, tone: "text-violet" };
 }
 

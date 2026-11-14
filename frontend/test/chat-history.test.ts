@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MAX_CHATS, mergeChats, unsynced, type StoredChat } from "../lib/chats/merge";
+import { MAX_CHATS, MAX_CHAT_BYTES, MAX_MESSAGE_CHARS, MAX_STORED_MESSAGES, mergeChats, storedMessages, unsynced, type StoredChat } from "../lib/chats/merge";
+import { MAX_TURNS } from "../lib/mandate/compile";
 
 const chat = (id: string, updatedAt: number, text = id): StoredChat => ({ id, text, form: {}, assumptions: [], updatedAt });
 
@@ -25,6 +26,22 @@ describe("Mandate chat history", () => {
     const merged = mergeChats(many, []);
     expect(merged).toHaveLength(MAX_CHATS);
     expect(merged[0]!.id).toBe(`c${MAX_CHATS + 4}`);
+  });
+
+  it("stores no more of a conversation than the server accepts", () => {
+    const long = Array.from({ length: 31 }, (_, i) => ({ role: i % 2 ? ("assistant" as const) : ("user" as const), text: `m${i}` }));
+    const kept = storedMessages(long);
+    expect(kept).toHaveLength(MAX_STORED_MESSAGES);
+    expect(kept.at(-1)).toEqual(long.at(-1));
+    // What is stored is what the assistant is sent.
+    expect(MAX_STORED_MESSAGES).toBe(MAX_TURNS);
+  });
+
+  it("accepts, by size, the largest chat the stored shape allows", () => {
+    // Worst case: every message at the character cap in a 3-byte script, plus a long title and assumptions.
+    const messages = Array.from({ length: MAX_STORED_MESSAGES }, () => ({ role: "user" as const, text: "語".repeat(MAX_MESSAGE_CHARS) }));
+    const biggest = { ...chat("a", 1, "語".repeat(4000)), messages, assumptions: Array.from({ length: 20 }, () => "語".repeat(500)) };
+    expect(Buffer.byteLength(JSON.stringify(biggest))).toBeLessThan(MAX_CHAT_BYTES);
   });
 
   it("uploads only what the server lacks or holds an older copy of", () => {

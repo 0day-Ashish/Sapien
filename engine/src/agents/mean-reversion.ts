@@ -1,11 +1,12 @@
 import { type AgentProposal, explainProposal, round, type SpecialistAgent } from "./specialist.js";
-import type { MarketSnapshot, RationaleWriter, Regime, VaultContext } from "./types.js";
+import { leverageWithin, type MarketSnapshot, type RationaleWriter, type Regime, type VaultContext } from "./types.js";
 
 const WINDOW = 20;
 /** Enter when the close is this many standard deviations from the 20-bar mean. */
 const ENTRY_Z = 2;
 /** Exit once it's back within this. */
 const EXIT_Z = 0.5;
+/** The leverage this agent aims for. A Mandate with a lower cap gets the cap. */
 const LEVERAGE = 2;
 const MARGIN_FRACTION = 0.2;
 
@@ -46,12 +47,13 @@ export class MeanReversionAgent implements SpecialistAgent {
     const side = z < 0 ? ("long" as const) : ("short" as const);
     const confidence = round(Math.min(0.85, 0.5 + 0.35 * Math.min(1, (Math.abs(z) - ENTRY_Z) / ENTRY_Z)), 2);
     const facts = { asset: m.asset, close: last.c, mean, z: round(z, 2), bars: WINDOW, side, confidence, signal: z < 0 ? "stretched-down" : "stretched-up" };
+    const leverage = leverageWithin(LEVERAGE, v.leverageCap);
     return {
       ...base,
       proposalId: id("open"),
       side,
-      size: (v.accountValue * MARGIN_FRACTION * LEVERAGE) / last.c,
-      leverage: LEVERAGE,
+      size: (v.accountValue * MARGIN_FRACTION * leverage) / last.c,
+      leverage,
       intent: "open",
       confidence,
       rationale: template(facts),

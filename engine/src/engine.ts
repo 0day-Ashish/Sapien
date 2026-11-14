@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import type { AgentId, Allocation, EngineEvent, EpochTick, FillUpdate, KillSwitch, PriceTick, TradeProposal, VaultId, Veto, VetoWindowEnd } from "./events.js";
+import type { AgentId, Allocation, EngineEvent, EpochTick, FillUpdate, KillSwitch, PositionsSync, PriceTick, TradeProposal, VaultId, Veto, VetoWindowEnd } from "./events.js";
 import type { Cloid, EpochSettlement, Mandate, OvershootClaim, PlacedOrder, Ports } from "./ports.js";
 import { premiumRate } from "./premium.js";
 import { isInfrastructureFailure, overshootUsdc, type StopRecord, stopExposureUsdc } from "./overshoot.js";
@@ -137,6 +137,24 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
   const killSlippage = options.killSlippage ?? 0.05;
   /** Per Vault frozen by the Kill Switch: the Mandate Version it was killed under. A later version without the kill flag unfreezes it. */
   const killed = new Map<VaultId, number>();
+  /** Trades the user vetoed, as `vaultId proposalId`. An agent proposes the same trade again every tick; a veto must hold. */
+  const vetoedProposals = new Set<string>();
+  const vetoKey = (vaultId: VaultId, proposalId: string) => `${vaultId} ${proposalId}`;
+  /** Per Vault: what the Vault contract was last told about being Flat. Read from the chain on first use. */
+  const flatOnchain = new Map<VaultId, boolean>();
+
+  /** Tells the Vault contract it is Flat or not, unless that is what it already holds. */
+  async function reportFlatIfChanged(vaultId: VaultId, flat: boolean) {
+    if (!flatOnchain.has(vaultId)) flatOnchain.set(vaultId, await chain.isFlat(vaultId));
+    if (flatOnchain.get(vaultId) === flat) return;
+    await chain.reportFlat(vaultId, flat);
+    flatOnchain.set(vaultId, flat);
+  }
+  /** Reports Flat whatever was reported before: the paths that have just seen the Vault go Flat. */
+  async function reportFlatNow(vaultId: VaultId) {
+    await chain.reportFlat(vaultId, true);
+    flatOnchain.set(vaultId, true);
+  }
 
   /**
    * Kill Switch. The owner first signs a Mandate Version with the kill flag (recorded onchain, and only the owner can).
@@ -171,12 +189,17 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
     }
 
     const flat = (await exchange.positions(k.vaultId)).every((p) => p.size === 0);
-    if (flat) await chain.reportFlat(k.vaultId);
+    // If a close hasn't filled yet, the next positions-sync reports Flat once it has.
+    if (flat) await reportFlatNow(k.vaultId);
     return { kind: "killed", vaultId: k.vaultId, closes, vetoed, flat };
   }
 
-  /** Per Vault: this calendar month's High-Water Mark, and a drawdown kill that holds until the month ends. */
-  const drawdown = new Map<VaultId, { month: string; highWaterMark: number; kill?: AutomaticKill }>();
+  /**
+   * Per Vault: this calendar month's High-Water Mark, since when it has been tracked, and a drawdown kill that holds
+   * until the month ends. Values are net of deposits and withdrawals since `since`, so moving money is never a gain
+   * or a loss.
+   */
+  const drawdown = new Map<VaultId, { month: string; since: number; highWaterMark: number; kill?: AutomaticKill }>();
   /** Per Vault: the Allocator's latest decision. No entry means no allocation yet, and any agent may propose. */
   const leads = new Map<VaultId, { agentId: AgentId | undefined; reason: string; pendingAgentId?: AgentId }>();
   /** Open stop-losses the engine placed, by cloid: the evidence for Overshoot claims (#15). */
@@ -191,9 +214,13 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
   /** Reads the Vault's value, moves the month's High-Water Mark, and fires the drawdown kill at the cap. */
   async function checkDrawdown(vaultId: VaultId, capPct: number) {
     const month = monthKey(now());
-    const value = await exchange.accountValue(vaultId);
+    const raw = await exchange.accountValue(vaultId);
     let d = drawdown.get(vaultId);
-    if (!d || d.month !== month) d = { month, highWaterMark: value };
+    if (!d || d.month !== month) d = { month, since: now(), highWaterMark: raw };
+    // A withdrawal lowers the account value without being a loss, and a deposit raises it without being a gain.
+    // If the ledger can't be read, fall back to the raw value, which can only make the check stricter after a withdrawal.
+    const flows = await exchange.netFlows(vaultId, d.since).catch(() => 0);
+    const value = raw - flows;
     d.highWaterMark = Math.max(d.highWaterMark, value);
     const ddPct = d.highWaterMark > 0 ? ((d.highWaterMark - value) / d.highWaterMark) * 100 : 0;
     if (!d.kill && ddPct >= capPct - 1e-9) {
@@ -282,10 +309,26 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
     for (const [cloid, s] of stops) if (s.vaultId === f.vaultId) dropped = stops.delete(cloid) || dropped;
     if (dropped) await chain.reportExposure(stopExposureUsdc(stops.values()));
     // Looser Mandate Versions take effect once the Vault is Flat; the chain side needs to hear it.
-    await chain.reportFlat(f.vaultId);
-    // A deferred Lead Agent switch completes now.
-    const lead = leads.get(f.vaultId);
-    if (lead?.pendingAgentId) leads.set(f.vaultId, { agentId: lead.pendingAgentId, reason: lead.reason });
+    await reportFlatNow(f.vaultId);
+    completeLeadSwitch(f.vaultId);
+  }
+
+  /** A deferred Lead Agent switch completes once the Vault is Flat. */
+  function completeLeadSwitch(vaultId: VaultId) {
+    const lead = leads.get(vaultId);
+    if (lead?.pendingAgentId) leads.set(vaultId, { agentId: lead.pendingAgentId, reason: lead.reason });
+  }
+
+  /**
+   * Brings the Vault contract's Flat flag in line with the exchange. A stop-loss, a liquidation or a manual close can
+   * empty a Vault with no fill event reaching the engine, and a restart forgets what was reported; without this the
+   * contract would keep withdrawal locked (or, worse, unlocked while a position is open).
+   * Stops are left alone here: they are the evidence for an Overshoot claim when the fill does arrive.
+   */
+  async function onPositionsSync(e: PositionsSync) {
+    const flat = (await exchange.positions(e.vaultId)).every((p) => p.size === 0);
+    await reportFlatIfChanged(e.vaultId, flat);
+    if (flat) completeLeadSwitch(e.vaultId);
   }
 
   /**
@@ -340,6 +383,7 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
     const w = vetoWindows.get(v.proposalId);
     if (!w || w.proposal.vaultId !== v.vaultId) return { kind: "ignored" };
     vetoWindows.delete(v.proposalId);
+    vetoedProposals.add(vetoKey(v.vaultId, v.proposalId));
     return { kind: "vetoed", proposalId: v.proposalId };
   }
 
@@ -361,6 +405,8 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
     // Proposing the same trade again while it waits doesn't restart the window.
     const waiting = !afterVeto && vetoWindows.get(p.proposalId);
     if (waiting) return windowResult(p.vaultId, waiting.pending);
+    // A vetoed trade stays vetoed, however often the agent proposes it again.
+    if (vetoedProposals.has(vetoKey(p.vaultId, p.proposalId))) return { kind: "vetoed", proposalId: p.proposalId };
 
     const reject = (code: RejectionCode, message: string): HandleResult => ({
       kind: "rejected",
@@ -463,6 +509,15 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
     }
 
     const { entryCloid, stopLoss } = decision.order;
+    if (stopLoss) {
+      // The Vault is about to hold a position: lock withdrawal and make looser Mandate Versions wait, before the
+      // order can fill. If the order then fails, the next positions-sync reports Flat again.
+      try {
+        await reportFlatIfChanged(p.vaultId, false);
+      } catch (e) {
+        return reject("order-failed", `Committed (${commitmentTx}) but the Vault couldn't be marked not-Flat onchain, so no order was sent: ${(e as Error).message}`);
+      }
+    }
     try {
       if (!stopLoss) {
         ownOrders.add(entryCloid);
@@ -510,6 +565,9 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
       switch (event.type) {
         case "trade-proposal":
           return handleProposal(event);
+        case "positions-sync":
+          await onPositionsSync(event);
+          return { kind: "handled" };
         case "price-tick":
           onPriceTick(event);
           return { kind: "handled" };
@@ -564,7 +622,8 @@ function mandateCheck(p: TradeProposal, m: Mandate, at: number): Rejection | und
   if (p.intent === "open" && blackout) {
     return { code: "blackout-window", message: `Blackout window until ${new Date(blackout.end).toISOString()}: no new positions` };
   }
-  if (!m.allowedAssets.includes(p.asset)) {
+  // Reducing and closing are always allowed: a tighter Mandate that drops an asset must not trap a position in it.
+  if (p.intent === "open" && !m.allowedAssets.includes(p.asset)) {
     return { code: "asset-not-allowed", message: `${p.asset} is not allowed by Mandate v${m.version} (allowed: ${m.allowedAssets.join(", ")})` };
   }
   if (p.intent === "open" && p.leverage > m.leverageCap) {

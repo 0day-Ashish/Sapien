@@ -67,8 +67,15 @@ export type Allocation = {
   reason: string;
 };
 
+/**
+ * Asks the engine to compare a Vault's positions on the exchange with what the Vault contract was last told, and to
+ * report Flat or not-Flat if they differ. Sent every tick: a stop-loss can close a position with no other event.
+ */
+export type PositionsSync = { type: "positions-sync"; vaultId: VaultId };
+
 export type EngineEvent =
   | TradeProposal
+  | PositionsSync
   | Allocation
   | Veto
   | VetoWindowEnd

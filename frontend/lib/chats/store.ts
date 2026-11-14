@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { MAX_CHAT_BYTES, MAX_CHATS, type StoredChat } from "./merge";
+import { MAX_CHAT_BYTES, MAX_CHATS, MAX_MESSAGE_CHARS, MAX_STORED_MESSAGES, type StoredChat } from "./merge";
 
 // Mandate chat history in Postgres (Neon). Each browser holds a random history key; rows are filed under the key's
 // hash, so the database never stores a value that could be replayed to read someone's history.
@@ -12,8 +12,8 @@ const chatSchema = z.object({
   id: z.string().min(1).max(64),
   text: z.string().max(4000).nullable(),
   messages: z
-    .array(z.object({ role: z.enum(["user", "assistant"]), text: z.string().max(2000) }))
-    .max(20)
+    .array(z.object({ role: z.enum(["user", "assistant"]), text: z.string().max(MAX_MESSAGE_CHARS) }))
+    .max(MAX_STORED_MESSAGES)
     .optional(),
   form: z.unknown(),
   assumptions: z.array(z.string().max(500)).max(20),

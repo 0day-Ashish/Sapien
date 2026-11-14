@@ -23,7 +23,16 @@ export type VaultContext = {
   accountValue: number;
   /** Signed position size in the asset: > 0 long, < 0 short, 0 flat. */
   position: number;
+  /** The Mandate's leverage cap, when known. An agent must not propose more: the Mandate Check would reject it. */
+  leverageCap?: number;
 };
+
+/**
+ * The leverage to open with: the agent's own target, held to the Mandate's cap. Whole numbers only, as the exchange
+ * requires, and never under 1.
+ */
+export const leverageWithin = (target: number, cap: number | undefined) =>
+  cap === undefined ? target : Math.max(1, Math.min(target, Math.floor(cap)));
 
 /** Writes the human-readable rationale from the facts of a decision already made. Never changes the decision. */
 export type RationaleWriter = (facts: Record<string, string | number>, template: string) => Promise<string>;
