@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useConnection } from "wagmi";
 import { SignMandate } from "../funds/vault-mandate";
+import { MAX_CHATS, mergeChats, unsynced } from "@/lib/chats/merge";
 import { MAX_MANDATE_TEXT_LENGTH } from "@/lib/mandate/limits";
+import { deleteChatAction, loadChatsAction, saveChatAction } from "./chat-actions";
 import {
   BLACKOUT_EVENTS,
   LIMITS,
@@ -88,10 +90,27 @@ const inputClass =
 const pill =
   "cursor-pointer rounded-full bg-violet-tint px-3 py-1.5 text-sm text-violet transition-all duration-200 hover:scale-[1.03] hover:bg-violet-soft disabled:pointer-events-none disabled:opacity-40";
 
-// Recent chats: each drafting session, kept in this browser only (per-viewer convenience).
+// Recent chats: each drafting session. They are saved to the server under this browser's history key, and kept in
+// the browser too, so the list shows at once and still works when the server store is off or unreachable.
 type Chat = { id: string; text: string | null; form: Form; assumptions: string[]; updatedAt: number };
 const CHATS_KEY = "sapien.mandate.chats";
-const MAX_CHATS = 20;
+const HISTORY_KEY = "sapien.mandate.historyKey";
+/** How long to wait after the last edit before saving a chat to the server. */
+const SAVE_DELAY_MS = 800;
+
+/** This browser's random history key, created on first use. Null if browser storage is unavailable. */
+function historyKey(): string | null {
+  try {
+    let key = localStorage.getItem(HISTORY_KEY);
+    if (!key) {
+      key = `${crypto.randomUUID()}${crypto.randomUUID()}`;
+      localStorage.setItem(HISTORY_KEY, key);
+    }
+    return key;
+  } catch {
+    return null;
+  }
+}
 
 function loadChats(): Chat[] {
   try {
@@ -183,6 +202,47 @@ export function MandateComposer() {
   const [isCompiling, startCompile] = useTransition();
   const [isConfirming, startConfirm] = useTransition();
 
+  const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const deletedIds = useRef(new Set<string>());
+
+  /** Saves a chat to the server shortly after its last edit. Failures are ignored: the browser copy remains. */
+  function saveSoon(chat: Chat) {
+    const key = historyKey();
+    if (!key) return;
+    clearTimeout(saveTimers.current.get(chat.id));
+    saveTimers.current.set(
+      chat.id,
+      setTimeout(() => {
+        saveTimers.current.delete(chat.id);
+        void saveChatAction(key, chat).catch(() => {});
+      }, SAVE_DELAY_MS),
+    );
+  }
+
+  // Bring in the server's history once: merge it with this browser's, and upload whatever the server lacks.
+  useEffect(() => {
+    const key = historyKey();
+    if (!key) return;
+    let cancelled = false;
+    loadChatsAction(key)
+      .then((res) => {
+        if (cancelled || !res.ok) return;
+        const remote = res.chats as Chat[];
+        const local = loadChats();
+        const merged = mergeChats(local, remote, deletedIds.current);
+        setChats((current) => {
+          const next = mergeChats(current, merged, deletedIds.current);
+          storeChats(next);
+          return next;
+        });
+        for (const chat of unsynced(merged, remote)) void saveChatAction(key, chat).catch(() => {});
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     const t = setTimeout(() => {
       setChats(loadChats());
@@ -202,6 +262,7 @@ export function MandateComposer() {
       const chat: Chat = { id, text: null, assumptions: [], ...prev, ...patch, updatedAt: Date.now() };
       const next = [chat, ...current.filter((c) => c.id !== id)].slice(0, MAX_CHATS);
       storeChats(next);
+      saveSoon(chat);
       return next;
     });
   }
@@ -233,6 +294,12 @@ export function MandateComposer() {
       return next;
     });
     if (id === activeId) startOver();
+    // Remember the deletion so a server copy still in flight can't bring the chat back, then remove it there too.
+    deletedIds.current.add(id);
+    clearTimeout(saveTimers.current.get(id));
+    saveTimers.current.delete(id);
+    const key = historyKey();
+    if (key) void deleteChatAction(key, id).catch(() => {});
   }
 
   const validation = form ? validateMandateDraft(fromForm(form)) : null;

@@ -31,7 +31,13 @@ const sections: LegalSection[] = [
           </>,
           <>
             <strong className="text-ink">Mandate text.</strong> The plain-English rules you type when you ask for a draft. It is
-            sent to the model provider to produce the draft, and we don&apos;t store it. The Mandate you sign is stored onchain.
+            sent to the model provider to produce the draft. The Mandate you sign is stored onchain.
+          </>,
+          <>
+            <strong className="text-ink">Mandate chat history.</strong> Each draft you start, with the text you typed and the
+            fields of the draft, is saved in our database so your Recent list survives a refresh. It is filed under a random key
+            that only your browser holds, and it isn&apos;t linked to your wallet address. We keep your 20 most recent drafts, and
+            deleting a draft from Recent removes it from the database.
           </>,
           <>
             <strong className="text-ink">Trading records.</strong> For each Vault, the Execution Engine keeps every decision: the
@@ -63,8 +69,9 @@ const sections: LegalSection[] = [
     body: (
       <p>
         The Builder page remembers the last agent id you looked up in your browser&apos;s local storage, so the page can show it
-        next time. It stays on your device, and clearing your site data removes it. Your wallet extension keeps its own
-        connection state.
+        next time. The Mandate chat keeps a copy of your recent drafts there too, along with the random key your chat history is
+        filed under. These stay on your device, and clearing your site data removes them. Without that key, the drafts saved
+        in our database can no longer be opened. Your wallet extension keeps its own connection state.
       </p>
     ),
   },
@@ -77,6 +84,7 @@ const sections: LegalSection[] = [
         <Bullets
           items={[
             "Google (Gemini) and Groq, which draft Mandates from the text you type;",
+            "Neon, which hosts the database that holds Mandate chat history;",
             "Hyperliquid (HyperCore and HyperEVM), where Vaults trade and hold funds;",
             "Circle's CCTP, which moves USDC between chains;",
             "your wallet provider, and the public RPC endpoints your wallet and the app connect to;",
