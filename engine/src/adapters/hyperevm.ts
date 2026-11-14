@@ -11,14 +11,18 @@ import {
   type Hex,
   http,
   keccak256,
+  pad,
+  parseAbi,
   parseAbiItem,
   type PublicClient,
   type Transport,
   type WalletClient,
+  toHex,
 } from "viem";
 import type { PrivateKeyAccount } from "viem/accounts";
 import type { AgentId, VaultId } from "../events.js";
-import type { ChainPort, DecisionCommitment, Mandate } from "../ports.js";
+import type { ChainPort, DecisionCommitment, EpochSettlement, Mandate, OvershootClaim } from "../ports.js";
+import { toPpm } from "../premium.js";
 
 export const hyperEvmTestnet = defineChain({
   id: 998,
@@ -34,9 +38,33 @@ export type HyperEvmChainConfig = {
   engine: PrivateKeyAccount;
   chain?: Chain;
   rpcUrl?: string;
-  /** Until the AgentRegistry (#12) exists, every agent counts as above its Bond Minimum. */
-  meetsBondMinimum?: (agentId: AgentId) => Promise<boolean>;
+  /** The AgentRegistry (#12). Without it, every agent counts as above its Bond Minimum. */
+  agentRegistry?: Address;
+  /** The ProtectionFund (#15): settles Overshoot claims and holds the Coverage Ratio. Without it, claims throw. */
+  protectionFund?: Address;
+  /** The FeeRouter (#17): Epoch fees and premiums. Without it, Epoch settlement only reports the Fund cap's basis. */
+  feeRouter?: Address;
+  /** Wait between asking a Vault for its fees and paying them out (HyperCore credits HyperEVM a block later). */
+  feeLandingDelayMs?: number;
 };
+
+const feeRouterAbi = parseAbi([
+  "function settleEpoch(address vault, uint64 epoch, uint256 value, int256 netFlows, string agentId, uint32 premiumRatePpm, uint256 notional)",
+  "function distribute(address vault) returns (uint256)",
+]);
+
+const protectionFundAbi = parseAbi([
+  "struct Claim { address vault; string agentId; bytes32 positionId; uint256 triggerPriceE8; uint256 fillPriceE8; uint256 sizeE8; bool infrastructureFailure; bytes32 evidenceHash; string evidenceRef; }",
+  "function settle(Claim[] claims)",
+  "function currentEpoch() view returns (uint256)",
+  "function epochStartValue(address vault, uint256 epoch) view returns (uint256)",
+  "function reportEpochValue(address vault, uint256 value)",
+  "function reportExposure(uint256 exposure)",
+]);
+
+/** A price or size as the ProtectionFund takes it: 8 decimals, rounded to the nearest unit. */
+export const toE8 = (x: number): bigint => BigInt(Math.round(x * 1e8));
+const toUsdc = (x: number): bigint => BigInt(Math.round(x * 1e6));
 
 const registryAbi = [
   {
@@ -85,6 +113,21 @@ const decisionLogAbi = [
       { name: "decisionHash", type: "bytes32" },
     ],
     outputs: [{ name: "index", type: "uint256" }],
+  },
+] as const;
+
+const agentRegistryAbi = [
+  { type: "function", name: "meetsBondMinimum", stateMutability: "view", inputs: [{ name: "agentId", type: "string" }], outputs: [{ type: "bool" }] },
+  {
+    type: "function",
+    name: "reportLead",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "vault", type: "address" },
+      { name: "agentId", type: "string" },
+      { name: "vaultValue", type: "uint256" },
+    ],
+    outputs: [],
   },
 ] as const;
 
@@ -176,16 +219,107 @@ export class HyperEvmChain implements ChainPort {
     }
   }
 
-  async submitOvershootClaim(): Promise<void> {
-    throw new Error("Overshoot settlement isn't deployed yet (#15)");
+  async submitOvershootClaim(claim: OvershootClaim): Promise<void> {
+    const fund = this.protectionFund();
+    const vault = claim.vaultId as Address;
+    // The Fund's cap is 10% of the Vault's value at Epoch start. Until Epoch ticks report it (#17), the value now stands in.
+    const epoch = await this.publicClient.readContract({ address: fund, abi: protectionFundAbi, functionName: "currentEpoch" });
+    const startValue = await this.publicClient.readContract({ address: fund, abi: protectionFundAbi, functionName: "epochStartValue", args: [vault, epoch] });
+    if (startValue === 0n) await this.write(fund, "reportEpochValue", [vault, toUsdc(claim.vaultValueUsdc)]);
+    await this.write(fund, "settle", [
+      [
+        {
+          vault,
+          agentId: claim.agentId,
+          positionId: pad(claim.positionId as Hex, { size: 32, dir: "right" }),
+          triggerPriceE8: toE8(claim.triggerPrice),
+          fillPriceE8: toE8(claim.fillPrice),
+          sizeE8: toE8(claim.size),
+          infrastructureFailure: claim.infrastructureFailure,
+          evidenceHash: keccak256(toHex(claim.evidenceRef)),
+          evidenceRef: claim.evidenceRef,
+        },
+      ],
+    ]);
   }
 
-  async settleEpoch(): Promise<void> {
-    throw new Error("Epoch settlement isn't deployed yet (#17)");
+  /** The ProtectionFund's current Epoch (24h from its deployment): the engine settles on its boundaries. */
+  async currentEpoch(): Promise<number> {
+    return Number(await this.publicClient.readContract({ address: this.protectionFund(), abi: protectionFundAbi, functionName: "currentEpoch" }));
+  }
+
+  async reportExposure(totalUsdc: number): Promise<void> {
+    if (!this.config.protectionFund) return;
+    await this.write(this.config.protectionFund, "reportExposure", [toUsdc(totalUsdc)]);
+  }
+
+  private protectionFund(): Address {
+    if (!this.config.protectionFund) throw new Error("No ProtectionFund configured (#15)");
+    return this.config.protectionFund;
+  }
+
+  private async write(address: Address, functionName: "settle" | "reportEpochValue" | "reportExposure", args: readonly unknown[]) {
+    const hash = await this.wallet.writeContract({ address, abi: protectionFundAbi, functionName, args } as never);
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+    if (receipt.status !== "success") throw new Error(`ProtectionFund.${functionName} reverted: ${hash}`);
+    return hash;
+  }
+
+  /**
+   * Reports the Vault's Epoch-start value (the Protection Fund cap's basis), then settles its fees and premiums on the
+   * FeeRouter, which asks the Vault to move them to HyperEVM; once that lands, pays them out. Charges whose USDC
+   * hasn't landed are paid by a later call (distribute runs first too).
+   */
+  async settleEpoch(s: EpochSettlement): Promise<void> {
+    const vault = s.vaultId as Address;
+    if (this.config.protectionFund) await this.write(this.config.protectionFund, "reportEpochValue", [vault, toUsdc(s.valueUsdc)]);
+    const router = this.config.feeRouter;
+    if (!router) throw new Error("No FeeRouter configured (#17)");
+    await this.writeFeeRouter(router, "distribute", [vault]).catch(() => {});
+    await this.writeFeeRouter(router, "settleEpoch", [
+      vault,
+      BigInt(s.epoch),
+      toUsdc(s.valueUsdc),
+      toUsdc(s.netFlowsUsdc),
+      s.agentId ?? "",
+      toPpm(s.premiumRate),
+      toUsdc(s.tradedNotionalUsdc),
+    ]);
+    await new Promise((r) => setTimeout(r, this.config.feeLandingDelayMs ?? 10_000));
+    await this.writeFeeRouter(router, "distribute", [vault]);
+  }
+
+  private async writeFeeRouter(address: Address, functionName: "settleEpoch" | "distribute", args: readonly unknown[]) {
+    const hash = await this.wallet.writeContract({ address, abi: feeRouterAbi, functionName, args } as never);
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+    if (receipt.status !== "success") throw new Error(`FeeRouter.${functionName} reverted: ${hash}`);
+    return hash;
   }
 
   async meetsBondMinimum(agentId: AgentId) {
-    return this.config.meetsBondMinimum ? this.config.meetsBondMinimum(agentId) : true;
+    if (!this.config.agentRegistry) return true;
+    return this.publicClient.readContract({
+      address: this.config.agentRegistry,
+      abi: agentRegistryAbi,
+      functionName: "meetsBondMinimum",
+      args: [agentId],
+    });
+  }
+
+  /**
+   * Tells the AgentRegistry which agent leads the Vault (undefined = none) and the Vault's value, which sets that
+   * agent's Bond Minimum and blocks its Unbonding. Not part of the ChainPort: whoever applies allocations calls it.
+   */
+  async reportLead(vaultId: VaultId, agentId: AgentId | undefined, vaultValueUsdc: number) {
+    if (!this.config.agentRegistry) return;
+    const hash = await this.wallet.writeContract({
+      address: this.config.agentRegistry,
+      abi: agentRegistryAbi,
+      functionName: "reportLead",
+      args: [vaultId as Address, agentId ?? "", BigInt(Math.max(0, Math.floor(vaultValueUsdc * 1e6)))],
+    });
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+    if (receipt.status !== "success") throw new Error(`AgentRegistry.reportLead reverted: ${hash}`);
   }
 
   /** Finds the MandateVersionSigned log: binary-search the block by the version's signedAt, then read a narrow range. */

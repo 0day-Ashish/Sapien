@@ -6,6 +6,8 @@ import {Vault} from "./Vault.sol";
 /// @notice Creates Vaults. The caller becomes the owner; the Agent Wallet comes from the Execution Engine.
 contract VaultFactory {
     address public immutable engine;
+    /// @notice Collects every Vault's Epoch fees and premiums (#17).
+    address public immutable feeRouter;
     mapping(address vault => bool) public isVault;
     /// @notice The Vault an owner's deposits are credited to. CCTP deposits all land in the Deposit Account
     /// (ADR-0004); the engine matches each to a Vault by depositor through this. Set on createVault.
@@ -16,12 +18,13 @@ contract VaultFactory {
 
     error NotVaultOwner();
 
-    constructor(address engine_) {
+    constructor(address engine_, address feeRouter_) {
         engine = engine_;
+        feeRouter = feeRouter_;
     }
 
     function createVault(address agentWallet) external returns (Vault vault) {
-        vault = new Vault(msg.sender, engine, agentWallet);
+        vault = new Vault(msg.sender, engine, feeRouter, agentWallet);
         isVault[address(vault)] = true;
         emit VaultCreated(msg.sender, address(vault), agentWallet);
         _setDepositTarget(address(vault));

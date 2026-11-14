@@ -10,7 +10,8 @@ const columns: { title: string; groups: FooterLink[][] }[] = [
     title: "Product",
     groups: [
       [
-        { href: "/mandate", label: "Write a Mandate", strong: true },
+        { href: "/mandate", label: "Chat", strong: true },
+        { href: "/funds", label: "Deposit and withdraw" },
         { href: "/#how-it-works", label: "How it works" },
         { href: "/#protection", label: "Protection" },
         { href: "/#control", label: "Control" },
@@ -22,8 +23,8 @@ const columns: { title: string; groups: FooterLink[][] }[] = [
     groups: [
       [
         { href: "/#safeguards", label: "Safeguards", strong: true },
-        { href: "/#safeguards", label: "Veto Window" },
-        { href: "/#safeguards", label: "Kill Switch" },
+        { href: "/#control", label: "Veto Window" },
+        { href: "/#control", label: "Kill Switch" },
         { href: "/#safeguards", label: "Replay" },
       ],
     ],
@@ -32,9 +33,9 @@ const columns: { title: string; groups: FooterLink[][] }[] = [
     title: "Builders",
     groups: [
       [
-        { href: "/#builders", label: "Bring an agent", strong: true },
+        { href: "/builders", label: "Bring an agent", strong: true },
         { href: "/#builders", label: "Bonds" },
-        { href: "/#safeguards", label: "Leaderboard" },
+        { href: "/leaderboard", label: "Leaderboard" },
       ],
     ],
   },
@@ -55,9 +56,16 @@ const columns: { title: string; groups: FooterLink[][] }[] = [
         { href: "/#protection", label: "Stop-loss protection", strong: true },
         { href: "/#protection", label: "Protection Fund" },
         { href: "/#protection", label: "Protocol Reserve" },
+        { href: "/risk", label: "Risk Disclosure" },
       ],
     ],
   },
+];
+
+const legal = [
+  { href: "/terms", label: "Terms" },
+  { href: "/privacy", label: "Privacy" },
+  { href: "/risk", label: "Risk Disclosure" },
 ];
 
 export function SiteFooter() {
@@ -74,7 +82,7 @@ export function SiteFooter() {
                     <Link
                       href={link.href}
                       {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                      className={`hover:text-violet-ink ${link.strong ? "font-semibold" : ""}`}
+                      className={`hover:text-violet-ink ${link.strong ? "font-medium" : ""}`}
                     >
                       {link.label}
                       {link.external && <span aria-hidden="true"> ↗</span>}
@@ -87,9 +95,17 @@ export function SiteFooter() {
         ))}
       </div>
       <div className="mt-20 flex flex-col items-start gap-4 text-[0.9375rem] md:flex-row md:items-center md:justify-between">
-        <p className="font-semibold">© 2026 {PRODUCT_NAME}</p>
-        <p className="eyebrow rounded-full bg-violet-tint px-4 py-2 !text-[0.6875rem]">Testnet only · Not investment advice</p>
-        <p className="font-semibold">Stop-loss protected, never guaranteed</p>
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-6">
+          <p className="font-medium">© 2026 {PRODUCT_NAME}</p>
+          <nav aria-label="Legal" className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+            {legal.map((link) => (
+              <Link key={link.href} href={link.href} className="hover:text-violet-ink hover:underline">
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+        <p className="font-medium">Stop-loss protected, never guaranteed</p>
       </div>
     </footer>
   );

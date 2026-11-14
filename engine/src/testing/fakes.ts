@@ -5,6 +5,7 @@ import type {
   ChainPort,
   Cloid,
   DecisionCommitment,
+  EpochSettlement,
   ExchangePort,
   Fill,
   Mandate,
@@ -23,7 +24,7 @@ export const defaultMandate: Mandate = {
   stopLossPct: 2,
   drawdownCapPct: 10,
   blackoutWindows: [],
-  vetoThresholdUsdc: 500,
+  vetoThresholdUsdc: 1_000,
   killFlag: false,
 };
 
@@ -37,6 +38,8 @@ export class FakeExchange implements ExchangePort {
   positionsByVault = new Map<string, Position[]>();
   accountValueByVault = new Map<string, number>();
   fillsByVault = new Map<string, Fill[]>();
+  /** Ledger entries per Vault: signed USDC (deposit +, withdrawal -) and when. */
+  flowsByVault = new Map<string, { usdc: number; at: number }[]>();
   /** Set to make order placement throw, like an exchange rejection. */
   rejectOrdersWith?: string;
 
@@ -82,6 +85,9 @@ export class FakeExchange implements ExchangePort {
   async fills(vaultId: string) {
     return this.fillsByVault.get(vaultId) ?? [];
   }
+  async netFlows(vaultId: string, sinceMs: number) {
+    return (this.flowsByVault.get(vaultId) ?? []).filter((f) => f.at > sinceMs).reduce((n, f) => n + f.usdc, 0);
+  }
 }
 
 export class FakeChain implements ChainPort {
@@ -89,7 +95,9 @@ export class FakeChain implements ChainPort {
   commitments: DecisionCommitment[] = [];
   flatReports: string[] = [];
   claims: OvershootClaim[] = [];
-  settledEpochs: number[] = [];
+  epochSettlements: EpochSettlement[] = [];
+  /** Vaults whose settleEpoch rejects. */
+  failSettlementFor = new Set<string>();
   belowBondMinimum = new Set<string>();
   /** Set to make currentMandate throw, like an unreadable or tampered Mandate. */
   failMandateReads?: string;
@@ -114,8 +122,14 @@ export class FakeChain implements ChainPort {
   async submitOvershootClaim(claim: OvershootClaim) {
     this.claims.push(claim);
   }
-  async settleEpoch(epoch: number) {
-    this.settledEpochs.push(epoch);
+  exposures: number[] = [];
+  async reportExposure(totalUsdc: number) {
+    this.exposures.push(totalUsdc);
+  }
+  async settleEpoch(settlement: EpochSettlement) {
+    this.journal.push("chain.settleEpoch");
+    if (this.failSettlementFor.has(settlement.vaultId)) throw new Error("FeeRouter.settleEpoch reverted");
+    this.epochSettlements.push(settlement);
   }
   async meetsBondMinimum(agentId: string) {
     return !this.belowBondMinimum.has(agentId);

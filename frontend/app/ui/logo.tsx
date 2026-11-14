@@ -22,7 +22,7 @@ export function Logo({ className = "" }: { className?: string }) {
   return (
     <span className={`inline-flex items-center gap-2.5 whitespace-nowrap text-violet ${className}`}>
       <LogoMark />
-      <span className="text-[1.5rem] font-semibold leading-none tracking-[-0.045em] lowercase sm:text-[1.625rem]">
+      <span className="text-[1.5rem] font-medium leading-none tracking-[-0.045em] lowercase sm:text-[1.625rem]">
         {PRODUCT_NAME}
       </span>
     </span>

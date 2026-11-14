@@ -52,7 +52,8 @@ async function send(address: Address, name: string, functionName: string, args: 
 
 step("1. Contracts (throwaway copies, engine operator = smoke owner)");
 if (!process.env.SMOKE_VAULT_FACTORY) {
-  setEnv("SMOKE_VAULT_FACTORY", await deploy("VaultFactory", [owner.address]));
+  // No FeeRouter (#17) in the smoke: its Vaults never pay Epoch fees.
+  setEnv("SMOKE_VAULT_FACTORY", await deploy("VaultFactory", [owner.address, "0x0000000000000000000000000000000000000000"]));
   setEnv("SMOKE_MANDATE_REGISTRY", await deploy("MandateRegistry", []));
   setEnv("SMOKE_DECISION_LOG", await deploy("DecisionLog", [owner.address]));
 }

@@ -1,5 +1,8 @@
 // Original decorative art for the marketing pages: clusters of candlesticks and coins, and a
-// small vault-safe mascot. Everything is drawn here as SVG in the brand colours.
+// small vault-safe mascot. Everything is drawn here as SVG in the brand colours; coin faces carry
+// real token logos (see token-icons.ts), tinted to match.
+
+import { TOKEN_ICONS } from "./token-icons";
 
 const PALETTE = [
   { fill: "#ece7fb", stroke: "#6a4fd6" },
@@ -23,14 +26,18 @@ function random(seed: number) {
   };
 }
 
+type Shape = "mound" | "band" | "spray" | "heap";
+
 type Piece =
   | { kind: "candle"; x: number; y: number; w: number; h: number; wick: number; c: number; rot: number }
-  | { kind: "coin"; x: number; y: number; r: number; c: number; stack: number }
-  | { kind: "ring"; x: number; y: number; r: number; c: number }
+  | { kind: "coin"; x: number; y: number; r: number; c: number; stack: number; logo: number }
+  | { kind: "ring"; x: number; y: number; r: number; c: number; logo: number }
   | { kind: "spark"; x: number; y: number; r: number; c: number };
 
-function cluster(seed: number, width: number, height: number, count: number, shape: "mound" | "band" | "spray"): Piece[] {
+function cluster(seed: number, width: number, height: number, count: number, shape: Shape): Piece[] {
   const rand = random(seed);
+  // Logos come from their own stream so adding them doesn't reshuffle the layout.
+  const pickLogo = random(seed * 131 + 17);
   const pieces: Piece[] = [];
   for (let i = 0; i < count; i++) {
     const u = rand();
@@ -40,6 +47,11 @@ function cluster(seed: number, width: number, height: number, count: number, sha
       // Taller in the middle, like a heap.
       const centre = 1 - Math.abs(x / width - 0.5) * 2;
       y = height - rand() * height * (0.25 + 0.75 * centre);
+    } else if (shape === "heap") {
+      // A broad, fairly level heap: a gently rolling top edge, packed tighter towards the bottom.
+      const roll = 0.18 + 0.1 * Math.sin((x / width) * Math.PI * 3.2) + 0.06 * Math.sin((x / width) * Math.PI * 7.5);
+      const edge = (1 - Math.pow(x / width, 6)) * (1 - roll);
+      y = height - Math.pow(rand(), 0.7) * height * edge;
     } else if (shape === "spray") {
       y = rand() * height;
       x = width - Math.pow(rand(), 1.6) * width;
@@ -51,14 +63,31 @@ function cluster(seed: number, width: number, height: number, count: number, sha
       const h = 26 + rand() * 54;
       pieces.push({ kind: "candle", x, y, w: 11 + rand() * 9, h, wick: 8 + rand() * 14, c, rot: (rand() - 0.5) * 50 });
     } else if (u < 0.75) {
-      pieces.push({ kind: "coin", x, y, r: 12 + rand() * 16, c, stack: 1 + Math.floor(rand() * 3) });
+      pieces.push({ kind: "coin", x, y, r: 12 + rand() * 16, c, stack: 1 + Math.floor(rand() * 3), logo: Math.floor(pickLogo() * TOKEN_ICONS.length) });
     } else if (u < 0.9) {
-      pieces.push({ kind: "ring", x, y, r: 9 + rand() * 16, c });
+      pieces.push({ kind: "ring", x, y, r: 13 + rand() * 16, c, logo: Math.floor(pickLogo() * TOKEN_ICONS.length) });
     } else {
       pieces.push({ kind: "spark", x, y, r: 7 + rand() * 9, c });
     }
   }
   return pieces.sort((a, b) => a.y - b.y);
+}
+
+/** A token logo fitted into a `size` box centred on (cx, cy); `squash` flattens it onto a tilted coin. */
+function TokenLogo({ logo, cx, cy, size, fill, squash = 1 }: { logo: number; cx: number; cy: number; size: number; fill: string; squash?: number }) {
+  const icon = TOKEN_ICONS[logo]!;
+  const [vx, vy, vw, vh] = icon.viewBox.split(" ").map(Number) as [number, number, number, number];
+  const k = size / Math.max(vw, vh);
+  const tx = cx - (vx + vw / 2) * k;
+  const ty = cy - (vy + vh / 2) * k * squash;
+  return (
+    <path
+      d={icon.d}
+      fill={fill}
+      fillRule="evenodd"
+      transform={`translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${k.toFixed(4)} ${(k * squash).toFixed(4)})`}
+    />
+  );
 }
 
 function PieceSvg({ piece }: { piece: Piece }) {
@@ -67,33 +96,67 @@ function PieceSvg({ piece }: { piece: Piece }) {
   switch (piece.kind) {
     case "candle": {
       const { x, y, w, h, wick, rot } = piece;
+      const top = y - h / 2;
+      const bottom = y + h / 2;
+      const left = x - w / 2;
+      // Alternate solid "up" candles and hollow "down" candles, fixed per position.
+      const up = Math.round(x * 7 + y * 3) % 2 === 0;
+      const upperWick = wick * (up ? 1 : 0.6);
+      const lowerWick = wick * (up ? 0.6 : 1);
       return (
-        <g transform={`rotate(${rot.toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)})`}>
-          <line x1={x} y1={y - h / 2 - wick} x2={x} y2={y + h / 2 + wick} stroke={stroke} strokeWidth={2} strokeLinecap="round" />
-          <rect x={x - w / 2} y={y - h / 2} width={w} height={h} rx={3} {...common} />
-          <line x1={x - w / 2 + 3} y1={y - h / 2 + h * 0.33} x2={x + w / 2 - 3} y2={y - h / 2 + h * 0.33} stroke={stroke} strokeWidth={1.2} />
+        <g transform={`rotate(${rot.toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)})`} strokeLinecap="round" strokeLinejoin="round">
+          {/* Wicks stop at the body, with small caps */}
+          <path
+            d={`M${x} ${top}V${top - upperWick}M${x - 2.5} ${top - upperWick}H${x + 2.5}M${x} ${bottom}V${bottom + lowerWick}M${x - 2.5} ${bottom + lowerWick}H${x + 2.5}`}
+            fill="none"
+            stroke={stroke}
+            strokeWidth={1.8}
+          />
+          {/* Body */}
+          <rect x={left} y={top} width={w} height={h} rx={Math.min(4, w / 3)} fill={up ? stroke : fill} stroke={stroke} strokeWidth={2} />
+          {/* Highlight stripe down the left side */}
+          <path
+            d={`M${left + w * 0.3} ${top + 4}V${bottom - 4}`}
+            fill="none"
+            stroke={up ? fill : "#ffffff"}
+            strokeOpacity={up ? 0.7 : 0.9}
+            strokeWidth={Math.max(1.5, w * 0.16)}
+          />
+          {/* Open and close ticks */}
+          <path
+            d={`M${left - 3} ${up ? bottom - 3 : top + 3}H${left}M${left + w} ${up ? top + 3 : bottom - 3}H${left + w + 3}`}
+            fill="none"
+            stroke={stroke}
+            strokeWidth={1.6}
+          />
         </g>
       );
     }
     case "coin": {
-      const { x, y, r, stack } = piece;
+      const { x, y, r, stack, logo } = piece;
       return (
         <g>
-          {Array.from({ length: stack }, (_, i) => (
-            <g key={i}>
-              <ellipse cx={x} cy={y - i * r * 0.32} rx={r} ry={r * 0.42} {...common} />
-              <ellipse cx={x} cy={y - i * r * 0.32} rx={r * 0.55} ry={r * 0.22} fill="none" stroke={stroke} strokeWidth={1.2} />
-            </g>
-          ))}
+          {Array.from({ length: stack }, (_, i) => {
+            const cy = y - i * r * 0.32;
+            const top = i === stack - 1;
+            return (
+              <g key={i}>
+                <ellipse cx={x} cy={cy} rx={r} ry={r * 0.42} {...common} />
+                <ellipse cx={x} cy={cy} rx={r * 0.72} ry={r * 0.3} fill="none" stroke={stroke} strokeWidth={1.2} />
+                {top && <TokenLogo logo={logo} cx={x} cy={cy} size={r * 0.95} fill={stroke} squash={0.42} />}
+              </g>
+            );
+          })}
         </g>
       );
     }
     case "ring": {
-      const { x, y, r } = piece;
+      const { x, y, r, logo } = piece;
       return (
         <g>
           <circle cx={x} cy={y} r={r} {...common} />
-          <circle cx={x} cy={y} r={r * 0.45} fill="#fff" stroke={stroke} strokeWidth={1.5} />
+          <circle cx={x} cy={y} r={r * 0.78} fill="#fff" stroke={stroke} strokeWidth={1.5} />
+          <TokenLogo logo={logo} cx={x} cy={y} size={r * 1.05} fill={stroke} />
         </g>
       );
     }
@@ -126,7 +189,7 @@ export function MarketGarden({
   width?: number;
   height?: number;
   count?: number;
-  shape?: "mound" | "band" | "spray";
+  shape?: Shape;
   className?: string;
   animated?: boolean;
 }) {
@@ -143,80 +206,12 @@ export function MarketGarden({
             className={animated ? MOTION[piece.kind] : undefined}
             style={animated ? { animationDelay: `${delay}s`, animationDuration: `${duration}s` } : undefined}
           >
-            <PieceSvg piece={piece} />
+            <g className="garden-hover">
+              <PieceSvg piece={piece} />
+            </g>
           </g>
         );
       })}
-    </svg>
-  );
-}
-
-/**
- * The mascot: a small vault safe with a dial face, an antenna and stubby legs. When `animated`,
- * it hovers, blinks, spins its dial, swings its legs and has a coin in orbit (see globals.css).
- */
-export function VaultBot({ className = "", animated = false }: { className?: string; animated?: boolean }) {
-  const a = (name: string) => (animated ? name : undefined);
-  return (
-    <svg viewBox="0 0 140 160" aria-hidden="true" className={className} overflow="visible">
-      {/* Shadow on the ground, shrinking as the bot rises */}
-      <ellipse cx="70" cy="152" rx="34" ry="5" fill="#3a2a86" opacity="0.12" className={a("bot-shadow")} />
-      <g className={a("bot-hover")}>
-        <g className={a("bot-tilt")}>
-          {/* Antenna */}
-          <g className={a("bot-antenna")}>
-            <line x1="70" y1="12" x2="70" y2="32" stroke="#3a2a86" strokeWidth="3" strokeLinecap="round" />
-            <circle cx="70" cy="11" r="6.5" fill="#ffe3d0" stroke="#c8561c" strokeWidth="2.5" />
-          </g>
-          {/* Legs */}
-          <g className={a("bot-leg-left")}>
-            <path d="M47 112v16" stroke="#3a2a86" strokeWidth="5" strokeLinecap="round" />
-            <path d="M39 130h16" stroke="#3a2a86" strokeWidth="5" strokeLinecap="round" />
-          </g>
-          <g className={a("bot-leg-right")}>
-            <path d="M93 112v16" stroke="#3a2a86" strokeWidth="5" strokeLinecap="round" />
-            <path d="M85 130h16" stroke="#3a2a86" strokeWidth="5" strokeLinecap="round" />
-          </g>
-          {/* Body */}
-          <rect x="26" y="32" width="88" height="84" rx="19" fill="#ece7fb" stroke="#3a2a86" strokeWidth="3" />
-          <rect x="35" y="41" width="70" height="66" rx="13" fill="#ffffff" stroke="#6a4fd6" strokeWidth="2.5" />
-          {/* Handle */}
-          <rect x="111" y="58" width="10" height="32" rx="4.5" fill="#fbeccd" stroke="#a3690e" strokeWidth="2.5" className={a("bot-handle")} />
-          {/* Dial face */}
-          <circle cx="70" cy="74" r="21" fill="#e0f0e9" stroke="#17805a" strokeWidth="2.5" />
-          <g className={a("bot-dial")}>
-            {Array.from({ length: 8 }, (_, i) => {
-              const angle = (i * Math.PI) / 4;
-              return (
-                <line
-                  key={i}
-                  x1={70 + Math.cos(angle) * 15}
-                  y1={74 + Math.sin(angle) * 15}
-                  x2={70 + Math.cos(angle) * 19}
-                  y2={74 + Math.sin(angle) * 19}
-                  stroke="#17805a"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              );
-            })}
-          </g>
-          <g className={a("bot-blink")}>
-            <circle cx="63" cy="70" r="3.2" fill="#3a2a86" />
-            <circle cx="77" cy="70" r="3.2" fill="#3a2a86" />
-          </g>
-          <path d="M62.5 80q7.5 6.5 15 0" fill="none" stroke="#3a2a86" strokeWidth="2.5" strokeLinecap="round" />
-        </g>
-        {/* Orbiting coin */}
-        {animated && (
-          <g className="bot-orbit">
-            <g transform="translate(70 74)">
-              <ellipse cx="62" cy="0" rx="9" ry="4" fill="#fbeccd" stroke="#a3690e" strokeWidth="2" />
-              <ellipse cx="62" cy="-3" rx="9" ry="4" fill="#fbeccd" stroke="#a3690e" strokeWidth="2" />
-            </g>
-          </g>
-        )}
-      </g>
     </svg>
   );
 }
@@ -377,6 +372,86 @@ function wavyRing(r: number, n: number, a: number) {
   return `M${points.join("L")}Z`;
 }
 
+/**
+ * The safeguards seal: a scalloped rosette with a turning text ring, a vault door at its centre,
+ * and three small badges (shield, coin stack, candlestick) circling it. Original art.
+ */
+export function SafeguardSeal({ className = "" }: { className?: string }) {
+  const rosette = Array.from({ length: 36 }, (_, k) => {
+    const a = (k / 36) * Math.PI * 2;
+    const r = k % 2 ? 84 : 90;
+    return `${k ? "L" : "M"}${(100 + Math.cos(a) * r).toFixed(1)} ${(100 + Math.sin(a) * r).toFixed(1)}`;
+  }).join("") + "Z";
+  const ring = "STOP-LOSS PROTECTED · BONDED AGENTS · SIGNED MANDATES · ";
+  return (
+    <svg viewBox="0 0 200 200" aria-hidden="true" className={className} overflow="visible">
+      <defs>
+        <path id="seal-text-path" d="M100 100m-66 0a66 66 0 1 1 132 0a66 66 0 1 1-132 0" />
+        <pattern id="seal-dots" width="6" height="6" patternUnits="userSpaceOnUse">
+          <circle cx="3" cy="3" r="0.9" fill="#6a4fd6" fillOpacity="0.35" />
+        </pattern>
+      </defs>
+
+      {/* Rosette and rim */}
+      <path d={rosette} fill="#ece7fb" stroke="#6a4fd6" strokeWidth="2.5" strokeLinejoin="round" />
+      <circle cx="100" cy="100" r="76" fill="url(#seal-dots)" stroke="#6a4fd6" strokeWidth="2" />
+      <circle cx="100" cy="100" r="56" fill="#fff" stroke="#6a4fd6" strokeWidth="2.5" />
+
+      {/* Turning text ring */}
+      <g className="seal-turn">
+        <text fontFamily="var(--font-geist-mono), ui-monospace, monospace" fontSize="8.6" fontWeight="500" letterSpacing="1.6" fill="#4b35a8">
+          <textPath href="#seal-text-path">{ring}</textPath>
+        </text>
+      </g>
+
+      {/* Vault door */}
+      <g transform="translate(100 100)">
+        <rect x="-34" y="-34" width="68" height="68" rx="12" fill="#e0f0e9" stroke="#17805a" strokeWidth="2.5" />
+        <path d="M-34 -16h-5M-34 0h-5M-34 16h-5" stroke="#17805a" strokeWidth="3.5" strokeLinecap="round" />
+        <circle r="22" fill="#fff" stroke="#17805a" strokeWidth="2.2" />
+        {Array.from({ length: 10 }, (_, k) => {
+          const a = (k / 10) * Math.PI * 2;
+          return <circle key={k} cx={Math.cos(a) * 17} cy={Math.sin(a) * 17} r="1.6" fill="#17805a" />;
+        })}
+        <g className="seal-handle">
+          {[0, 1, 2].map((k) => {
+            const a = (k / 3) * Math.PI * 2 - Math.PI / 2;
+            return (
+              <line key={k} x1={Math.cos(a) * 4} y1={Math.sin(a) * 4} x2={Math.cos(a) * 12} y2={Math.sin(a) * 12} stroke="#17805a" strokeWidth="3" strokeLinecap="round" />
+            );
+          })}
+          <circle r="5" fill="#e0f0e9" stroke="#17805a" strokeWidth="2" />
+        </g>
+        <rect x="26" y="-8" width="5" height="16" rx="2" fill="#fbeccd" stroke="#a3690e" strokeWidth="1.6" />
+      </g>
+
+      {/* Orbiting badges */}
+      <g className="seal-orbit">
+        {/* Shield */}
+        <g transform="translate(100 6)">
+          <circle r="15" fill="#fff" stroke="#6a4fd6" strokeWidth="2.2" />
+          <path d="M0 -8l7 2.6v4.4c0 4.3-2.9 7-7 9-4.1-2-7-4.7-7-9v-4.4z" fill="#ece7fb" stroke="#6a4fd6" strokeWidth="1.6" strokeLinejoin="round" />
+          <path d="M-3 -0.5l2.2 2.2 4-4.4" fill="none" stroke="#6a4fd6" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+        {/* Coin stack */}
+        <g transform="translate(181 147)">
+          <circle r="15" fill="#fff" stroke="#a3690e" strokeWidth="2.2" />
+          {[4, 0, -4].map((y) => (
+            <ellipse key={y} cy={y} rx="7.5" ry="3.2" fill="#fbeccd" stroke="#a3690e" strokeWidth="1.5" />
+          ))}
+        </g>
+        {/* Candlestick */}
+        <g transform="translate(19 147)">
+          <circle r="15" fill="#fff" stroke="#c8561c" strokeWidth="2.2" />
+          <path d="M-3.5 -9v18M3.5 -6v14" stroke="#c8561c" strokeWidth="1.5" strokeLinecap="round" />
+          <rect x="-6" y="-5" width="5" height="9" rx="1.2" fill="#c8561c" />
+          <rect x="1" y="-2" width="5" height="7" rx="1.2" fill="#ffe3d0" stroke="#c8561c" strokeWidth="1.4" />
+        </g>
+      </g>
+    </svg>
+  );
+}
+
 /** Line icons for cards. All 1.75 stroke, 24 grid. */
 export function Icon({ name, className = "size-6" }: { name: IconName; className?: string }) {
   const p = { fill: "none", stroke: "currentColor", strokeWidth: 1.75, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
@@ -420,6 +495,16 @@ export function Icon({ name, className = "size-6" }: { name: IconName; className
       </>
     ),
     shield: <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z M9 12l2 2 4-4" {...p} />,
+    vault: (
+      <>
+        {/* Safe body with feet, a round door and a spoked handle wheel */}
+        <rect x="3" y="3" width="18" height="16" rx="2.5" {...p} />
+        <path d="M6.5 19v2M17.5 19v2M19 9v4" {...p} />
+        <circle cx="11" cy="11" r="5" {...p} />
+        <circle cx="11" cy="11" r="1.2" {...p} />
+        <path d="M11 6v3.8M11 12.2V16M6 11h3.8M12.2 11H16" {...p} />
+      </>
+    ),
   };
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
@@ -428,38 +513,120 @@ export function Icon({ name, className = "size-6" }: { name: IconName; className
   );
 }
 
-export type IconName = "mandate" | "timer" | "power" | "bond" | "replay" | "chart" | "shield";
+export type IconName = "mandate" | "timer" | "power" | "bond" | "replay" | "chart" | "shield" | "vault";
 
-/** Larger outline illustrations for the three pillar cards. */
+/**
+ * Illustrations for the three pillar cards: a sealed Mandate, a trading terminal and a vault door.
+ * Line work in the card's colour (currentColor) over soft pattern fills.
+ */
 export function PillarArt({ kind, className = "" }: { kind: "mandate" | "execute" | "protect"; className?: string }) {
-  const p = { fill: "none", stroke: "currentColor", strokeWidth: 2.2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  const line = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  const id = `pillar-${kind}`;
   return (
-    <svg viewBox="0 0 120 120" aria-hidden="true" className={className}>
+    <svg viewBox="0 0 140 140" aria-hidden="true" className={className}>
+      <defs>
+        <pattern id={`${id}-grid`} width="8" height="8" patternUnits="userSpaceOnUse">
+          <path d="M8 0H0V8" fill="none" stroke="currentColor" strokeOpacity="0.25" strokeWidth="1" />
+        </pattern>
+        <pattern id={`${id}-dots`} width="7" height="7" patternUnits="userSpaceOnUse">
+          <circle cx="3.5" cy="3.5" r="1" fill="currentColor" fillOpacity="0.3" />
+        </pattern>
+      </defs>
+
       {kind === "mandate" && (
         <>
-          <rect x="24" y="14" width="72" height="94" rx="8" {...p} fill="var(--color-violet-soft)" />
-          <rect x="44" y="8" width="32" height="14" rx="4" {...p} fill="#fff" />
-          <path d="M38 40h44M38 54h44M38 68h28" {...p} />
-          <path d="M40 90c6-8 10 4 16-2s8-6 12 2 8-2 12-4" {...p} />
-          <circle cx="86" cy="84" r="10" {...p} fill="#fff" />
-          <path d="M81 84l3.5 3.5L91 80" {...p} />
+          {/* Document with a ruled checklist, a signature and a scalloped wax seal */}
+          <rect x="22" y="12" width="84" height="114" rx="8" {...line} fill="var(--color-violet-soft)" />
+          <rect x="30" y="20" width="68" height="98" rx="4" {...line} fill={`url(#${id}-grid)`} strokeWidth="1.5" />
+          {[38, 54, 70].map((y, k) => (
+            <g key={y}>
+              <rect x="36" y={y - 5} width="10" height="10" rx="2" {...line} fill="#fff" strokeWidth="1.6" />
+              <path d={`M38 ${y}l2.5 2.5 4-5`} {...line} strokeWidth="1.6" />
+              <path d={`M52 ${y}h${k === 2 ? 26 : 38}`} {...line} strokeWidth="2.4" />
+            </g>
+          ))}
+          <path d="M36 98c5-9 9 5 14-1s7-8 11 0 6-3 9-5" {...line} />
+          <path d="M34 106h40" {...line} strokeWidth="1.2" strokeDasharray="2 3" />
+          <g transform="translate(100 98)">
+            <path
+              d={Array.from({ length: 16 }, (_, k) => {
+                const a = (k / 16) * Math.PI * 2;
+                const r = k % 2 ? 15 : 18;
+                return `${k ? "L" : "M"}${(Math.cos(a) * r).toFixed(1)} ${(Math.sin(a) * r).toFixed(1)}`;
+              }).join("") + "Z"}
+              {...line}
+              fill="var(--color-violet-line)"
+             
+            />
+            <circle r="9.5" {...line} fill="#fff" strokeWidth="1.6" />
+            <path d="M-4.5 0l3 3 6-6.5" {...line} strokeWidth="2" />
+            <path d="M-7 16l-5 16 7-4 4 6 3-15M7 16l5 16-7-4-4 6" {...line} fill="var(--color-violet-soft)" strokeWidth="1.6" />
+          </g>
         </>
       )}
+
       {kind === "execute" && (
         <>
-          <ellipse cx="60" cy="58" rx="42" ry="34" {...p} fill="var(--color-orange-soft)" />
-          <ellipse cx="60" cy="58" rx="30" ry="24" {...p} />
-          <path d="M44 66l10-12 8 8 14-16" {...p} />
-          <path d="M70 46h6v6" {...p} />
-          <path d="M52 92l-6 18M68 92l6 18M40 110h40M60 24V10M54 10h12" {...p} />
+          {/* Trading terminal on a stand: candlesticks, a rising line and a lightning bolt */}
+          <path d="M70 14v10M62 14h16" {...line} />
+          <circle cx="70" cy="11" r="3.5" {...line} fill="var(--color-orange-soft)" strokeWidth="1.6" />
+          <rect x="14" y="24" width="112" height="78" rx="12" {...line} fill="var(--color-orange-soft)" />
+          <rect x="22" y="32" width="96" height="62" rx="6" {...line} fill={`url(#${id}-dots)`} strokeWidth="1.6" />
+          {[
+            [34, 58, 76, 52, 84],
+            [46, 52, 68, 46, 74],
+            [58, 60, 78, 54, 84],
+            [70, 46, 62, 40, 68],
+            [82, 40, 56, 34, 62],
+          ].map(([x, top, bottom, wickTop, wickBottom], k) => (
+            <g key={k}>
+              <path d={`M${x} ${wickTop}V${wickBottom}`} {...line} strokeWidth="1.6" />
+              <rect x={x! - 3.5} y={top} width="7" height={bottom! - top!} rx="1.5" {...line} fill={k % 2 ? "#fff" : "currentColor"} strokeWidth="1.6" />
+            </g>
+          ))}
+          <path d="M28 86l14-10 12 4 14-14 14 2 14-16 12-6" {...line} strokeDasharray="1 4" />
+          <path d="M106 40l-8 14h7l-4 12 11-17h-7l5-9z" {...line} fill="#fff" strokeWidth="1.8" />
+          <path d="M58 102l-10 26M82 102l10 26M42 128h56" {...line} />
+          <path d="M60 114h20" {...line} strokeWidth="1.4" />
         </>
       )}
+
       {kind === "protect" && (
         <>
-          <path d="M60 10l38 14v26c0 26-16 46-38 58-22-12-38-32-38-58V24z" {...p} fill="var(--color-green-soft)" />
-          <path d="M60 24l26 10v18c0 18-11 32-26 41-15-9-26-23-26-41V34z" {...p} />
-          <ellipse cx="60" cy="58" rx="12" ry="5" {...p} fill="#fff" />
-          <path d="M48 58v8c0 2.8 5.4 5 12 5s12-2.2 12-5v-8" {...p} />
+          {/* Vault door front-on: bolts, a spoked wheel and a shield at the hub */}
+          <rect x="12" y="12" width="116" height="116" rx="18" {...line} fill="var(--color-green-soft)" />
+          <circle cx="70" cy="70" r="46" {...line} fill={`url(#${id}-grid)`} />
+          <circle cx="70" cy="70" r="46" {...line} fill="none" />
+          {Array.from({ length: 12 }, (_, k) => {
+            const a = (k / 12) * Math.PI * 2;
+            return (
+              <circle
+                key={k}
+                cx={70 + Math.cos(a) * 39}
+                cy={70 + Math.sin(a) * 39}
+                r="2.6"
+                {...line}
+                fill="#fff"
+                strokeWidth="1.4"
+              />
+            );
+          })}
+          <circle cx="70" cy="70" r="28" {...line} fill="#fff" />
+          {Array.from({ length: 6 }, (_, k) => {
+            const a = (k / 6) * Math.PI * 2 + Math.PI / 6;
+            return (
+              <path
+                key={k}
+                d={`M${70 + Math.cos(a) * 17} ${70 + Math.sin(a) * 17}L${70 + Math.cos(a) * 28} ${70 + Math.sin(a) * 28}`}
+                {...line}
+                strokeWidth="3"
+              />
+            );
+          })}
+          <path d="M70 55l13 5v8c0 8-5 13-13 17-8-4-13-9-13-17v-8z" {...line} fill="var(--color-green-soft)" />
+          <path d="M64 70l4 4 8-9" {...line} />
+          <path d="M12 40h-4M12 70h-4M12 100h-4" {...line} strokeWidth="4" />
+          <rect x="112" y="58" width="8" height="24" rx="3" {...line} fill="#fff" strokeWidth="1.6" />
         </>
       )}
     </svg>

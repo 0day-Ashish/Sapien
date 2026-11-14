@@ -85,7 +85,7 @@ body {
   }
   .display-2 {
     font-family: var(--font-sans);
-    font-weight: 500;
+    font-weight: 400;
     font-size: clamp(2.125rem, 3.9vw, 3.375rem);
     line-height: 1.06;
     letter-spacing: -0.03em;
@@ -103,14 +103,14 @@ body {
   }
   .display-3 {
     font-family: var(--font-sans);
-    font-weight: 500;
+    font-weight: 400;
     font-size: clamp(1.625rem, 2.4vw, 2.25rem);
     line-height: 1.1;
     letter-spacing: -0.02em;
   }
   .title-serif {
     font-family: var(--font-serif);
-    font-weight: 600;
+    font-weight: 400;
     font-size: 1.5rem;
     line-height: 1.12;
     letter-spacing: -0.01em;
@@ -129,7 +129,7 @@ body {
   .eyebrow {
     font-family: var(--font-mono);
     font-size: 0.8125rem;
-    font-weight: 700;
+    font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--color-violet);
@@ -137,7 +137,7 @@ body {
   .label-mono {
     font-family: var(--font-mono);
     font-size: 0.875rem;
-    font-weight: 700;
+    font-weight: 500;
     letter-spacing: 0.02em;
   }
 
@@ -182,7 +182,7 @@ body {
     border-radius: 999rem;
     font-family: var(--font-mono);
     font-size: 0.8125rem;
-    font-weight: 700;
+    font-weight: 500;
     /* The reference's mono face is wider than Geist Mono; this spacing evens out the word width. */
     letter-spacing: 0.08em;
     line-height: 1;
@@ -250,7 +250,7 @@ body {
     border-radius: 999px;
     font-family: var(--font-mono);
     font-size: 0.6875rem;
-    font-weight: 700;
+    font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     white-space: nowrap;
@@ -276,98 +276,9 @@ body {
   }
 }
 
-/* Mascot motion (VaultBot animated). Each part uses its own box as the rotation origin. */
-.bot-hover,
-.bot-tilt,
-.bot-antenna,
-.bot-leg-left,
-.bot-leg-right,
-.bot-handle,
-.bot-dial,
-.bot-blink,
-.bot-shadow,
-.bot-orbit {
-  transform-box: fill-box;
-}
-.bot-hover {
-  animation: bot-hover 3.6s ease-in-out infinite;
-}
-.bot-tilt {
-  transform-origin: 50% 90%;
-  animation: bot-tilt 5.2s ease-in-out infinite;
-}
-.bot-antenna {
-  transform-origin: 50% 100%;
-  animation: bot-antenna 1.8s ease-in-out infinite;
-}
-.bot-leg-left {
-  transform-origin: 50% 0%;
-  animation: bot-leg 1.2s ease-in-out infinite;
-}
-.bot-leg-right {
-  transform-origin: 50% 0%;
-  animation: bot-leg 1.2s ease-in-out infinite reverse;
-}
-.bot-handle {
-  transform-origin: 0% 50%;
-  animation: bot-handle 2.4s ease-in-out infinite;
-}
-.bot-dial {
-  transform-origin: 50% 50%;
-  animation: bot-spin 9s linear infinite;
-}
-.bot-blink {
-  transform-origin: 50% 50%;
-  animation: bot-blink 4.5s ease-in-out infinite;
-}
-.bot-shadow {
-  transform-origin: 50% 50%;
-  animation: bot-shadow 3.6s ease-in-out infinite;
-}
-.bot-orbit {
-  transform-box: view-box;
-  transform-origin: 70px 74px;
-  animation: bot-orbit 6s linear infinite;
-}
-@keyframes bot-hover {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-12px); }
-}
-@keyframes bot-tilt {
-  0%, 100% { transform: rotate(-5deg); }
-  50% { transform: rotate(5deg); }
-}
-@keyframes bot-antenna {
-  0%, 100% { transform: rotate(-12deg); }
-  50% { transform: rotate(12deg); }
-}
-@keyframes bot-leg {
-  0%, 100% { transform: rotate(-14deg); }
-  50% { transform: rotate(14deg); }
-}
-@keyframes bot-handle {
-  0%, 100% { transform: rotate(0deg); }
-  50% { transform: rotate(-18deg); }
-}
+/* Also turns the vault-cluster dials. */
 @keyframes bot-spin {
   to { transform: rotate(360deg); }
-}
-@keyframes bot-blink {
-  0%, 44%, 50%, 100% { transform: scaleY(1); }
-  47% { transform: scaleY(0.1); }
-}
-@keyframes bot-shadow {
-  0%, 100% { transform: scaleX(1); opacity: 0.12; }
-  50% { transform: scaleX(0.75); opacity: 0.06; }
-}
-@keyframes bot-orbit {
-  to { transform: rotate(360deg); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .bot-hover, .bot-tilt, .bot-antenna, .bot-leg-left, .bot-leg-right, .bot-handle,
-  .bot-dial, .bot-blink, .bot-shadow, .bot-orbit {
-    animation: none;
-  }
 }
 
 /* Market garden motion: candles sway from their base, coins bob, sparks twinkle. */
@@ -415,6 +326,81 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .vault-dial {
+    animation: none;
+  }
+}
+
+/* Slow drift for the colour wash in the dashboard sidebar. */
+.demo-wash {
+  animation: demo-wash 9s ease-in-out infinite alternate;
+}
+@keyframes demo-wash {
+  from { transform: translate(-6%, 4%) scale(1); }
+  to { transform: translate(6%, -6%) scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .demo-wash {
+    animation: none;
+  }
+}
+
+/* Hovering a garden piece pops it up. Pieces take pointer events even inside a
+   pointer-events-none wrapper, so the empty parts of the art never block clicks. */
+.garden-hover {
+  pointer-events: auto;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1), filter 0.25s;
+  cursor: pointer;
+}
+.garden-hover:hover {
+  transform: translateY(-6px) scale(1.35) rotate(-6deg);
+  filter: drop-shadow(0 6px 6px rgb(58 42 134 / 0.25));
+}
+@media (prefers-reduced-motion: reduce) {
+  .garden-hover {
+    transition: none;
+  }
+}
+
+/* Slow ripple for WaveText: each letter floats up and down, staggered. Transform only. */
+.wave-letter {
+  will-change: transform;
+  animation: wave-letter 2.8s ease-in-out infinite;
+}
+@keyframes wave-letter {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -0.06em, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wave-letter {
+    animation: none;
+  }
+}
+
+/* Safeguards seal: the text ring and badges turn slowly, the vault handle rocks. */
+.seal-turn,
+.seal-orbit {
+  transform-box: view-box;
+  transform-origin: 100px 100px;
+}
+.seal-turn {
+  animation: bot-spin 40s linear infinite;
+}
+.seal-orbit {
+  animation: bot-spin 28s linear infinite reverse;
+}
+.seal-handle {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: seal-handle 4s ease-in-out infinite;
+}
+@keyframes seal-handle {
+  0%, 100% { transform: rotate(-25deg); }
+  50% { transform: rotate(25deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .seal-turn, .seal-orbit, .seal-handle {
     animation: none;
   }
 }

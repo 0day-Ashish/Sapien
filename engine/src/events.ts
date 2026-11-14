@@ -23,7 +23,10 @@ export type TradeProposal = {
   rationale: string;
 };
 
+/** The user cancels a Trade Proposal that is waiting in its Veto Window. */
 export type Veto = { type: "veto"; vaultId: VaultId; proposalId: string };
+/** Sent when a Veto Window's 60s are up: the trade is Mandate Checked again at the current price, then sent or dropped. */
+export type VetoWindowEnd = { type: "veto-window-end"; vaultId: VaultId; proposalId: string };
 export type KillSwitch = { type: "kill-switch"; vaultId: VaultId };
 export type PriceTick = {
   type: "price-tick";
@@ -32,13 +35,19 @@ export type PriceTick = {
   referencePrice: number;
   at: number;
 };
-export type EpochTick = { type: "epoch-tick"; epoch: number };
+/**
+ * Every 24h (#17): settle each Vault's fees and premiums, recalibrate premiums, apply pending Lead Agent switches.
+ * `dailyVolatility` is each asset's realized daily volatility (stdev of daily log returns), for the premium rate.
+ */
+export type EpochTick = { type: "epoch-tick"; epoch: number; dailyVolatility: Record<string, number> };
 /** A fill reported by the Hyperliquid adapter. Fills enter only through `handle`, never through a port callback. */
 export type FillUpdate = {
   type: "fill";
   vaultId: VaultId;
   cloid?: string;
   orderId: string;
+  /** The fill's asset. Needed to match a fill the engine didn't place (liquidation, manual close) to a stop. */
+  asset?: string;
   price: number;
   size: number;
   at: number;
@@ -62,6 +71,7 @@ export type EngineEvent =
   | TradeProposal
   | Allocation
   | Veto
+  | VetoWindowEnd
   | KillSwitch
   | PriceTick
   | EpochTick
