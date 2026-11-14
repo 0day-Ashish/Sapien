@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useConnection } from "wagmi";
 import { MAX_MANDATE_TEXT_LENGTH } from "@/lib/mandate/limits";
 import {
   BLACKOUT_EVENTS,
@@ -23,6 +24,7 @@ import { FundsPanel } from "../funds/funds-panel";
 import { SolanaProviders } from "../funds/solana-providers";
 import { LeaderboardTable } from "../leaderboard/leaderboard-table";
 import { ReplayView } from "../replay/replay-view";
+import { BondsDemo, FundsDemo } from "./demo-views";
 import { compileMandateAction, finalizeMandateAction } from "./actions";
 
 const EXAMPLE =
@@ -157,6 +159,8 @@ function SidebarToggle({ collapsed, onToggle }: { collapsed: boolean; onToggle: 
 export function MandateComposer() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [view, setViewState] = useState<View>("mandate");
+  const { status: walletStatus } = useConnection();
+  const walletConnected = walletStatus === "connected";
 
   /** Switches the main panel and records it in the URL, without leaving the page. */
   function setView(v: View) {
@@ -466,7 +470,8 @@ export function MandateComposer() {
               <div className={`mx-auto flex w-full flex-col gap-6 pb-6 ${view === "funds" || view === "bonds" ? "max-w-2xl" : "max-w-6xl"}`}>
                 {view === "leaderboard" && <LeaderboardTable />}
                 {view === "replay" && <ReplayView />}
-                {view === "funds" && (
+                {view === "funds" && !walletConnected && <FundsDemo />}
+                {view === "funds" && walletConnected && (
                   <>
                     <SolanaProviders>
                       <FundsPanel />
@@ -474,7 +479,7 @@ export function MandateComposer() {
                     <VetoAlerts />
                   </>
                 )}
-                {view === "bonds" && <BondPanel />}
+                {view === "bonds" && (walletConnected ? <BondPanel /> : <BondsDemo />)}
               </div>
             </div>
           ) : (

@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { readContract } from "wagmi/actions";
 import { AGENT_REGISTRY, agentRegistryAbi } from "@/lib/agents/bonds";
 import { executionRate, fetchLeaderboard, formatRar, withOnchain, type BoardRow, type OnchainAgent } from "@/lib/engine/leaderboard";
 import { ENGINE_URL } from "@/lib/engine/veto";
+import { DEMO_LEADERBOARD } from "@/lib/demo/sidebar-demo";
 import { hyperEvmTestnet, wagmiConfig } from "@/lib/wagmi";
+import { DemoBanner } from "../ui/demo-banner";
 
 const POLL_MS = 10_000;
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -40,6 +42,9 @@ export function LeaderboardTable() {
   const [rows, setRows] = useState<BoardRow[] | null>(null);
   const [updated, setUpdated] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Showing sample rows: the engine is unreachable or has no agents yet. Live rows replace them as soon as they arrive. */
+  const [demo, setDemo] = useState(false);
+  const hasLive = useRef(false);
 
   useEffect(() => {
     let live = true;
@@ -48,11 +53,20 @@ export function LeaderboardTable() {
         const board = await fetchLeaderboard();
         const onchain = await readOnchain(board.rows.map((r) => r.agentId));
         if (!live) return;
-        setRows(withOnchain(board.rows, onchain));
+        const isDemo = board.rows.length === 0;
+        hasLive.current = !isDemo;
+        setDemo(isDemo);
+        setRows(isDemo ? DEMO_LEADERBOARD : withOnchain(board.rows, onchain));
         setUpdated(board.at);
         setError(null);
       } catch (e) {
-        if (live) setError((e as Error).message);
+        if (!live) return;
+        setError((e as Error).message);
+        // Keep live rows we already have; otherwise show the illustration.
+        if (!hasLive.current) {
+          setDemo(true);
+          setRows(DEMO_LEADERBOARD);
+        }
       }
     };
     const first = setTimeout(load, 0);
@@ -64,19 +78,23 @@ export function LeaderboardTable() {
     };
   }, []);
 
-  if (error && !rows) {
-    return (
-      <div className="card p-6 text-sm">
-        <p className="font-medium">Can&apos;t reach the engine at {ENGINE_URL}.</p>
-        <p className="text-ink-soft">{error}. Start it with <code>cd engine &amp;&amp; npm run engine</code>, or set NEXT_PUBLIC_ENGINE_URL.</p>
-      </div>
-    );
-  }
   if (!rows) return <p className="text-sm text-ink-soft">Loading the leaderboard…</p>;
 
   return (
     <section className="flex flex-col gap-4">
-      <p className="flex items-center gap-2 text-sm text-ink-soft">
+      {demo && (
+        <DemoBanner>
+          {error ? (
+            <>
+              An illustration: the engine at <code className="font-mono text-xs">{ENGINE_URL}</code> isn&apos;t reachable. Start it with{" "}
+              <code className="font-mono text-xs">cd engine &amp;&amp; npm run engine</code> for live rankings.
+            </>
+          ) : (
+            "An illustration: no agent has traded yet. Live rankings appear here after the first decisions."
+          )}
+        </DemoBanner>
+      )}
+      <p className={`items-center gap-2 text-sm text-ink-soft ${demo ? "hidden" : "flex"}`}>
         <span className={`size-2 rounded-full ${error ? "bg-orange" : "animate-pulse bg-green"}`} />
         {error ? `Reconnecting… last updated ${ago(updated ?? undefined)}` : `Live · updated ${updated ? new Date(updated).toLocaleTimeString() : "–"}`}
         {AGENT_REGISTRY && <span className="chip">Bonds read onchain</span>}
