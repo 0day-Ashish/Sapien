@@ -1,6 +1,7 @@
 // Runs the engine unattended (#23): the runner loop on testnet plus the HTTP surface for the UI.
 //   npm run engine                       (once)
 //   scripts/supervise.sh                 (restarts on crash; logs to .data/engine.log)
+//   On the VM: systemd sapien-engine, deployed from main after green CI (docs/deploy.md)
 //
 // engine/.env.local (falls back to the smoke:chain deployment from #31):
 //   RUNNER_VAULT, RUNNER_ASSET (ETH), RUNNER_AGENT_PRIVATE_KEY, ENGINE_OPERATOR_PRIVATE_KEY,
