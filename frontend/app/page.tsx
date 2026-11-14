@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Icon, MarketGarden, PillarArt, VaultBot, VaultRow, type IconName } from "./ui/art";
+import { Icon, MarketGarden, PillarArt, VaultBot, VaultCluster, type IconName } from "./ui/art";
 import { BrandMark } from "./ui/brand-icons";
 import { SiteFooter } from "./ui/site-footer";
 import { SiteNav } from "./ui/site-nav";
@@ -227,17 +227,23 @@ function ProductDemo() {
 
 function LetThemTrade() {
   return (
-    <section id="how-it-works" className="container-narrow grid scroll-mt-20 items-center gap-12 pt-20 lg:grid-cols-[1fr_1.1fr]">
-      <div className="flex flex-col gap-7">
-        <p className="eyebrow">Let them trade it</p>
-        <h2 className="display-serif">Put AI agents to work around the rules you set.</h2>
-        <p className="lede max-w-xl !text-[1.25rem]">
-          Describe your risk in a sentence and sign it as a Mandate. Deposit USDC from Base Sepolia or Solana, and a
-          bonded agent trades your own Vault inside those rules. From first sentence to withdrawal, there&apos;s one
-          Vault, one Mandate and a record of every decision.
-        </p>
+    <section id="how-it-works" className="scroll-mt-20 pb-16 pt-24 lg:pb-24 lg:pt-28">
+      <div className="mx-auto grid w-full max-w-[73.625rem] items-center gap-14 px-5 lg:grid-cols-[minmax(0,36rem)_1fr] xl:px-0">
+        <div className="flex flex-col">
+          <p className="font-mono text-[0.8125rem] font-bold uppercase tracking-[0.1em] text-violet">Let them trade it</p>
+          <h2 className="mt-12 font-serif text-[clamp(2.25rem,3.4vw,3rem)] font-normal leading-[1.08] tracking-[-0.02em] text-violet">
+            Put AI agents to work around the rules you set.
+          </h2>
+          <p className="mt-10 font-serif text-[1.25rem] leading-[1.42] text-violet">
+            Describe your risk in a sentence and sign it as a Mandate. Deposit USDC from Base Sepolia or Solana, and a
+            bonded agent trades your own Vault inside those rules. From first sentence to withdrawal, there&apos;s one
+            Vault, one Mandate and a record of every decision.
+          </p>
+        </div>
+        <div className="lg:-mr-[max(0px,calc((100vw-73.625rem)/2))]">
+          <VaultCluster className="h-auto w-full" />
+        </div>
       </div>
-      <VaultRow className="w-full" />
     </section>
   );
 }
