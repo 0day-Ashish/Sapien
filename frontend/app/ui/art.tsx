@@ -271,30 +271,34 @@ export function VaultRow({ className = "" }: { className?: string }) {
  * protocol. Fills a wide right-hand column. Dials turn slowly when `animated`.
  */
 export function VaultCluster({ className = "", animated = true }: { className?: string; animated?: boolean }) {
+  // The last door sits past the right edge of the view box, so the cluster runs off the screen.
   const doors = [
-    { x: 150, y: 330, s: 0.95, c: PALETTE[0]!, knob: "antenna" },
-    { x: 360, y: 230, s: 1.15, c: PALETTE[2]!, knob: "dish" },
-    { x: 560, y: 150, s: 1.05, c: PALETTE[0]!, knob: "antenna" },
-    { x: 480, y: 380, s: 0.85, c: PALETTE[1]!, knob: "" },
-    { x: 690, y: 420, s: 0.95, c: PALETTE[2]!, knob: "spark" },
-    { x: 770, y: 250, s: 0.7, c: PALETTE[6]!, knob: "" },
-    { x: 900, y: 270, s: 1.3, c: PALETTE[3]!, knob: "spark" },
+    { x: 150, y: 400, s: 0.95, c: PALETTE[0]!, knob: "antenna" },
+    { x: 350, y: 300, s: 1.15, c: PALETTE[2]!, knob: "dish" },
+    { x: 560, y: 200, s: 1.1, c: PALETTE[0]!, knob: "antenna" },
+    { x: 690, y: 175, s: 0.55, c: PALETTE[5]!, knob: "" },
+    { x: 520, y: 430, s: 0.8, c: PALETTE[1]!, knob: "" },
+    { x: 740, y: 470, s: 0.95, c: PALETTE[2]!, knob: "spark" },
+    { x: 820, y: 300, s: 0.7, c: PALETTE[6]!, knob: "" },
+    { x: 1010, y: 290, s: 1.45, c: PALETTE[3]!, knob: "spark" },
   ];
-  const cables = [
-    "M150 410C170 520 330 540 400 470",
-    "M360 330C380 470 560 520 640 470",
-    "M560 240C600 320 640 300 680 340",
-    "M480 450C540 560 720 580 760 500",
-    "M690 500C760 600 900 600 920 380",
-    "M150 410C260 600 640 640 760 500",
+  const pipes = [
+    "M150 480C160 600 380 610 520 500",
+    "M350 400C360 520 470 560 520 500",
+    "M520 500C600 650 820 640 740 560",
+    "M560 300C580 360 600 380 620 420",
+    "M740 560C800 640 980 620 1000 400",
+    "M820 360C860 420 880 430 920 420",
+    "M150 480C230 690 620 700 740 560",
   ];
   return (
-    <svg viewBox="40 20 1000 620" aria-hidden="true" className={className} overflow="visible">
-      {cables.map((d, i) => (
-        <g key={i}>
-          <path d={d} fill="none" stroke="#ece7fb" strokeWidth="12" strokeLinecap="round" />
-          <path d={d} fill="none" stroke="#6a4fd6" strokeWidth="2.5" strokeLinecap="round" />
-          <path d={d} fill="none" stroke="#17805a" strokeWidth="3" strokeDasharray="1 16" strokeLinecap="round" />
+    <svg viewBox="60 20 940 680" aria-hidden="true" className={className} overflow="visible">
+      {pipes.map((d, i) => (
+        <g key={i} fill="none" strokeLinecap="round">
+          <path d={d} stroke="#6a4fd6" strokeWidth="16" />
+          <path d={d} stroke="#f5f2fd" strokeWidth="11" />
+          <path d={d} stroke="#a3690e" strokeWidth="6" strokeDasharray="0.1 34" />
+          <path d={d} stroke="#fbeccd" strokeWidth="3.5" strokeDasharray="0.1 34" />
         </g>
       ))}
       {doors.map(({ x, y, s, c, knob }, i) => (
@@ -325,7 +329,11 @@ export function VaultCluster({ className = "", animated = true }: { className?: 
           <rect x="-80" y="-74" width="160" height="148" rx="24" fill="#fff" stroke={c.stroke} strokeWidth="3" />
           <rect x="-68" y="-62" width="136" height="124" rx="16" fill={c.fill} stroke={c.stroke} strokeWidth="2" />
           <rect x="-70" y="74" width="140" height="10" rx="3" fill={c.stroke} />
-          <g className={animated ? "vault-dial" : undefined} style={animated ? { animationDuration: `${14 + i * 3}s`, animationDirection: i % 2 ? "reverse" : "normal" } : undefined}>
+          <rect x="-16" y="84" width="32" height="10" rx="3" fill="#f5f2fd" stroke={c.stroke} strokeWidth="2" />
+          <g
+            className={animated ? "vault-dial" : undefined}
+            style={animated ? { animationDuration: `${14 + i * 3}s`, animationDirection: i % 2 ? "reverse" : "normal" } : undefined}
+          >
             {[44, 32, 20].map((r, k) => (
               <path
                 key={k}
