@@ -1,0 +1,11 @@
+[profile.default]
+src = "sol"
+out = "out"
+libs = ["../../contracts/lib"]
+solc = "0.8.28"
+evm_version = "cancun"
+allow_paths = ["../../contracts"]
+remappings = [
+  "hypercore/=../../contracts/src/hypercore/",
+  "forge-std/=../../contracts/lib/forge-std/src/",
+]
