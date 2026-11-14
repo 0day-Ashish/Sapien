@@ -6,7 +6,8 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "smoke:trade": "tsx scripts/smoke-guarded-trade.ts"
+    "smoke:trade": "tsx scripts/smoke-guarded-trade.ts",
+    "smoke:chain": "tsx scripts/smoke-chain.ts"
   },
   "devDependencies": {
     "@types/node": "^24",

@@ -4,6 +4,8 @@ import type { Cloid, Mandate, PlacedOrder, Ports } from "./ports.js";
 
 export type RejectionCode =
   | "invalid-proposal"
+  /** The Vault's current Mandate Version couldn't be read, or its JSON didn't match the onchain hash or caps. */
+  | "mandate-unavailable"
   | "kill-flag"
   | "blackout-window"
   /** Drawdown cap reached this month, or the oracle has strayed from its reference. New positions only. */
@@ -136,7 +138,12 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
     const invalid = validate(p);
     if (invalid) return reject("invalid-proposal", invalid);
 
-    const mandate = await chain.currentMandate(p.vaultId);
+    let mandate: Mandate;
+    try {
+      mandate = await chain.currentMandate(p.vaultId);
+    } catch (e) {
+      return reject("mandate-unavailable", `Can't read a verified Mandate for ${p.vaultId}: ${(e as Error).message}`);
+    }
     const failed = mandateCheck(p, mandate, now());
     if (failed) return reject(failed.code, failed.message);
 
