@@ -5,7 +5,8 @@ export const NEAR_NETWORK = (process.env.NEXT_PUBLIC_NEAR_NETWORK ?? "testnet") 
 export const NEAR_CONTRACT = process.env.NEXT_PUBLIC_NEAR_CONTRACT ?? "sapien-vault.testnet";
 /** Test USDC (NEP-141, 6 decimals) with an open `faucet`. */
 export const NEAR_USDC = process.env.NEXT_PUBLIC_NEAR_USDC ?? "usdc.sapien-vault.testnet";
-export const NEAR_RPC = process.env.NEXT_PUBLIC_NEAR_RPC ?? "https://rpc.testnet.near.org";
+export const NEAR_RPC = process.env.NEXT_PUBLIC_NEAR_RPC ?? "https://test.rpc.fastnear.com";
+export const NEAR_RPC_FALLBACK = "https://rpc.testnet.near.org";
 export const NEAR_EXPLORER = "https://testnet.nearblocks.io";
 export const HYPEREVM_EXPLORER = "https://testnet.purrsec.com";
 
