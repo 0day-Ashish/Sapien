@@ -80,6 +80,16 @@ describe("Mandate Check on a Trade Proposal", () => {
     expect(ports.exchange.reduceOnlyOrders).toHaveLength(1);
   });
 
+  it("rejects the proposal when the Mandate can't be read or verified", async () => {
+    const { ports, engine } = setup();
+    ports.chain.failMandateReads = "Mandate JSON does not match its onchain hash";
+    const result = await engine.handle(proposal());
+
+    expect(result).toMatchObject({ kind: "rejected", rejection: { code: "mandate-unavailable" } });
+    if (result.kind === "rejected") expect(result.rejection.message).toMatch(/does not match/);
+    expect(ports.exchange.orders).toEqual([]);
+  });
+
   it("rejects malformed proposals", async () => {
     const { ports, engine } = setup();
     for (const bad of [{ size: 0 }, { size: -1 }, { leverage: 0 }, { size: Number.NaN }]) {
@@ -109,6 +119,18 @@ describe("Decision Commitment before the order", () => {
 
     expect(result).toMatchObject({ kind: "rejected", rejection: { code: "commitment-failed" } });
     expect(ports.exchange.orders).toEqual([]);
+  });
+
+  it("reports an exchange rejection after the commitment instead of throwing", async () => {
+    const { ports, engine } = setup();
+    ports.exchange.rejectOrdersWith = "Price too far from oracle asset=3";
+    const result = await engine.handle(proposal());
+
+    expect(result).toMatchObject({ kind: "rejected", rejection: { code: "order-failed" } });
+    if (result.kind !== "rejected") return;
+    expect(result.rejection.message).toMatch(/too far from oracle/);
+    // The decision was still committed: replay shows it was decided and then failed at the exchange.
+    expect(ports.chain.commitments).toHaveLength(1);
   });
 
   it("commits the decision onchain before the order is sent", async () => {

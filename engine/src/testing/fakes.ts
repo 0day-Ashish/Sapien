@@ -37,6 +37,8 @@ export class FakeExchange implements ExchangePort {
   positionsByVault = new Map<string, Position[]>();
   accountValueByVault = new Map<string, number>();
   fillsByVault = new Map<string, Fill[]>();
+  /** Set to make order placement throw, like an exchange rejection. */
+  rejectOrdersWith?: string;
 
   constructor(private journal: string[] = []) {}
 
@@ -51,6 +53,7 @@ export class FakeExchange implements ExchangePort {
   }
   async placeOrderWithStopLoss(order: OrderWithStopLoss): Promise<PlacedOrder> {
     this.journal.push("exchange.placeOrderWithStopLoss");
+    if (this.rejectOrdersWith) throw new Error(this.rejectOrdersWith);
     this.orders.push(order);
     this.orderStates.set(order.entryCloid, "filled");
     this.orderStates.set(order.stopLoss.cloid, "resting");
@@ -58,6 +61,7 @@ export class FakeExchange implements ExchangePort {
   }
   async placeReduceOnly(order: ReduceOnlyOrder): Promise<PlacedOrder> {
     this.journal.push("exchange.placeReduceOnly");
+    if (this.rejectOrdersWith) throw new Error(this.rejectOrdersWith);
     this.reduceOnlyOrders.push(order);
     this.orderStates.set(order.cloid, "filled");
     return { entryCloid: order.cloid, placedAt: Date.now() };
@@ -87,12 +91,15 @@ export class FakeChain implements ChainPort {
   claims: OvershootClaim[] = [];
   settledEpochs: number[] = [];
   belowBondMinimum = new Set<string>();
+  /** Set to make currentMandate throw, like an unreadable or tampered Mandate. */
+  failMandateReads?: string;
   /** While true, every commitDecision rejects. */
   failCommitments = false;
 
   constructor(private journal: string[] = []) {}
 
   async currentMandate(vaultId: string) {
+    if (this.failMandateReads) throw new Error(this.failMandateReads);
     return this.mandates.get(vaultId) ?? defaultMandate;
   }
   async commitDecision(commitment: DecisionCommitment) {
