@@ -18,6 +18,8 @@ export type RejectionCode =
   | "leverage-over-cap"
   | "below-bond-minimum"
   | "commitment-failed"
+  /** Notional under Hyperliquid's $10 minimum (with a margin for size rounding): refused before the commitment. */
+  | "below-minimum-order"
   /** Committed onchain, then the exchange refused the order (e.g. outside the oracle band). Nothing was placed. */
   | "order-failed";
 
@@ -74,6 +76,8 @@ export type EngineOptions = {
 };
 
 const DEFAULT_ENTRY_SLIPPAGE = 0.01;
+/** Hyperliquid's minimum order value is $10; sizes get rounded down to the asset's lot, so keep a 2% margin. */
+const MIN_ORDER_USD = 10.2;
 /** Automatic Kill fires when the oracle is more than this far from the reference... */
 const ORACLE_DEVIATION = 0.02;
 /** ...for longer than this. */
@@ -186,6 +190,10 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
     }
 
     const markPrice = await exchange.markPrice(p.asset);
+    const notional = p.size * markPrice;
+    if (notional < MIN_ORDER_USD) {
+      return reject("below-minimum-order", `Order value ${notional.toFixed(2)} USDC is under Hyperliquid's 10 USDC minimum (with rounding margin)`);
+    }
     const buying = (p.side === "long") === opens;
     const limitPrice = markPrice * (buying ? 1 + slippage : 1 - slippage);
     const decision: DecisionRecord = {
