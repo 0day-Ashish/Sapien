@@ -433,6 +433,25 @@ body {
   }
 }
 
+/* Hovering a garden piece pops it up. Pieces take pointer events even inside a
+   pointer-events-none wrapper, so the empty parts of the art never block clicks. */
+.garden-hover {
+  pointer-events: auto;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1), filter 0.25s;
+  cursor: pointer;
+}
+.garden-hover:hover {
+  transform: translateY(-6px) scale(1.35) rotate(-6deg);
+  filter: drop-shadow(0 6px 6px rgb(58 42 134 / 0.25));
+}
+@media (prefers-reduced-motion: reduce) {
+  .garden-hover {
+    transition: none;
+  }
+}
+
 @keyframes marquee {
   from {
     transform: translateX(0);
