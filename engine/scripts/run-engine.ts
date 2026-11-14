@@ -20,6 +20,7 @@ import {
   FundingArbAgent,
   geminiRationaleWriter,
   jevLeadSelector,
+  leaderboard,
   MeanReversionAgent,
   MomentumAgent,
   type AgentProfile,
@@ -85,13 +86,28 @@ const runner = createRunner({
   log,
 });
 
+const readHistory = () => readFileSync(logFile, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l) as RunnerRecord);
+// The leaderboard polls; HyperCore fills are cached for 30s.
+let fillsCache: { at: number; fills: Awaited<ReturnType<typeof exchange.fills>> } | undefined;
+async function recentFills() {
+  if (!fillsCache || Date.now() - fillsCache.at > 30_000) fillsCache = { at: Date.now(), fills: await exchange.fills(vaultId) };
+  return fillsCache.fills;
+}
+
 const http = await startHttp({
   port: Number(process.env.ENGINE_PORT ?? 8787),
   host: process.env.ENGINE_HOST ?? "127.0.0.1",
   agentWallets: new AgentWalletStore(`${root}.data/agent-wallets.json`),
   feed: () => recent,
+  leaderboard: async () =>
+    leaderboard({
+      roster,
+      history: readHistory(),
+      leads: new Map([[vaultId, engine.vaultStatus(vaultId).leadAgent?.agentId]]),
+      fills: await recentFills(),
+    }),
   // Replay can open any past decision, not only the last 500: read the whole log on request.
-  history: () => readFileSync(logFile, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l) as RunnerRecord),
+  history: () => readHistory(),
   vaultStatus: (id) => engine.vaultStatus(id),
   kill: async (vault) => {
     const result = await engine.handle({ type: "kill-switch", vaultId: vault });

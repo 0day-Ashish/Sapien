@@ -114,9 +114,33 @@ function ago(at: number) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+const SIDEBAR_KEY = "sapien.mandate.sidebarCollapsed";
+
+/** Opens and closes the sidebar (a panel icon). */
+function SidebarToggle({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+  const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={label}
+      aria-expanded={!collapsed}
+      title={label}
+      className="flex size-9 shrink-0 items-center justify-center rounded-full text-violet transition-all duration-200 hover:bg-white/70"
+    >
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="size-[1.125rem]">
+        <rect x="3.5" y="4.5" width="17" height="15" rx="3" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M9.5 4.5v15" stroke="currentColor" strokeWidth="1.8" />
+        <path d={collapsed ? "M13.5 10l2 2-2 2" : "M16 10l-2 2 2 2"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
+  );
+}
+
 export function MandateComposer() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [view, setView] = useState<"mandate" | "trading">("mandate");
+  const [collapsed, setCollapsed] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [sentText, setSentText] = useState<string | null>(null);
@@ -129,7 +153,12 @@ export function MandateComposer() {
   const [isConfirming, startConfirm] = useTransition();
 
   useEffect(() => {
-    const t = setTimeout(() => setChats(loadChats()), 0);
+    const t = setTimeout(() => {
+      setChats(loadChats());
+      try {
+        setCollapsed(localStorage.getItem(SIDEBAR_KEY) === "1");
+      } catch {}
+    }, 0);
     return () => clearTimeout(t);
   }, []);
 
@@ -141,6 +170,15 @@ export function MandateComposer() {
       const next = [chat, ...current.filter((c) => c.id !== id)].slice(0, MAX_CHATS);
       storeChats(next);
       return next;
+    });
+  }
+
+  function toggleSidebar() {
+    setCollapsed((c) => {
+      try {
+        localStorage.setItem(SIDEBAR_KEY, c ? "0" : "1");
+      } catch {}
+      return !c;
     });
   }
 
@@ -257,9 +295,9 @@ export function MandateComposer() {
   return (
     <div className="relative z-10 flex min-h-0 flex-1 flex-col">
       {/* App frame */}
-      <div className="relative z-10 grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] overflow-hidden bg-violet-soft/70 p-3 md:grid-cols-[16rem_1fr]">
-        <aside className="relative hidden min-h-0 flex-col gap-4 p-2 md:flex">
-          <div className="flex items-center gap-2">
+      <div className={`relative z-10 grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] overflow-hidden bg-violet-soft/70 p-3 transition-[grid-template-columns] duration-300 ${collapsed ? "md:grid-cols-[3.75rem_1fr]" : "md:grid-cols-[16rem_1fr]"}`}>
+        <aside className={`relative hidden min-h-0 flex-col gap-4 md:flex ${collapsed ? "items-center px-0 py-2" : "p-2"}`}>
+          <div className={`flex items-center gap-2 ${collapsed ? "flex-col" : ""}`}>
             <Link
               href="/"
               aria-label="Back to home"
@@ -270,20 +308,69 @@ export function MandateComposer() {
                 <path d="M19 12H5M11 6l-6 6 6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </Link>
-            <Link href="/" aria-label={`${PRODUCT_NAME} home`} className="px-1">
-              <Logo />
-            </Link>
+            {!collapsed && (
+              <Link href="/" aria-label={`${PRODUCT_NAME} home`} className="px-1">
+                <Logo />
+              </Link>
+            )}
+            <span className={collapsed ? "" : "ml-auto"}>
+              <SidebarToggle collapsed={collapsed} onToggle={toggleSidebar} />
+            </span>
           </div>
 
           <button
             type="button"
-            onClick={startOver}
-            className="flex items-center justify-center gap-2 rounded-full bg-white py-2 text-sm font-medium text-violet shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow"
+            onClick={() => {
+              startOver();
+              setView("mandate");
+            }}
+            aria-label="New Mandate"
+            title="New Mandate"
+            className={`flex items-center justify-center gap-2 rounded-full bg-white text-sm font-medium text-violet shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow ${
+              collapsed ? "size-10" : "py-2"
+            }`}
           >
-            <span className="text-base leading-none">+</span> New Mandate
+            <span className="text-base leading-none">+</span>
+            {!collapsed && "New Mandate"}
           </button>
 
-          <div className="-mx-2 flex min-h-0 flex-1 flex-col overflow-y-auto px-2">
+          <nav aria-label="App" className={`flex flex-col gap-0.5 ${collapsed ? "items-center" : ""}`}>
+            <button
+              type="button"
+              onClick={() => setView("trading")}
+              title="Live trading"
+              aria-current={view === "trading" ? "page" : undefined}
+              className={`flex items-center gap-2 rounded-lg text-[0.8125rem] text-violet-ink transition-all duration-200 hover:bg-white/70 ${
+                collapsed ? "relative size-10 justify-center" : "px-2 py-1.5 text-left"
+              } ${view === "trading" ? "bg-white shadow-sm" : ""}`}
+            >
+              <Icon name="chart" className="size-4 shrink-0 text-violet" />
+              <span className={collapsed ? "sr-only" : "flex-1"}>Live trading</span>
+              <span className={`size-1.5 animate-pulse rounded-full bg-green ${collapsed ? "absolute right-2 top-2" : ""}`} aria-hidden="true" />
+            </button>
+            {(
+              [
+                { href: "/leaderboard", label: "Leaderboard", icon: "shield" },
+                { href: "/replay", label: "Replay", icon: "replay" },
+                { href: "/funds", label: "Deposit & withdraw", icon: "vault" },
+                { href: "/builders", label: "Bonds", icon: "bond" },
+              ] as const
+            ).map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                title={l.label}
+                className={`flex items-center gap-2 rounded-lg text-[0.8125rem] text-violet-ink transition-all duration-200 hover:bg-white/70 ${
+                  collapsed ? "size-10 justify-center" : "px-2 py-1.5 hover:translate-x-0.5"
+                }`}
+              >
+                <Icon name={l.icon} className="size-4 shrink-0 text-violet" />
+                <span className={collapsed ? "sr-only" : "flex-1"}>{l.label}</span>
+              </Link>
+            ))}
+          </nav>
+
+          <div className={`-mx-2 min-h-0 flex-1 flex-col overflow-y-auto px-2 ${collapsed ? "hidden" : "flex"}`}>
             <p className="px-1 pb-1.5 text-xs text-violet/70">Recent</p>
             {chats.length === 0 ? (
               <p className="px-1 text-[0.8125rem] leading-snug text-violet/50">Your Mandate drafts appear here, so you can come back to them.</p>
@@ -341,7 +428,7 @@ export function MandateComposer() {
             aria-hidden="true"
             className="demo-wash pointer-events-none absolute inset-x-0 bottom-12 h-56 bg-[radial-gradient(60%_50%_at_30%_70%,rgb(253_228_239/0.7),transparent),radial-gradient(55%_45%_at_70%_40%,rgb(203_191_244/0.7),transparent)] blur-xl"
           />
-          <WalletSlider />
+          {collapsed ? <div className="flex-1" /> : <WalletSlider />}
         </aside>
 
         <div className="flex min-h-0 flex-col rounded-xl bg-white px-5 py-6 md:px-10">
