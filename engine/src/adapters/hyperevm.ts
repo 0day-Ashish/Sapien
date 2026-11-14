@@ -21,7 +21,8 @@ import {
 } from "viem";
 import type { PrivateKeyAccount } from "viem/accounts";
 import type { AgentId, VaultId } from "../events.js";
-import type { ChainPort, DecisionCommitment, Mandate, OvershootClaim } from "../ports.js";
+import type { ChainPort, DecisionCommitment, EpochSettlement, Mandate, OvershootClaim } from "../ports.js";
+import { toPpm } from "../premium.js";
 
 export const hyperEvmTestnet = defineChain({
   id: 998,
@@ -41,7 +42,16 @@ export type HyperEvmChainConfig = {
   agentRegistry?: Address;
   /** The ProtectionFund (#15): settles Overshoot claims and holds the Coverage Ratio. Without it, claims throw. */
   protectionFund?: Address;
+  /** The FeeRouter (#17): Epoch fees and premiums. Without it, Epoch settlement only reports the Fund cap's basis. */
+  feeRouter?: Address;
+  /** Wait between asking a Vault for its fees and paying them out (HyperCore credits HyperEVM a block later). */
+  feeLandingDelayMs?: number;
 };
+
+const feeRouterAbi = parseAbi([
+  "function settleEpoch(address vault, uint64 epoch, uint256 value, int256 netFlows, string agentId, uint32 premiumRatePpm, uint256 notional)",
+  "function distribute(address vault) returns (uint256)",
+]);
 
 const protectionFundAbi = parseAbi([
   "struct Claim { address vault; string agentId; bytes32 positionId; uint256 triggerPriceE8; uint256 fillPriceE8; uint256 sizeE8; bool infrastructureFailure; bytes32 evidenceHash; string evidenceRef; }",
@@ -233,6 +243,11 @@ export class HyperEvmChain implements ChainPort {
     ]);
   }
 
+  /** The ProtectionFund's current Epoch (24h from its deployment): the engine settles on its boundaries. */
+  async currentEpoch(): Promise<number> {
+    return Number(await this.publicClient.readContract({ address: this.protectionFund(), abi: protectionFundAbi, functionName: "currentEpoch" }));
+  }
+
   async reportExposure(totalUsdc: number): Promise<void> {
     if (!this.config.protectionFund) return;
     await this.write(this.config.protectionFund, "reportExposure", [toUsdc(totalUsdc)]);
@@ -250,8 +265,35 @@ export class HyperEvmChain implements ChainPort {
     return hash;
   }
 
-  async settleEpoch(): Promise<void> {
-    throw new Error("Epoch settlement isn't deployed yet (#17)");
+  /**
+   * Reports the Vault's Epoch-start value (the Protection Fund cap's basis), then settles its fees and premiums on the
+   * FeeRouter, which asks the Vault to move them to HyperEVM; once that lands, pays them out. Charges whose USDC
+   * hasn't landed are paid by a later call (distribute runs first too).
+   */
+  async settleEpoch(s: EpochSettlement): Promise<void> {
+    const vault = s.vaultId as Address;
+    if (this.config.protectionFund) await this.write(this.config.protectionFund, "reportEpochValue", [vault, toUsdc(s.valueUsdc)]);
+    const router = this.config.feeRouter;
+    if (!router) throw new Error("No FeeRouter configured (#17)");
+    await this.writeFeeRouter(router, "distribute", [vault]).catch(() => {});
+    await this.writeFeeRouter(router, "settleEpoch", [
+      vault,
+      BigInt(s.epoch),
+      toUsdc(s.valueUsdc),
+      toUsdc(s.netFlowsUsdc),
+      s.agentId ?? "",
+      toPpm(s.premiumRate),
+      toUsdc(s.tradedNotionalUsdc),
+    ]);
+    await new Promise((r) => setTimeout(r, this.config.feeLandingDelayMs ?? 10_000));
+    await this.writeFeeRouter(router, "distribute", [vault]);
+  }
+
+  private async writeFeeRouter(address: Address, functionName: "settleEpoch" | "distribute", args: readonly unknown[]) {
+    const hash = await this.wallet.writeContract({ address, abi: feeRouterAbi, functionName, args } as never);
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+    if (receipt.status !== "success") throw new Error(`FeeRouter.${functionName} reverted: ${hash}`);
+    return hash;
   }
 
   async meetsBondMinimum(agentId: AgentId) {

@@ -2,10 +2,10 @@
   "chainId": 998,
   "engineOperator": "0xB995DbCc9d2f64530dbE756f2D783C00ff50D577",
   "VaultFactory": {
-    "address": "0x820565B32244bBb7F1c6146f667C5c7dedda2fEE",
-    "deployBlock": 69581974,
-    "deployTx": "0x145d2bfa3b6290f76d2814345c80710492a3b7b5415c15aba483570e586f3a9d",
-    "note": "v3: Vault withdrawal (#7) + deposit target (#6). Retired: v2 0x4a3Dea7Eca92d7f7cdE668ACE4f1EC9395E62020, v1 0xDE6A33788aA0e0f9EdD93BA169d421f025E7f600."
+    "address": "0xb2b6A2BE0dC94Da5330F44a99Bf59785Dc97E2f7",
+    "deployBlock": 69590690,
+    "deployTx": "0x19e9f9b8566d0b8934afeb367abea81897126b345d3dfe804ac25aef73e34fe3",
+    "note": "v4: Vaults pay Epoch fees to the FeeRouter (#17). Retired: v3 0x820565B32244bBb7F1c6146f667C5c7dedda2fEE, v2 0x4a3Dea7Eca92d7f7cdE668ACE4f1EC9395E62020, v1 0xDE6A33788aA0e0f9EdD93BA169d421f025E7f600."
   },
   "MandateRegistry": {
     "address": "0xC08aA5bc113B8CC4Acd5006c9a9B8419Fab4475E",
@@ -26,5 +26,11 @@
     "deployBlock": 69588311,
     "deployTx": "0x11d6bf6b7b1d6659466d794e262e1f9e82d95c96c43ff59e2ebf41712ea4e523",
     "note": "#15 Overshoot settlement. Testnet seed: 2 USDC Protection Fund, 1 USDC Protocol Reserve (mainnet seed $500)."
+  },
+  "FeeRouter": {
+    "address": "0x7Ed923A8ed0c614cC93EBb2b79E53fd6ebCfCA1e",
+    "deployBlock": 69590629,
+    "deployTx": "0x2c9191b394f453ec923191caf668552f5ade9f049b6ed321adb30906d3dcc5f2",
+    "note": "#17 Epoch settlement. Treasury = engine operator."
   }
 }

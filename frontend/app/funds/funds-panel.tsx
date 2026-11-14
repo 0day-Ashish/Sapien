@@ -22,6 +22,7 @@ import {
 import { hyperEvmTestnet, wagmiConfig } from "@/lib/wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { fetchSolanaWithdrawFeeQuotes, solanaBridgeOutArgs, solanaTx } from "@/lib/cctp/solana";
+import { VaultRisk } from "./vault-risk";
 import { SolanaDepositCard, SolanaWallet, useEnsureUsdcAccount } from "./solana-funds";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -80,11 +81,14 @@ export function FundsPanel() {
       return undefined;
     }
     setVault(v);
-    const [account, flat, balance] = await Promise.all([
+    const [account, flat, held, fees] = await Promise.all([
       hyperCoreAccount(v),
       readContract(wagmiConfig, { chainId: hyperEvmTestnet.id, address: v, abi: vaultAbi, functionName: "isFlat" }),
       readContract(wagmiConfig, { chainId: hyperEvmTestnet.id, address: HYPEREVM_USDC, abi: erc20Abi, functionName: "balanceOf", args: [v] }),
+      // Epoch fees (#17) waiting for the FeeRouter aren't the owner's to bridge. Vaults before #17 have none.
+      readContract(wagmiConfig, { chainId: hyperEvmTestnet.id, address: v, abi: vaultAbi, functionName: "feesPending" }).catch(() => BigInt(0)),
     ]);
+    const balance = held > fees ? held - fees : BigInt(0);
     setCore(account);
     setIsFlat(flat);
     setEvmBalance(balance);
@@ -123,6 +127,7 @@ export function FundsPanel() {
           {isFlat ? <span className="chip chip-forest">Flat</span> : <span className="chip chip-amber">Open positions</span>}
         </p>
       </section>
+      <VaultRisk vault={vault} />
       <DepositCard core={core} refresh={refresh} />
       <SolanaDepositCard vault={vault} core={core} refresh={refresh} />
       <WithdrawCard vault={vault} owner={address} core={core} isFlat={isFlat} evmBalance={evmBalance} refresh={refresh} />

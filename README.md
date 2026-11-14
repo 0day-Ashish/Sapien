@@ -32,6 +32,17 @@ When a stop-loss fills past its trigger, the engine computes Overshoot (`|fill �
 
 Payouts go to the Vault's HyperEVM address, where its owner can withdraw them. The evidence JSON is stored onchain with its hash. `/payouts` lists settlements, each with a detail page (sources, evidence and the hash check), and shows the live Coverage Ratio. The testnet seed is 2 USDC in the Fund and 1 USDC in the Reserve; the mainnet seed is $500.
 
+## Epoch settlement (#17)
+
+Every 24h (the ProtectionFund's Epochs) the engine settles each Vault on the **FeeRouter** (`contracts/src/settlement/FeeRouter.sol`):
+
+- **High-Water Mark.** Fees apply only to profit above it, so recovering a loss is never charged. Deposits and withdrawals, read from the Vault's HyperCore ledger, shift the mark and never count as profit or loss.
+- **Profit split.** 12% goes to the Lead Agent's Builder and 3% to the protocol, of which 25% tops up the Protection Fund. A further 3% profit premium goes to the Protection Fund.
+- **Base premium.** Every Vault pays its premium rate × the notional it traded that Epoch, to the Protection Fund. The rate is recalibrated each Epoch as `k × leverage cap × daily volatility / stop-loss distance`, with `k = 0.0001`. Its tier is Low below 3 bps, Medium below 8 bps and High from 8 bps.
+- **Lead Agent switches.** Pending switches are applied at the tick if the Vault is Flat.
+
+The money sits on HyperCore. `settleEpoch` asks the Vault to move what it owes to HyperEVM (`Vault.collectFees`), and `distribute` then pays it out oldest first. If HyperCore drops a collection, for example because margin is in use, the FeeRouter asks again the next Epoch. Only Vaults from VaultFactory v4 can pay; older Vaults only accrue charges. `/funds` shows the Vault's risk tier, premium rate, High-Water Mark and last Epoch. Set `FEE_ROUTER` in `engine/.env.local` for `npm run engine`.
+
 ### Run it
 
 `engine/.env.local` (gitignored) holds `ENGINE_OPERATOR_PRIVATE_KEY` and `DEPOSIT_ACCOUNT_PRIVATE_KEY`.
@@ -51,7 +62,7 @@ In the app, `/funds` does the same for a connected wallet: deposit with the fee 
 ### Tests
 
 ```bash
-cd contracts && forge test     # hook bytes, mock, Vault withdrawal gating, Overshoot waterfall (+ fuzz)
+cd contracts && forge test     # hook bytes, mock, Vault withdrawal gating, Overshoot waterfall, Epoch fee split with HWM (+ fuzz)
 cd engine && npm test          # deposit-landed credits the right Vault; Solana token account, PDAs, burn bytes
 cd frontend && npm test        # hook bytes, fees, withdraw progress
 ```

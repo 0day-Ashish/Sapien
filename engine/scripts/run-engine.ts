@@ -6,9 +6,10 @@
 //   RUNNER_VAULT, RUNNER_ASSET (ETH), RUNNER_AGENT_PRIVATE_KEY, ENGINE_OPERATOR_PRIVATE_KEY,
 //   MANDATE_REGISTRY, DECISION_LOG, RUNNER_INTERVAL_MS (300000), TYPESAFE_API_KEY, GEMINI_API_KEY,
 //   AGENT_REGISTRY (optional, #12: real Bond Minimum checks; Lead Agents are reported to it)
-//   PROTECTION_FUND (optional, #15: Overshoot claims and the Coverage Ratio go to it)
+//   PROTECTION_FUND (optional, #15: Overshoot claims and the Coverage Ratio go to it; its Epochs are the engine's)
+//   FEE_ROUTER (optional, #17: Epoch settlement of fees and premiums)
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { Address, Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { HyperEvmChain } from "../src/adapters/hyperevm.js";
@@ -42,7 +43,7 @@ const operator = privateKeyToAccount(env("ENGINE_OPERATOR_PRIVATE_KEY", "SMOKE_O
 const intervalMs = Number(process.env.RUNNER_INTERVAL_MS ?? 300_000);
 
 const exchange = new HyperliquidExchange({ isTestnet: true, agentFor: () => agent });
-const chain = new HyperEvmChain({ mandateRegistry: env("MANDATE_REGISTRY", "SMOKE_MANDATE_REGISTRY") as Address, decisionLog: env("DECISION_LOG", "SMOKE_DECISION_LOG") as Address, engine: operator, ...(process.env.AGENT_REGISTRY ? { agentRegistry: process.env.AGENT_REGISTRY as Address } : {}), ...(process.env.PROTECTION_FUND ? { protectionFund: process.env.PROTECTION_FUND as Address } : {}) });
+const chain = new HyperEvmChain({ mandateRegistry: env("MANDATE_REGISTRY", "SMOKE_MANDATE_REGISTRY") as Address, decisionLog: env("DECISION_LOG", "SMOKE_DECISION_LOG") as Address, engine: operator, ...(process.env.AGENT_REGISTRY ? { agentRegistry: process.env.AGENT_REGISTRY as Address } : {}), ...(process.env.PROTECTION_FUND ? { protectionFund: process.env.PROTECTION_FUND as Address } : {}), ...(process.env.FEE_ROUTER ? { feeRouter: process.env.FEE_ROUTER as Address } : {}) });
 const engine = createEngine({ exchange, chain });
 
 // Placeholder Bonds and track records until the AgentRegistry (#12) supplies real ones.
@@ -109,8 +110,20 @@ async function reportLead() {
   reportedLead = lead;
 }
 
+// Epochs (#17): the ProtectionFund's (24h from its deployment), else UTC days. Each is settled once, on the first loop in it.
+const epochFile = `${root}.data/epoch.json`;
+let settledEpoch = existsSync(epochFile) ? (JSON.parse(readFileSync(epochFile, "utf8")) as { epoch: number }).epoch : -1;
+async function maybeSettleEpoch() {
+  const epoch = process.env.PROTECTION_FUND ? await chain.currentEpoch() : Math.floor(Date.now() / 86_400_000);
+  if (epoch <= settledEpoch) return;
+  await runner.epoch(epoch);
+  settledEpoch = epoch;
+  writeFileSync(epochFile, JSON.stringify({ epoch }));
+}
+
 for (;;) {
   await runner.tick();
+  await maybeSettleEpoch().catch((e) => console.error(`Epoch: ${(e as Error).message}`));
   await reportLead().catch((e) => console.error(`AgentRegistry.reportLead: ${(e as Error).message}`));
   await new Promise((r) => setTimeout(r, intervalMs));
 }
