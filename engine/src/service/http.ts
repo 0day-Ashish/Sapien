@@ -3,7 +3,7 @@
 
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
-import type { VaultStatus } from "../engine.js";
+import type { HandleResult, VaultStatus } from "../engine.js";
 import type { RunnerRecord } from "../runner/runner.js";
 import type { AgentWalletStore } from "./agent-wallets.js";
 
@@ -15,8 +15,10 @@ export type HttpOptions = {
   allowOrigin?: string;
   /** Recent runner records, newest last: the agent's-eye view feed. */
   feed?: () => RunnerRecord[];
-  /** A Vault's protection and Lead Agent state. */
+  /** A Vault's protection and Lead Agent state, including trades waiting in their Veto Window. */
   vaultStatus?: (vaultId: string) => VaultStatus;
+  /** Cancels a trade waiting in its Veto Window (sends a `veto` event through handle). */
+  veto?: (vaultId: string, proposalId: string) => Promise<HandleResult>;
 };
 
 export async function startHttp(o: HttpOptions) {
@@ -52,7 +54,29 @@ async function route(req: IncomingMessage, res: ServerResponse, o: HttpOptions) 
   const status = path.match(/^\/vaults\/([^/]+)\/status$/);
   if (req.method === "GET" && status && o.vaultStatus) return send(res, 200, o.vaultStatus(status[1]!));
 
+  // POST /vaults/0x…/veto { proposalId } → { kind: "vetoed" } or 409 if the window already ended
+  const veto = path.match(/^\/vaults\/([^/]+)\/veto$/);
+  if (req.method === "POST" && veto && o.veto) {
+    const body = (await readJson(req)) as { proposalId?: unknown };
+    if (typeof body.proposalId !== "string" || !body.proposalId) return send(res, 400, { error: "proposalId is required" });
+    const result = await o.veto(veto[1]!, body.proposalId);
+    return send(res, result.kind === "vetoed" ? 200 : 409, result.kind === "vetoed" ? result : { error: "No open Veto Window for that proposal" });
+  }
+
   send(res, 404, { error: `No route ${req.method} ${path}` });
+}
+
+async function readJson(req: IncomingMessage): Promise<unknown> {
+  let raw = "";
+  for await (const chunk of req) {
+    raw += chunk;
+    if (raw.length > 10_000) throw new Error("Request body too large");
+  }
+  try {
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
 }
 
 function cors(res: ServerResponse, origin = "*") {

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { ConnectWallet } from "../connect-wallet";
 import { SiteNav } from "../ui/site-nav";
+import { VetoAlerts } from "../ui/veto-banner";
 import { FundsPanel } from "./funds-panel";
 import { SolanaProviders } from "./solana-providers";
 
@@ -21,9 +22,10 @@ export default function FundsPage() {
           </p>
         </div>
         <ConnectWallet />
-        <SolanaProviders>
+<SolanaProviders>
           <FundsPanel />
         </SolanaProviders>
+        <VetoAlerts />
       </main>
     </>
   );
