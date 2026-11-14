@@ -47,13 +47,23 @@ const prices = async () => {
   return { mark: Number(ctxs[a]!.markPx), oracle: Number(ctxs[a]!.oraclePx), bid: Number(book!.levels[0][0]?.px ?? 0), ask: Number(book!.levels[1][0]?.px ?? 0) };
 };
 
-// 1. Victim opens with a grouped reduce-only stop-market, as the engine does (normalTpsl, #4).
+// 1. On a gapped book the far touch is often outside the oracle band, so the victim can't simply cross the spread.
+//    The pusher rests the counter-order inside the band and the victim takes it. Then the victim's entry carries a
+//    grouped reduce-only stop-market, as the engine places it (normalTpsl, #4).
 const p0 = await prices();
 log("market", p0);
 const long = side === "long";
-const entryLimit = long ? Math.min(p0.ask * 1.002, p0.oracle * (1 + BAND)) : Math.max(p0.bid * 0.998, p0.oracle * (1 - BAND));
-const size = formatSize(sizeUsd / p0.mark, szDec);
-const trigger = long ? p0.mark * (1 - stopPct) : p0.mark * (1 + stopPct);
+const inBand = (x: number) => Math.min(p0.oracle * (1 + BAND), Math.max(p0.oracle * (1 - BAND), x));
+const entryPx = inBand(Math.min(p0.ask * 0.999, Math.max(p0.bid * 1.001, p0.oracle)));
+const size = formatSize(sizeUsd / entryPx, szDec);
+const counter = await px.order({
+  orders: [{ a, b: !long, p: formatPrice(entryPx, szDec), s: size, r: false, t: { limit: { tif: "Alo" } }, c: cloid() }],
+  grouping: "na",
+});
+log("pusher counter-order for the entry", { px: entryPx, statuses: counter.response.data.statuses });
+await sleep(1_500);
+const entryLimit = entryPx;
+const trigger = long ? entryPx * (1 - stopPct) : entryPx * (1 + stopPct);
 const stopCloid = cloid();
 const opened = await vx.order({
   orders: [
