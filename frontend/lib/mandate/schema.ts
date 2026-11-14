@@ -29,6 +29,10 @@ export const LIMITS = {
 const inRange = (limits: { min: number; max: number }) =>
   z.number().min(limits.min).max(limits.max);
 
+// The MandateRegistry stores these as integers (x100), so more than two decimals can't be signed.
+const twoDecimals = (limits: { min: number; max: number }) =>
+  inRange(limits).refine((n) => Math.abs(Math.round(n * 100) - n * 100) < 1e-6, "Use at most two decimal places");
+
 export const blackoutWindowSchema = z.strictObject({
   event: z.enum(blackoutEventIds),
   minutesBefore: inRange(LIMITS.blackoutMinutes).int(),
@@ -41,11 +45,11 @@ export const mandateDraftSchema = z.strictObject({
     .min(1)
     .refine((assets) => new Set(assets).size === assets.length, "Duplicate asset"),
   /** Maximum leverage on any position. */
-  leverageCap: inRange(LIMITS.leverageCap),
+  leverageCap: twoDecimals(LIMITS.leverageCap),
   /** Stop-loss distance from entry, as a % of the entry price. */
-  stopLossPct: inRange(LIMITS.stopLossPct),
+  stopLossPct: twoDecimals(LIMITS.stopLossPct),
   /** Drawdown from the High-Water Mark within a calendar month, in %, that triggers an Automatic Kill. */
-  drawdownCapPct: inRange(LIMITS.drawdownCapPct),
+  drawdownCapPct: twoDecimals(LIMITS.drawdownCapPct),
   /** No new positions open inside these windows. */
   blackoutWindows: z
     .array(blackoutWindowSchema)
@@ -54,7 +58,7 @@ export const mandateDraftSchema = z.strictObject({
       "Duplicate blackout event",
     ),
   /** Trades with a notional above this (USDC) wait in the Veto Window. */
-  vetoThresholdUsdc: inRange(LIMITS.vetoThresholdUsdc),
+  vetoThresholdUsdc: twoDecimals(LIMITS.vetoThresholdUsdc),
 });
 
 export type BlackoutWindow = z.infer<typeof blackoutWindowSchema>;
