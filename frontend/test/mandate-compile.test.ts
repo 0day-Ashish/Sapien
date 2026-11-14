@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compileMandate, type DraftMandate } from "../lib/mandate/compile";
+import { compileMandate, fallbackDraft, geminiDraft, groqDraft, type DraftMandate } from "../lib/mandate/compile";
 import { validateMandateDraft, type MandateDraft } from "../lib/mandate/schema";
 
 const validMandate: MandateDraft = {
@@ -80,5 +80,28 @@ describe("validateMandateDraft (gate in front of the signature step)", () => {
     const result = validateMandateDraft({ ...validMandate, leverageCap: 0, allowedAssets: [] });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(Object.keys(result.errors).sort()).toEqual(["allowedAssets", "leverageCap"]);
+  });
+});
+
+describe("Gemini drafts, Groq takes over", () => {
+  const json = (body: unknown, status = 200) => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+  const draft = { mandate: { allowedAssets: ["BTC"] }, assumptions: [] };
+
+  it("falls back to Groq when Gemini errors", async () => {
+    const run = fallbackDraft([
+      geminiDraft({ apiKey: "k", fetch: json({}, 503) }),
+      groqDraft({ apiKey: "k", fetch: json({ choices: [{ message: { content: JSON.stringify(draft) } }] }) }),
+    ]);
+    expect(await run("x")).toEqual({ refused: false, output: draft });
+  });
+
+  it("a Gemini safety block is a refusal, not a fallback", async () => {
+    const run = fallbackDraft([geminiDraft({ apiKey: "k", fetch: json({ promptFeedback: { blockReason: "SAFETY" } }) })]);
+    expect(await run("x")).toEqual({ refused: true, output: null });
+  });
+
+  it("is unavailable when every provider fails", async () => {
+    const result = await compileMandate("Conservative.", fallbackDraft([geminiDraft({ apiKey: "" }), groqDraft({ apiKey: "" })]));
+    expect(result).toMatchObject({ ok: false, reason: "unavailable" });
   });
 });

@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
-import type { AgentId, Allocation, EngineEvent, FillUpdate, KillSwitch, PriceTick, TradeProposal, VaultId, Veto, VetoWindowEnd } from "./events.js";
-import type { Cloid, Mandate, OvershootClaim, PlacedOrder, Ports } from "./ports.js";
+import type { AgentId, Allocation, EngineEvent, EpochTick, FillUpdate, KillSwitch, PriceTick, TradeProposal, VaultId, Veto, VetoWindowEnd } from "./events.js";
+import type { Cloid, EpochSettlement, Mandate, OvershootClaim, PlacedOrder, Ports } from "./ports.js";
+import { premiumRate } from "./premium.js";
 import { isInfrastructureFailure, overshootUsdc, type StopRecord, stopExposureUsdc } from "./overshoot.js";
 
 export type RejectionCode =
@@ -77,6 +78,8 @@ export type HandleResult =
   /** Above the veto threshold: nothing committed or sent yet. Send `veto-window-end` at `expiresAt`. */
   | { kind: "veto-window"; proposalId: string; vaultId: VaultId; expiresAt: number; pending: PendingVeto }
   | { kind: "vetoed"; proposalId: string }
+  /** An Epoch tick: the Vaults settled, those that failed (retried next Epoch), and Lead Agent switches applied. */
+  | { kind: "epoch-settled"; epoch: number; settled: EpochSettlement[]; failed: { vaultId: VaultId; error: string }[]; switched: VaultId[] }
   /** Kill Switch: every position got a reduce-only close; `flat` once none is left open. */
   | { kind: "killed"; vaultId: VaultId; closes: { asset: string; side: "long" | "short"; size: number; cloid: Cloid }[]; vetoed: string[]; flat: boolean }
   /** Kill Switch refused (e.g. the kill flag isn't set onchain yet); nothing was sent. */
@@ -116,6 +119,7 @@ const DEFAULT_VETO_WINDOW_MS = 60_000;
 const DEFAULT_VETO_SLIPPAGE_CAP = 0.01;
 /** Hyperliquid's minimum order value is $10; sizes get rounded down to the asset's lot, so keep a 2% margin. */
 const MIN_ORDER_USD = 10.2;
+const EPOCH_MS = 24 * 3600 * 1000;
 /** Automatic Kill fires when the oracle is more than this far from the reference... */
 const ORACLE_DEVIATION = 0.02;
 /** ...for longer than this. */
@@ -179,6 +183,8 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
   const stops = new Map<Cloid, StopRecord>();
   /** Cloids of every order the engine placed: a fill outside this set (liquidation, manual close) wasn't the engine's. */
   const ownOrders = new Set<string>();
+  /** Per Vault: when its last Epoch was settled. The first settlement looks back one Epoch. */
+  const lastSettledAt = new Map<VaultId, number>();
   /** Per asset: since when the oracle has been out of range, and the kill once it has been for over 30s. */
   const oracle = new Map<string, { deviatingSince?: number; kill?: AutomaticKill }>();
 
@@ -280,6 +286,54 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
     // A deferred Lead Agent switch completes now.
     const lead = leads.get(f.vaultId);
     if (lead?.pendingAgentId) leads.set(f.vaultId, { agentId: lead.pendingAgentId, reason: lead.reason });
+  }
+
+  /**
+   * Epoch (#17): settle each allocated Vault under the Lead Agent that led it, with its premium rate recalibrated from
+   * its Mandate and the assets' volatility; then apply pending Lead Agent switches on Vaults that are Flat. One Vault
+   * failing doesn't stop the others.
+   */
+  async function onEpochTick(e: EpochTick): Promise<HandleResult> {
+    const at = now();
+    const result = { kind: "epoch-settled" as const, epoch: e.epoch, settled: [] as EpochSettlement[], failed: [] as { vaultId: VaultId; error: string }[], switched: [] as VaultId[] };
+    for (const [vaultId, lead] of leads) {
+      try {
+        const since = lastSettledAt.get(vaultId) ?? at - EPOCH_MS;
+        const [mandate, valueUsdc, netFlowsUsdc, fills] = await Promise.all([
+          chain.currentMandate(vaultId),
+          exchange.accountValue(vaultId),
+          exchange.netFlows(vaultId, since),
+          exchange.fills(vaultId),
+        ]);
+        const settlement: EpochSettlement = {
+          vaultId,
+          epoch: e.epoch,
+          valueUsdc,
+          netFlowsUsdc,
+          agentId: lead.agentId,
+          premiumRate: premiumRate(mandate, e.dailyVolatility),
+          tradedNotionalUsdc: fills.filter((f) => f.at > since && f.at <= at).reduce((n, f) => n + f.price * Math.abs(f.size), 0),
+        };
+        await chain.settleEpoch(settlement);
+        lastSettledAt.set(vaultId, at);
+        result.settled.push(settlement);
+      } catch (err) {
+        result.failed.push({ vaultId, error: (err as Error).message });
+      }
+      if (lead.pendingAgentId && (await isFlat(vaultId))) {
+        leads.set(vaultId, { agentId: lead.pendingAgentId, reason: lead.reason });
+        result.switched.push(vaultId);
+      }
+    }
+    return result;
+  }
+
+  async function isFlat(vaultId: VaultId) {
+    try {
+      return (await exchange.positions(vaultId)).every((p) => p.size === 0);
+    } catch {
+      return false;
+    }
   }
 
   function onVeto(v: Veto): HandleResult {
@@ -469,10 +523,11 @@ export function createEngine(ports: Ports, options: EngineOptions = {}): Engine 
           return onVeto(event);
         case "veto-window-end":
           return onVetoWindowEnd(event);
+        case "epoch-tick":
+          return onEpochTick(event);
         case "kill-switch":
           return onKillSwitch(event);
         default:
-          // Epochs (#17).
           return { kind: "ignored" };
       }
     },

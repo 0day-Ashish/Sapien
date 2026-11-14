@@ -30,6 +30,7 @@ The look follows tines.com's layout and component style: cream page, violet as t
 - **Cards**: `card` (white) or `card-outline` with a colour class such as `text-green border-green`, for outlined cards whose text takes the same colour.
 - **Chips**: `chip`, plus `chip-forest`, `chip-amber`, `chip-clay` or `chip-solid`.
 - **Art**: `MarketGarden` (candlesticks and coins), `VaultBot` (the mascot), `VaultRow`, `PillarArt` and `Icon`, all in `app/ui/art.tsx`.
+- **Logo**: `Logo` / `LogoMark` in `app/ui/logo.tsx`, two linked rings (Vault and bonded agent), violet and pink, each passing over the other once. Static copies in `public/brand/` (`sapien-mark.svg`, `sapien-mark-mono.svg`, `sapien-mark-white.svg`, `sapien-logo.svg`); favicon is `app/icon.svg`.
 - **Brand logos**: `BrandMark` in `app/ui/brand-icons.tsx`. Only for projects we actually build on, taken from their own sites or Simple Icons, tinted violet.
 
 ## Layout

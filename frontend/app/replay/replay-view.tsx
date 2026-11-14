@@ -15,7 +15,9 @@ import {
   type Verification,
 } from "@/lib/engine/replay";
 import { ENGINE_URL } from "@/lib/engine/veto";
+import { demoReplayItems, type DemoReplayItem } from "@/lib/demo/sidebar-demo";
 import { hyperEvmTestnet, wagmiConfig } from "@/lib/wagmi";
+import { DemoBanner } from "../ui/demo-banner";
 
 const STEPS = ["Inputs", "Rationale", "Trade Proposal", "Mandate Check", "Decision Commitment", "Order", "Fill", "Outcome"] as const;
 const STEP_TONES = ["bg-violet", "bg-blue", "bg-teal", "bg-green", "bg-gold", "bg-orange", "bg-pink", "bg-violet-deep"];
@@ -35,19 +37,31 @@ export function ReplayView() {
   const [error, setError] = useState<string | null>(null);
   const [vaultFilter, setVaultFilter] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  /** Showing sample decisions: the engine is unreachable or has executed nothing yet. */
+  const [demo, setDemo] = useState(false);
+
+  /** Sample decisions, labelled as an illustration, so the replay can still be explored. */
+  const showDemo = useCallback(async () => {
+    const list = await demoReplayItems();
+    setDemo(true);
+    setItems(list);
+    setSelected(list[0]?.result.decisionHash ?? null);
+  }, []);
 
   const load = useCallback(async (vault: string) => {
     setError(null);
     try {
       const list = await fetchDecisions(vault.trim() || undefined);
+      if (list.length === 0 && !vault.trim()) return void (await showDemo());
+      setDemo(false);
       setItems(list);
       const wanted = new URLSearchParams(window.location.search).get("hash")?.toLowerCase();
       setSelected((cur) => cur ?? list.find((i) => i.result.decisionHash.toLowerCase() === wanted)?.result.decisionHash ?? list[0]?.result.decisionHash ?? null);
     } catch (e) {
       setError((e as Error).message);
-      setItems([]);
+      await showDemo();
     }
-  }, []);
+  }, [showDemo]);
 
   useEffect(() => {
     const t = setTimeout(() => void load(""), 0);
@@ -59,6 +73,20 @@ export function ReplayView() {
   if (items === null) return <p className="text-sm text-ink-soft">Loading decisions from the engine…</p>;
 
   return (
+    <div className="flex flex-col gap-6">
+      {demo && (
+        <DemoBanner>
+          {error ? (
+            <>
+              Sample decisions, as an illustration: the engine at <code className="font-mono text-xs">{ENGINE_URL}</code> isn&apos;t
+              reachable. Start it with <code className="font-mono text-xs">cd engine &amp;&amp; npm run engine</code> to replay real ones.
+            </>
+          ) : (
+            "Sample decisions, as an illustration: nothing has been executed yet. Real decisions replace these once agents trade."
+          )}{" "}
+          The hashes are computed for real, so tampering still shows a mismatch.
+        </DemoBanner>
+      )}
     <div className="grid gap-6 lg:grid-cols-[22rem_1fr]">
       <aside className="flex flex-col gap-3">
         <form
@@ -77,12 +105,6 @@ export function ReplayView() {
           />
           <button className="btn btn-secondary">Filter</button>
         </form>
-        {error && (
-          <div className="card p-4 text-sm">
-            <p className="font-medium">Can&apos;t reach the engine at {ENGINE_URL}.</p>
-            <p className="text-ink-soft">{error}. Start it with <code>cd engine &amp;&amp; npm run engine</code>, or set NEXT_PUBLIC_ENGINE_URL.</p>
-          </div>
-        )}
         {!error && items.length === 0 && <p className="text-sm text-ink-soft">No executed decisions yet.</p>}
         <ul className="flex max-h-[70vh] flex-col gap-1 overflow-y-auto rounded-2xl border border-violet-line bg-violet-soft/60 p-2">
           {items.map((i) => {
@@ -111,6 +133,7 @@ export function ReplayView() {
 
       {item ? <Decision key={item.result.decisionHash} item={item} /> : <div />}
     </div>
+    </div>
   );
 }
 
@@ -123,27 +146,38 @@ function Decision({ item }: { item: ReplayItem }) {
   const [execution, setExecution] = useState<Execution | null>(null);
   const r = item.result;
   const tampered = useMemo(() => JSON.stringify(record) !== JSON.stringify(r.decision), [record, r.decision]);
+  const demoExecution = "demoExecution" in item ? (item as DemoReplayItem).demoExecution : undefined;
+  const demo = demoExecution !== undefined;
 
   // Re-hash on every change to the record (tampering included) and ask the chain.
   useEffect(() => {
     let live = true;
-    verifyDecision(record, r.decisionHash, isCommitted)
+    // A sample decision was never committed onchain: its "chain" is just its own logged hash.
+    const lookup = demo ? async (h: Hex) => [h.toLowerCase() === r.decisionHash.toLowerCase(), BigInt(Math.floor(r.order.placedAt / 1000))] as const : isCommitted;
+    verifyDecision(record, r.decisionHash, lookup)
       .then((v) => live && (setVerification(v), setVerifyError(null)))
       .catch((e) => live && setVerifyError((e as Error).message));
     return () => {
       live = false;
     };
-  }, [record, r.decisionHash]);
+  }, [record, r.decisionHash, demo, r.order.placedAt]);
 
   useEffect(() => {
     let live = true;
+    if (demoExecution) {
+      const t = setTimeout(() => live && setExecution(demoExecution), 0);
+      return () => {
+        live = false;
+        clearTimeout(t);
+      };
+    }
     fetchExecution(item.vaultId, r.order.entryCloid, r.order.stopLossCloid ?? r.decision.order.stopLoss?.cloid)
       .then((x) => live && setExecution(x))
       .catch(() => live && setExecution({ entry: { status: "unknown" } }));
     return () => {
       live = false;
     };
-  }, [item.vaultId, r.order.entryCloid, r.order.stopLossCloid, r.decision.order.stopLoss?.cloid]);
+  }, [demoExecution, item.vaultId, r.order.entryCloid, r.order.stopLossCloid, r.decision.order.stopLoss?.cloid]);
 
   // Arrow keys scrub.
   useEffect(() => {
@@ -270,7 +304,7 @@ function Decision({ item }: { item: ReplayItem }) {
 
   return (
     <section className="flex min-w-0 flex-col gap-5">
-      <VerifyPanel verification={verification} error={verifyError} tampered={tampered} />
+      <VerifyPanel verification={verification} error={verifyError} tampered={tampered} demo={demo} />
 
       {/* Scrubber */}
       <div className="card flex flex-col gap-3 p-5">
@@ -356,7 +390,7 @@ function Decision({ item }: { item: ReplayItem }) {
   );
 }
 
-function VerifyPanel({ verification, error, tampered }: { verification: Verification | null; error: string | null; tampered: boolean }) {
+function VerifyPanel({ verification, error, tampered, demo }: { verification: Verification | null; error: string | null; tampered: boolean; demo: boolean }) {
   if (error) return <div className="card p-5 text-sm text-orange">Couldn&apos;t check the DecisionLog: {error}</div>;
   if (!verification) return <div className="card p-5 text-sm text-ink-soft">Hashing the record and checking the DecisionLog…</div>;
   const ok = verification.verified;
@@ -365,11 +399,15 @@ function VerifyPanel({ verification, error, tampered }: { verification: Verifica
       <p className="flex flex-wrap items-center gap-2">
         <span className={`chip ${ok ? "chip-forest" : "chip-clay"}`}>{ok ? "Verified" : "Mismatch"}</span>
         <span className="font-medium text-ink">
-          {ok
-            ? "This record hashes to a Decision Commitment recorded onchain before the order was sent."
-            : tampered
-              ? "The edited record no longer hashes to anything committed onchain."
-              : "This record's hash isn't in the onchain DecisionLog."}
+          {demo
+            ? ok
+              ? "Sample record: it hashes to its logged commitment. For a real decision this hash is looked up in the onchain DecisionLog."
+              : "The edited record no longer hashes to its commitment, so the check fails, just as it would onchain."
+            : ok
+              ? "This record hashes to a Decision Commitment recorded onchain before the order was sent."
+              : tampered
+                ? "The edited record no longer hashes to anything committed onchain."
+                : "This record's hash isn't in the onchain DecisionLog."}
         </span>
       </p>
       <dl className="grid gap-1 sm:grid-cols-[10rem_1fr]">
@@ -377,7 +415,7 @@ function VerifyPanel({ verification, error, tampered }: { verification: Verifica
         <dd className="font-mono text-xs break-all">{verification.recomputed}</dd>
         <dt className="text-ink-soft">Matches the engine log</dt>
         <dd>{verification.matchesLog ? "yes" : "no"}</dd>
-        <dt className="text-ink-soft">In the DecisionLog</dt>
+        <dt className="text-ink-soft">{demo ? "Matches its commitment" : "In the DecisionLog"}</dt>
         <dd>{verification.onchain.committed ? `yes, at ${time(verification.onchain.at! * 1000)}` : "no"}</dd>
       </dl>
     </div>

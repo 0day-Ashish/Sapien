@@ -62,6 +62,8 @@ export interface ExchangePort {
   positions(vaultId: VaultId): Promise<Position[]>;
   accountValue(vaultId: VaultId): Promise<number>;
   fills(vaultId: VaultId): Promise<Fill[]>;
+  /** Deposits minus withdrawals (USDC) on the Vault's perp account since `sinceMs`, fee collections included. */
+  netFlows(vaultId: VaultId, sinceMs: number): Promise<number>;
 }
 
 export type DecisionCommitment = { vaultId: VaultId; agentId: AgentId; decisionHash: string };
@@ -83,6 +85,22 @@ export type OvershootClaim = {
   vaultValueUsdc: number;
 };
 
+/** One Vault's Epoch settlement (#17), for the FeeRouter. */
+export type EpochSettlement = {
+  vaultId: VaultId;
+  epoch: number;
+  /** The Vault's value now (USDC): measured against its High-Water Mark, and the Protection Fund cap's basis. */
+  valueUsdc: number;
+  /** Deposits minus withdrawals since the last settlement: shift the High-Water Mark, never profit or loss. */
+  netFlowsUsdc: number;
+  /** The Lead Agent this Epoch, whose Builder earns the performance fee. */
+  agentId: AgentId | undefined;
+  /** Recalibrated premium rate, a fraction of notional (premium.ts). */
+  premiumRate: number;
+  /** Notional the Vault traded this Epoch: the base premium's basis. */
+  tradedNotionalUsdc: number;
+};
+
 export interface ChainPort {
   currentMandate(vaultId: VaultId): Promise<Mandate>;
   /** Resolves once the commitment is included onchain; rejects if it fails. */
@@ -91,7 +109,8 @@ export interface ChainPort {
   submitOvershootClaim(claim: OvershootClaim): Promise<void>;
   /** Total open stop-loss exposure (USDC), the Coverage Ratio's denominator. */
   reportExposure(totalUsdc: number): Promise<void>;
-  settleEpoch(epoch: number): Promise<void>;
+  /** Settles one Vault's Epoch: fees above the High-Water Mark, premiums, and its Epoch-start value for the Fund cap. */
+  settleEpoch(settlement: EpochSettlement): Promise<void>;
   meetsBondMinimum(agentId: AgentId): Promise<boolean>;
 }
 

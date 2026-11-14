@@ -35,7 +35,11 @@ export type PriceTick = {
   referencePrice: number;
   at: number;
 };
-export type EpochTick = { type: "epoch-tick"; epoch: number };
+/**
+ * Every 24h (#17): settle each Vault's fees and premiums, recalibrate premiums, apply pending Lead Agent switches.
+ * `dailyVolatility` is each asset's realized daily volatility (stdev of daily log returns), for the premium rate.
+ */
+export type EpochTick = { type: "epoch-tick"; epoch: number; dailyVolatility: Record<string, number> };
 /** A fill reported by the Hyperliquid adapter. Fills enter only through `handle`, never through a port callback. */
 export type FillUpdate = {
   type: "fill";

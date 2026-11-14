@@ -7,13 +7,16 @@
 //   engine/.env.local: ENGINE_OPERATOR_PRIVATE_KEY (HYPE on HyperEVM, ETH + USDC on Base Sepolia),
 //                      DEPOSIT_ACCOUNT_PRIVATE_KEY (USDC float on HyperCore)
 //   npm run smoke:round-trip [-- --amount 5]
+//   npm run smoke:round-trip -- --amount 15 --keep
+//     #5: stops once the Vault is funded, signs its first Mandate Version, reads it back through the engine's chain
+//     port, and sets RUNNER_VAULT / RUNNER_AGENT_PRIVATE_KEY in engine/.env.local for `npm run engine`.
 
 import { HttpTransport, InfoClient } from "@nktkas/hyperliquid";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { type Address, createPublicClient, createWalletClient, type Hex, http, padHex, parseAbi, parseEventLogs, parseUnits } from "viem";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { type Address, createPublicClient, createWalletClient, type Hex, http, padHex, parseAbi, parseEventLogs, parseUnits, toHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
-import { hyperEvmTestnet } from "../src/adapters/hyperevm.js";
+import { HyperEvmChain, hyperEvmTestnet } from "../src/adapters/hyperevm.js";
 import { forwardDeposit } from "../src/deposits/forward.js";
 import { liveDepositPorts, readBurns } from "../src/deposits/live.js";
 import { AgentWalletStore } from "../src/service/agent-wallets.js";
@@ -38,6 +41,7 @@ async function until<T>(what: string, f: () => Promise<T | undefined | null | fa
 }
 
 const amountArg = process.argv.indexOf("--amount");
+const KEEP = process.argv.includes("--keep");
 const DEPOSIT = parseUnits(amountArg > 0 ? process.argv[amountArg + 1]! : "5", 6);
 const USDC_BASE: Address = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 const USDC_EVM: Address = "0x2B3370eE501B4a559b57D449569354196457D8Ab";
@@ -126,6 +130,32 @@ await until("Agent Wallet registered on HyperCore", async () => {
   return r.role === "agent" ? r : null;
 }, 60_000);
 console.log(`Agent Wallet ${agent} is the Vault's agent on HyperCore; bound in the engine store`);
+
+if (KEEP) {
+  step("4. Sign the first Mandate Version (#5) and keep the Vault for the engine");
+  // Same JSON and caps as the UI (frontend/lib/vault/mandate.ts): first version, effective at once.
+  const mandate = { allowedAssets: ["ETH", "BTC"], leverageCap: 3, stopLossPct: 2, drawdownCapPct: 10, vetoThresholdUsdc: 1000, blackoutWindows: [] };
+  const registryAbi = parseAbi([
+    "function signMandateVersion(address vault, bytes mandateJson, uint32 leverageCapE2, uint16 stopLossBps, uint16 drawdownCapBps, uint64 vetoThresholdUsdc, bool killFlag, bool scopeNotLoosened) returns (uint256)",
+  ]);
+  await sendTx(evmWallet, evm, "signMandateVersion", {
+    address: hyperEvm.MandateRegistry.address,
+    abi: registryAbi,
+    functionName: "signMandateVersion",
+    args: [vault, toHex(JSON.stringify(mandate)), 300, 200, 1000, 1_000_000_000n, false, false],
+  });
+  const chainPort = new HyperEvmChain({ mandateRegistry: hyperEvm.MandateRegistry.address, decisionLog: hyperEvm.DecisionLog.address, engine: owner });
+  console.log("Engine chain port reads:", await chainPort.currentMandate(vault));
+
+  const entries = JSON.parse(readFileSync(new URL("../.data/agent-wallets.json", import.meta.url), "utf8")) as { address: string; privateKey: string }[];
+  const key = entries.find((e) => e.address.toLowerCase() === agent.toLowerCase())!.privateKey;
+  const envFile = new URL("../.env.local", import.meta.url).pathname;
+  const env = readFileSync(envFile, "utf8").replace(/^RUNNER_VAULT=.*\n?/m, "").replace(/^RUNNER_AGENT_PRIVATE_KEY=.*\n?/m, "");
+  writeFileSync(envFile, env.endsWith("\n") ? env : `${env}\n`, { mode: 0o600 });
+  appendFileSync(envFile, `RUNNER_VAULT=${vault}\nRUNNER_AGENT_PRIVATE_KEY=${key}\n`);
+  console.log(`\nKept Vault ${vault} (Agent Wallet ${agent}). RUNNER_VAULT and RUNNER_AGENT_PRIVATE_KEY set in engine/.env.local.`);
+  process.exit(0);
+}
 
 step("4. withdrawToEvm: HyperCore -> the Vault's HyperEVM address");
 // Everything but a reserve: HyperCore takes its HyperEVM transfer fee (~0.025 USDC) from what's left, and drops a

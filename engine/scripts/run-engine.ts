@@ -4,11 +4,12 @@
 //
 // engine/.env.local (falls back to the smoke:chain deployment from #31):
 //   RUNNER_VAULT, RUNNER_ASSET (ETH), RUNNER_AGENT_PRIVATE_KEY, ENGINE_OPERATOR_PRIVATE_KEY,
-//   MANDATE_REGISTRY, DECISION_LOG, RUNNER_INTERVAL_MS (300000), TYPESAFE_API_KEY, GEMINI_API_KEY,
+//   MANDATE_REGISTRY, DECISION_LOG, RUNNER_INTERVAL_MS (300000), TYPESAFE_API_KEY, GEMINI_API_KEY, GROQ_API_KEY (rationale fallback),
 //   AGENT_REGISTRY (optional, #12: real Bond Minimum checks; Lead Agents are reported to it)
-//   PROTECTION_FUND (optional, #15: Overshoot claims and the Coverage Ratio go to it)
+//   PROTECTION_FUND (optional, #15: Overshoot claims and the Coverage Ratio go to it; its Epochs are the engine's)
+//   FEE_ROUTER (optional, #17: Epoch settlement of fees and premiums)
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { Address, Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { HyperEvmChain } from "../src/adapters/hyperevm.js";
@@ -18,7 +19,9 @@ import {
   createEngine,
   createRunner,
   FundingArbAgent,
+  fallbackRationaleWriter,
   geminiRationaleWriter,
+  groqRationaleWriter,
   jevLeadSelector,
   leaderboard,
   MeanReversionAgent,
@@ -43,7 +46,12 @@ const operator = privateKeyToAccount(env("ENGINE_OPERATOR_PRIVATE_KEY", "SMOKE_O
 const intervalMs = Number(process.env.RUNNER_INTERVAL_MS ?? 300_000);
 
 const exchange = new HyperliquidExchange({ isTestnet: true, agentFor: () => agent });
-const chain = new HyperEvmChain({ mandateRegistry: env("MANDATE_REGISTRY", "SMOKE_MANDATE_REGISTRY") as Address, decisionLog: env("DECISION_LOG", "SMOKE_DECISION_LOG") as Address, engine: operator, ...(process.env.AGENT_REGISTRY ? { agentRegistry: process.env.AGENT_REGISTRY as Address } : {}), ...(process.env.PROTECTION_FUND ? { protectionFund: process.env.PROTECTION_FUND as Address } : {}) });
+const chain = new HyperEvmChain({ mandateRegistry: env("MANDATE_REGISTRY", "SMOKE_MANDATE_REGISTRY") as Address, decisionLog: env("DECISION_LOG", "SMOKE_DECISION_LOG") as Address, engine: operator, ...(process.env.AGENT_REGISTRY ? { agentRegistry: process.env.AGENT_REGISTRY as Address } : {}), ...(process.env.PROTECTION_FUND ? { protectionFund: process.env.PROTECTION_FUND as Address } : {}), ...(process.env.FEE_ROUTER ? { feeRouter: process.env.FEE_ROUTER as Address } : {}) });
+// Gemini writes the rationales, with Groq as the fallback; if both fail, the agent's template wording stays (ADR-0005).
+const rationaleWriters = [
+  ...(process.env.GEMINI_API_KEY ? [{ name: "Gemini", write: geminiRationaleWriter() }] : []),
+  ...(process.env.GROQ_API_KEY ? [{ name: "Groq", write: groqRationaleWriter() }] : []),
+];
 const engine = createEngine({ exchange, chain });
 
 // Placeholder Bonds and track records until the AgentRegistry (#12) supplies real ones.
@@ -82,7 +90,10 @@ const runner = createRunner({
   onVetoWindow: (vault, p) =>
     console.log(`Veto Window open on ${vault}: ${p.agentId} ${p.side} ${p.size} ${p.asset} (${p.notional.toFixed(0)} USDC) until ${new Date(p.expiresAt).toISOString()}`),
   select: process.env.TYPESAFE_API_KEY ? jevLeadSelector() : async () => { throw new Error("TYPESAFE_API_KEY not set"); },
-  ...(process.env.GEMINI_API_KEY ? { write: geminiRationaleWriter() } : {}),
+  write: fallbackRationaleWriter(
+    rationaleWriters.map((w) => w.write),
+    (i, e) => console.log(`Rationale: ${rationaleWriters[i]!.name} failed (${String(e).slice(0, 120)}), trying ${rationaleWriters[i + 1]!.name}`),
+  ),
   log,
 });
 
@@ -122,6 +133,13 @@ const http = await startHttp({
   ...(process.env.ENGINE_ALLOW_ORIGIN ? { allowOrigin: process.env.ENGINE_ALLOW_ORIGIN } : {}),
 });
 console.log(`Engine running: Vault ${vaultId} on ${asset}, every ${intervalMs / 1000}s. HTTP ${http.url}`);
+// Verify the Vault's Mandate now, so the first Trade Proposal doesn't wait on the signing-block search (slow where
+// the testnet RPC skips old blocks); each verified Mandate Version is cached.
+const warm = Date.now();
+chain.currentMandate(vaultId).then(
+  (m) => console.log(`Mandate v${m.version} verified in ${((Date.now() - warm) / 1000).toFixed(0)}s`),
+  (e) => console.error(`Mandate warm-up failed: ${(e as Error).message.split("\n")[0]}`),
+);
 
 // The AgentRegistry sets each agent's Bond Minimum from the Vaults it leads, so report every Lead Agent change.
 let reportedLead: string | undefined | null = null;
@@ -132,8 +150,20 @@ async function reportLead() {
   reportedLead = lead;
 }
 
+// Epochs (#17): the ProtectionFund's (24h from its deployment), else UTC days. Each is settled once, on the first loop in it.
+const epochFile = `${root}.data/epoch.json`;
+let settledEpoch = existsSync(epochFile) ? (JSON.parse(readFileSync(epochFile, "utf8")) as { epoch: number }).epoch : -1;
+async function maybeSettleEpoch() {
+  const epoch = process.env.PROTECTION_FUND ? await chain.currentEpoch() : Math.floor(Date.now() / 86_400_000);
+  if (epoch <= settledEpoch) return;
+  await runner.epoch(epoch);
+  settledEpoch = epoch;
+  writeFileSync(epochFile, JSON.stringify({ epoch }));
+}
+
 for (;;) {
   await runner.tick();
+  await maybeSettleEpoch().catch((e) => console.error(`Epoch: ${(e as Error).message}`));
   await reportLead().catch((e) => console.error(`AgentRegistry.reportLead: ${(e as Error).message}`));
   await new Promise((r) => setTimeout(r, intervalMs));
 }

@@ -76,7 +76,7 @@ const sections: LegalSection[] = [
         <p>Using {PRODUCT_NAME} involves these services, each under its own privacy policy:</p>
         <Bullets
           items={[
-            "Anthropic (Claude), which drafts Mandates from the text you type;",
+            "Google (Gemini) and Groq, which draft Mandates from the text you type;",
             "Hyperliquid (HyperCore and HyperEVM), where Vaults trade and hold funds;",
             "Circle's CCTP, which moves USDC between chains;",
             "your wallet provider, and the public RPC endpoints your wallet and the app connect to;",
