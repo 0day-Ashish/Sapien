@@ -11,6 +11,7 @@ const columns: { title: string; groups: FooterLink[][] }[] = [
     groups: [
       [
         { href: "/mandate", label: "Write a Mandate", strong: true },
+        { href: "/funds", label: "Deposit and withdraw" },
         { href: "/#how-it-works", label: "How it works" },
         { href: "/#protection", label: "Protection" },
         { href: "/#control", label: "Control" },
@@ -22,8 +23,8 @@ const columns: { title: string; groups: FooterLink[][] }[] = [
     groups: [
       [
         { href: "/#safeguards", label: "Safeguards", strong: true },
-        { href: "/#safeguards", label: "Veto Window" },
-        { href: "/#safeguards", label: "Kill Switch" },
+        { href: "/#control", label: "Veto Window" },
+        { href: "/#control", label: "Kill Switch" },
         { href: "/#safeguards", label: "Replay" },
       ],
     ],
@@ -32,9 +33,9 @@ const columns: { title: string; groups: FooterLink[][] }[] = [
     title: "Builders",
     groups: [
       [
-        { href: "/#builders", label: "Bring an agent", strong: true },
-        { href: "/builders", label: "Bonds" },
-        { href: "/#safeguards", label: "Leaderboard" },
+        { href: "/builders", label: "Bring an agent", strong: true },
+        { href: "/#builders", label: "Bonds" },
+        { href: "/#builders", label: "Leaderboard" },
       ],
     ],
   },
