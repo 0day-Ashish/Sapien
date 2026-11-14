@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Address } from "viem";
 import { useConnection } from "wagmi";
 import { readContract } from "wagmi/actions";
-import { describeVeto, fetchPendingVetoes, secondsLeft, sendVeto, type PendingVeto } from "@/lib/engine/veto";
+import { VETO_WORKER_SOURCE, describeVeto, fetchPendingVetoes, newVetoes, secondsLeft, sendVeto, vetoStatusUrl, type PendingVeto, type VetoPoll } from "@/lib/engine/veto";
 import { VAULT_FACTORY, factoryAbi } from "@/lib/vault/funds";
 import { hyperEvmTestnet, wagmiConfig } from "@/lib/wagmi";
 
@@ -50,27 +50,34 @@ export function VetoBanner() {
     };
   }, [address, status]);
 
-  // Poll the engine for waiting trades; alert once per new window.
+  // Poll the engine for waiting trades; alert once per new window. In a Web Worker, so a background tab still alerts.
   useEffect(() => {
     if (!vault) return;
     let live = true;
-    const poll = async () => {
-      try {
-        const items = await fetchPendingVetoes(vault);
-        if (!live) return;
-        for (const p of items) {
-          if (!seen.current.has(p.proposalId)) {
-            seen.current.add(p.proposalId);
-            notify(p);
-          }
-        }
-        setPending(items);
-      } catch {
-        // Engine unreachable: show nothing rather than a stale countdown.
-        if (live) setPending([]);
-      }
-      if (live) setNow(Date.now());
+    const onPoll = (r: VetoPoll) => {
+      if (!live) return;
+      // Engine unreachable: show nothing rather than a stale countdown.
+      const items = r.ok ? r.items : [];
+      newVetoes(seen.current, items).forEach(notify);
+      setPending(items);
+      setNow(Date.now());
     };
+    if (typeof Worker !== "undefined") {
+      const src = URL.createObjectURL(new Blob([VETO_WORKER_SOURCE], { type: "text/javascript" }));
+      const worker = new Worker(src);
+      worker.onmessage = (e: MessageEvent<VetoPoll>) => onPoll(e.data);
+      worker.postMessage({ url: vetoStatusUrl(vault), ms: POLL_MS });
+      return () => {
+        live = false;
+        worker.terminate();
+        URL.revokeObjectURL(src);
+      };
+    }
+    const poll = () =>
+      fetchPendingVetoes(vault).then(
+        (items) => onPoll({ ok: true, items }),
+        () => onPoll({ ok: false }),
+      );
     const first = setTimeout(poll, 0);
     const t = setInterval(poll, POLL_MS);
     return () => {
