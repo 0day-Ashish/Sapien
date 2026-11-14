@@ -36,6 +36,16 @@ Unit files live in `engine/deploy/`. After changing them, copy them to `/etc/sys
 
 Production env vars (contract addresses, `NEXT_PUBLIC_ENGINE_URL`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `FRED_API_KEY`, `DATABASE_URL`) are set in the Vercel project. `DATABASE_URL` is the Neon Postgres connection string for Mandate chat history; without it the chat keeps history in the browser only. The engine only accepts browser requests from `ENGINE_ALLOW_ORIGIN` in the VM's `engine/.env.local`. If the Vercel domain changes, update it there and restart the engine.
 
+## NEAR setup (once per VM)
+
+`sapien-deposits` and the engine's NEAR features need the engine's NEAR function-call key. Pass it on stdin:
+
+```bash
+ssh ubuntu@152.67.0.76 'bash ~/sapien/engine/deploy/setup-near.sh' <<< "ed25519:…"
+```
+
+The script adds the `NEAR_*` variables to `engine/.env.local` and starts each cursor after the deposits and withdrawals settled on 14 Nov. It then enables `sapien-deposits` and restarts both services.
+
 ## Testnet deposits need a float
 
-Base Sepolia USDC never reaches HyperCore: the mock CCTP forwarder pays each Vault out of the Deposit Account's HyperCore spot float (`0x32c0…8036`). Every deposit drains the float one for one. If it's too low, the forwarder retries the deposit every 5s until the float is topped up with HL testnet USDC. Solana devnet deposits use real CCTP and don't need it.
+Test USDC on NEAR never reaches HyperCore. The forwarder pays each Vault out of the Deposit Account's HyperCore float (`0x32c0…8036`), so every deposit drains the float one for one. If the float is too low, the forwarder retries the deposit until it is topped up with HL testnet USDC.
