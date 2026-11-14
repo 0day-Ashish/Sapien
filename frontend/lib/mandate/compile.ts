@@ -11,8 +11,8 @@ import {
   type CompiledMandate,
 } from "./schema";
 
-// The model named in spec #1 for the Mandate compiler.
-export const MANDATE_COMPILER_MODEL = "claude-sonnet-5-5";
+// Spec #1 names claude-sonnet-5-5; the team chose Opus 5.5 for the compiler instead.
+export const MANDATE_COMPILER_MODEL = "claude-opus-5-5";
 
 export type CompileResult =
   | { ok: true; compiled: CompiledMandate }
