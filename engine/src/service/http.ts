@@ -6,6 +6,7 @@ import type { AddressInfo } from "node:net";
 import type { HandleResult, VaultStatus } from "../engine.js";
 import type { RunnerRecord } from "../runner/runner.js";
 import type { AgentWalletStore } from "./agent-wallets.js";
+import type { LeaderboardRow } from "./leaderboard.js";
 
 export type HttpOptions = {
   port: number;
@@ -17,6 +18,8 @@ export type HttpOptions = {
   feed?: () => RunnerRecord[];
   /** Every runner record kept on disk, oldest first: replay reads executed decisions from here (#20). */
   history?: () => RunnerRecord[];
+  /** The public leaderboard of Specialist Agents (#18). */
+  leaderboard?: () => Promise<LeaderboardRow[]>;
   /** A Vault's protection and Lead Agent state, including trades waiting in their Veto Window. */
   vaultStatus?: (vaultId: string) => VaultStatus;
   /** Cancels a trade waiting in its Veto Window (sends a `veto` event through handle). */
@@ -68,6 +71,9 @@ async function route(req: IncomingMessage, res: ServerResponse, o: HttpOptions) 
       .reverse();
     return send(res, 200, { items });
   }
+
+  // GET /leaderboard → { rows: LeaderboardRow[], at }
+  if (req.method === "GET" && path === "/leaderboard" && o.leaderboard) return send(res, 200, { rows: await o.leaderboard(), at: Date.now() });
 
   // GET /vaults/0x…/status → { automaticKill?, leadAgent? }
   const status = path.match(/^\/vaults\/([^/]+)\/status$/);
